@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="panel form-panel">
+    <form method="post" class="form-grid">
+        <label>单位全称<input name="company_name" required></label>
+        <label>单位简称<input name="short_name"></label>
+        <label>单位类型<input name="company_type"></label>
+        <label>联系人<input name="contact_person"></label>
+        <label>联系电话<input name="contact_phone"></label>
+        <label class="full">备注<textarea name="remark" rows="4"></textarea></label>
+        <div class="full"><button type="submit">保存</button></div>
+    </form>
+</section>
+{% endblock %}

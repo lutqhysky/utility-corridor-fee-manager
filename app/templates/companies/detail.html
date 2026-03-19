@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="panel">
+    <h3>{{ company.company_name }}</h3>
+    <p>简称：{{ company.short_name or '—' }}｜类型：{{ company.company_type or '—' }}｜联系人：{{ company.contact_person or '—' }}｜电话：{{ company.contact_phone or '—' }}</p>
+    <p>备注：{{ company.remark or '—' }}</p>
+</section>
+
+<section class="panel">
+    <h3>入廊管线清单</h3>
+    <table>
+        <thead><tr><th>项目名称</th><th>舱室</th><th>管线类型</th><th>规格型号</th><th>长度</th><th>数量/孔位</th><th>入廊时间</th><th>备注</th></tr></thead>
+        <tbody>
+        {% for entry in company.pipeline_entries %}
+        <tr>
+            <td>{{ entry.project_name or '' }}</td><td>{{ entry.cabin_type or '' }}</td><td>{{ entry.pipeline_type or '' }}</td><td>{{ entry.specification or '' }}</td><td>{{ entry.actual_length or '' }}</td><td>{{ entry.quantity_or_hole_count or '' }}</td><td>{{ entry.entry_date or '' }}</td><td>{{ entry.remark or '' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+<section class="panel">
+    <h3>管廊有偿使用费收缴情况</h3>
+    <table>
+        <thead><tr><th>收费类型</th><th>收费期间</th><th>应收金额</th><th>税率</th><th>税金</th><th>含税金额</th><th>应收时间</th><th>实收金额</th><th>实收时间</th><th>状态</th><th>备注</th></tr></thead>
+        <tbody>
+        {% for record in company.fee_records %}
+        <tr>
+            <td>{{ record.fee_type }}</td><td>{{ record.charge_period or '' }}</td><td>{{ '%.2f'|format(record.amount_excl_tax or 0) }}</td><td>{{ '{:.0%}'.format(record.tax_rate or 0) }}</td><td>{{ '%.2f'|format(record.tax_amount or 0) }}</td><td>{{ '%.2f'|format(record.amount_incl_tax or 0) }}</td><td>{{ record.planned_receivable_date or '' }}</td><td>{{ '%.2f'|format(record.actual_received_amount or 0) }}</td><td>{{ record.actual_received_date or '' }}</td><td>{{ record.payment_status }}</td><td>{{ record.remark or '' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+<section class="panel">
+    <h3>合同备案情况</h3>
+    <table>
+        <thead><tr><th>合同名称</th><th>合同类型</th><th>备案部门</th><th>备案状态</th><th>签订时间</th><th>附件路径</th><th>备注</th></tr></thead>
+        <tbody>
+        {% for contract in company.contracts %}
+        <tr>
+            <td>{{ contract.contract_name }}</td><td>{{ contract.contract_type or '' }}</td><td>{{ contract.filing_department or '' }}</td><td>{{ contract.filing_status or '' }}</td><td>{{ contract.sign_date or '' }}</td><td>{{ contract.file_path or '' }}</td><td>{{ contract.remark or '' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

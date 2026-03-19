@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="toolbar"><a class="button" href="/contracts/new">新增合同备案</a></div>
+<section class="panel">
+    <table>
+        <thead><tr><th>单位</th><th>合同名称</th><th>合同类型</th><th>备案部门</th><th>备案状态</th><th>签订时间</th><th>附件路径</th><th>备注</th></tr></thead>
+        <tbody>
+        {% for contract in contracts %}
+            <tr>
+                <td>{{ contract.company.short_name or contract.company.company_name }}</td>
+                <td>{{ contract.contract_name }}</td>
+                <td>{{ contract.contract_type or '' }}</td>
+                <td>{{ contract.filing_department or '' }}</td>
+                <td>{{ contract.filing_status or '' }}</td>
+                <td>{{ contract.sign_date or '' }}</td>
+                <td>{{ contract.file_path or '' }}</td>
+                <td>{{ contract.remark or '' }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

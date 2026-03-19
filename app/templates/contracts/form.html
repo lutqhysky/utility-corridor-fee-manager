@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="panel form-panel">
+    <form method="post" class="form-grid">
+        <label>所属单位
+            <select name="company_id" required>
+                {% for company in companies %}
+                <option value="{{ company.id }}">{{ company.short_name or company.company_name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>合同类型<input name="contract_type"></label>
+        <label>合同名称<input name="contract_name" required></label>
+        <label>备案部门<input name="filing_department"></label>
+        <label>备案状态<input name="filing_status"></label>
+        <label>签订时间<input name="sign_date" type="date"></label>
+        <label class="full">附件路径<input name="file_path"></label>
+        <label class="full">备注<textarea name="remark" rows="4"></textarea></label>
+        <div class="full"><button type="submit">保存</button></div>
+    </form>
+</section>
+{% endblock %}

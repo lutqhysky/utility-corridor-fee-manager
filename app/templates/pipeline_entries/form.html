@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="panel form-panel">
+    <form method="post" class="form-grid">
+        <label>所属单位
+            <select name="company_id" required>
+                {% for company in companies %}
+                <option value="{{ company.id }}">{{ company.short_name or company.company_name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>项目名称<input name="project_name"></label>
+        <label>舱室<input name="cabin_type"></label>
+        <label>管线类型<input name="pipeline_type"></label>
+        <label>规格型号<input name="specification"></label>
+        <label>入廊实际长度<input name="actual_length" type="number" step="0.01"></label>
+        <label>孔位/数量<input name="quantity_or_hole_count" type="number" step="0.01"></label>
+        <label>入廊时间<input name="entry_date" type="date"></label>
+        <label>【入廊】合同签证时间<input name="contract_sign_date_entry" type="date"></label>
+        <label>【运维】合同签证时间<input name="contract_sign_date_maintenance" type="date"></label>
+        <label>是否已申请入廊<input name="has_entry_application"></label>
+        <label class="full">备注<textarea name="remark" rows="4"></textarea></label>
+        <div class="full"><button type="submit">保存</button></div>
+    </form>
+</section>
+{% endblock %}

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title or '综合管廊有偿使用费管理系统' }}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar">
+        <h1>管廊收费系统</h1>
+        <nav>
+            <a href="/">首页概览</a>
+            <a href="/companies/">单位管理</a>
+            <a href="/pipeline-entries/">入廊管线清单</a>
+            <a href="/fee-records/">收费记录</a>
+            <a href="/contracts/">合同备案</a>
+        </nav>
+    </aside>
+    <main class="content">
+        <header class="page-header">
+            <h2>{{ title }}</h2>
+        </header>
+        {% block content %}{% endblock %}
+    </main>
+</div>
+</body>
+</html>
