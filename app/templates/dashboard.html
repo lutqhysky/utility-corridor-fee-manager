@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="stats-grid">
-    <div class="stat-card"><span>单位总数</span><strong>{{ stats.company_count }}</strong></div>
+    <div class="stats-grid"><a href="/companies" style="text-decoration: none; color: inherit;"><div class="stat-card" style="cursor: pointer;"><span>单位总数</span> <strong>{{ stats.company_count }}</strong> </div></a>
     <div class="stat-card"><span>入廊记录</span><strong>{{ stats.pipeline_count }}</strong></div>
     <div class="stat-card"><span>收费记录</span><strong>{{ stats.fee_record_count }}</strong></div>
     <div class="stat-card"><span>应收总额</span><strong>¥{{ '%.2f'|format(stats.total_receivable) }}</strong></div>
