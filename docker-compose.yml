@@ -1,0 +1,10 @@
+services:
+  corridor-fee-manager:
+    build: .
+    container_name: corridor-fee-manager
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+    restart: always
