@@ -96,12 +96,17 @@ def entry_detail(entry_id: int, request: Request, db: Session = Depends(get_db))
 
     entry_fee_tax_rate = entry.entry_fee_tax_rate or 0
     maintenance_fee_tax_rate = entry.maintenance_fee_tax_rate or 0
-
+    
+    entry_fee_discount = entry.entry_fee_discount or 1
+    maintenance_fee_discount = entry.maintenance_fee_discount or 1
+    
     entry_fee_tax_amount = entry_fee_excl_tax_total * entry_fee_tax_rate
     entry_fee_incl_tax_total = entry_fee_excl_tax_total + entry_fee_tax_amount
-
+    entry_fee_actual_total = entry_fee_incl_tax_total * entry_fee_discount
+    
     maintenance_fee_tax_amount = maintenance_fee_excl_tax_total * maintenance_fee_tax_rate
     maintenance_fee_incl_tax_total = maintenance_fee_excl_tax_total + maintenance_fee_tax_amount
+    maintenance_fee_actual_total = maintenance_fee_incl_tax_total * maintenance_fee_discount
 
     return templates.TemplateResponse(
         'pipeline_entries/detail.html',
@@ -116,6 +121,10 @@ def entry_detail(entry_id: int, request: Request, db: Session = Depends(get_db))
             'maintenance_fee_tax_rate': maintenance_fee_tax_rate,
             'maintenance_fee_tax_amount': maintenance_fee_tax_amount,
             'maintenance_fee_incl_tax_total': maintenance_fee_incl_tax_total,
+            'entry_fee_discount': entry_fee_discount,
+            'entry_fee_actual_total': entry_fee_actual_total,
+            'maintenance_fee_discount': maintenance_fee_discount,
+            'maintenance_fee_actual_total': maintenance_fee_actual_total,     
             'title': f'项目详情 - {entry.project_name or ""}'
         }
     )
