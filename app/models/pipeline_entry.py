@@ -23,6 +23,10 @@ class PipelineEntry(Base):
     has_entry_application = Column(String, default="")
     remark = Column(String, default="")
 
+    # 新增：项目级税率
+    entry_fee_tax_rate = Column(Float, default=0)
+    maintenance_fee_tax_rate = Column(Float, default=0)
+
     company = relationship("Company", back_populates="pipeline_entries")
     fee_records = relationship("FeeRecord", back_populates="pipeline_entry")
     details = relationship("PipelineEntryDetail", back_populates="pipeline_entry", cascade="all, delete-orphan")
