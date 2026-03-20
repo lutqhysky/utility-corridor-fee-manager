@@ -24,4 +24,5 @@ class PipelineEntry(Base):
     remark = Column(String, default="")
 
     company = relationship("Company", back_populates="pipeline_entries")
+    fee_records = relationship("FeeRecord", back_populates="pipeline_entry")
     details = relationship("PipelineEntryDetail", back_populates="pipeline_entry", cascade="all, delete-orphan")
