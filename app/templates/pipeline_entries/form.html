@@ -1,26 +1,69 @@
 {% extends 'base.html' %}
 {% block content %}
-<section class="panel form-panel">
-    <form method="post" class="form-grid">
-        <label>所属单位
-            <select name="company_id" required>
-                {% for company in companies %}
-                <option value="{{ company.id }}">{{ company.short_name or company.company_name }}</option>
-                {% endfor %}
-            </select>
-        </label>
-        <label>项目名称<input name="project_name"></label>
-        <label>舱室<input name="cabin_type"></label>
-        <label>管线类型<input name="pipeline_type"></label>
-        <label>规格型号<input name="specification"></label>
-        <label>入廊实际长度<input name="actual_length" type="number" step="0.01"></label>
-        <label>孔位/数量<input name="quantity_or_hole_count" type="number" step="0.01"></label>
-        <label>入廊时间<input name="entry_date" type="date"></label>
-        <label>【入廊】合同签证时间<input name="contract_sign_date_entry" type="date"></label>
-        <label>【运维】合同签证时间<input name="contract_sign_date_maintenance" type="date"></label>
-        <label>是否已申请入廊<input name="has_entry_application"></label>
-        <label class="full">备注<textarea name="remark" rows="4"></textarea></label>
-        <div class="full"><button type="submit">保存</button></div>
+
+<section class="panel">
+    <h3>{% if entry %}编辑项目{% else %}新增入廊记录{% endif %}</h3>
+
+    <form method="post" action="{% if entry %}/pipeline-entries/{{ entry.id }}/edit{% else %}/pipeline-entries/new{% endif %}">
+        <table>
+            <tbody>
+                <tr>
+                    <th>单位</th>
+                    <td>
+                        <select name="company_id" required>
+                            {% for company in companies %}
+                            <option value="{{ company.id }}" {% if entry and entry.company_id == company.id %}selected{% endif %}>
+                                {{ company.short_name or company.company_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <th>项目名称</th>
+                    <td><input type="text" name="project_name" value="{{ entry.project_name if entry else '' }}"></td>
+                </tr>
+                <tr>
+                    <th>舱室</th>
+                    <td><input type="text" name="cabin_type" value="{{ entry.cabin_type if entry else '' }}"></td>
+                    <th>管线类型</th>
+                    <td><input type="text" name="pipeline_type" value="{{ entry.pipeline_type if entry else '' }}"></td>
+                </tr>
+                <tr>
+                    <th>规格型号</th>
+                    <td><input type="text" name="specification" value="{{ entry.specification if entry else '' }}"></td>
+                    <th>长度</th>
+                    <td><input type="number" step="0.01" name="actual_length" value="{{ entry.actual_length if entry else 0 }}"></td>
+                </tr>
+                <tr>
+                    <th>数量/孔位</th>
+                    <td><input type="number" step="0.01" name="quantity_or_hole_count" value="{{ entry.quantity_or_hole_count if entry else 0 }}"></td>
+                    <th>入廊时间</th>
+                    <td><input type="date" name="entry_date" value="{{ entry.entry_date if entry and entry.entry_date else '' }}"></td>
+                </tr>
+                <tr>
+                    <th>入廊合同签订时间</th>
+                    <td><input type="date" name="contract_sign_date_entry" value="{{ entry.contract_sign_date_entry if entry and entry.contract_sign_date_entry else '' }}"></td>
+                    <th>运维合同签订时间</th>
+                    <td><input type="date" name="contract_sign_date_maintenance" value="{{ entry.contract_sign_date_maintenance if entry and entry.contract_sign_date_maintenance else '' }}"></td>
+                </tr>
+                <tr>
+                    <th>是否已申请入廊</th>
+                    <td><input type="text" name="has_entry_application" value="{{ entry.has_entry_application if entry else '' }}"></td>
+                    <th>备注</th>
+                    <td><input type="text" name="remark" value="{{ entry.remark if entry else '' }}"></td>
+                </tr>
+                <tr>
+                    <th>入廊费税率</th>
+                    <td><input type="number" step="0.0001" name="entry_fee_tax_rate" value="{{ entry.entry_fee_tax_rate if entry else 0 }}"></td>
+                    <th>运维费税率</th>
+                    <td><input type="number" step="0.0001" name="maintenance_fee_tax_rate" value="{{ entry.maintenance_fee_tax_rate if entry else 0 }}"></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div style="margin-top: 16px;">
+            <button type="submit">保存</button>
+        </div>
     </form>
 </section>
+
 {% endblock %}
