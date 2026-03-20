@@ -19,7 +19,27 @@ def list_entries(request: Request, db: Session = Depends(get_db), company_id: in
     query = db.query(PipelineEntry)
     if company_id:
         query = query.filter(PipelineEntry.company_id == company_id)
+
     entries = query.order_by(PipelineEntry.id.desc()).all()
+
+    for entry in entries:
+        entry_fee_excl_tax_total = sum((item.entry_amount_excl_tax or 0) for item in entry.details)
+        maintenance_fee_excl_tax_total = sum((item.maintenance_amount_excl_tax or 0) for item in entry.details)
+
+        entry_fee_tax_rate = entry.entry_fee_tax_rate or 0
+        maintenance_fee_tax_rate = entry.maintenance_fee_tax_rate or 0
+
+        entry_fee_discount = entry.entry_fee_discount or 1
+        maintenance_fee_discount = entry.maintenance_fee_discount or 1
+
+        entry_fee_tax_amount = entry_fee_excl_tax_total * entry_fee_tax_rate
+        entry_fee_incl_tax_total = entry_fee_excl_tax_total + entry_fee_tax_amount
+        entry.actual_entry_fee = entry_fee_incl_tax_total * entry_fee_discount
+
+        maintenance_fee_tax_amount = maintenance_fee_excl_tax_total * maintenance_fee_tax_rate
+        maintenance_fee_incl_tax_total = maintenance_fee_excl_tax_total + maintenance_fee_tax_amount
+        entry.actual_maintenance_fee = maintenance_fee_incl_tax_total * maintenance_fee_discount
+
     companies = db.query(Company).order_by(Company.company_name).all()
     return templates.TemplateResponse(
         'pipeline_entries/list.html',
@@ -196,7 +216,16 @@ def update_entry(
 
     db.commit()
     return RedirectResponse(url=f'/pipeline-entries/{entry_id}', status_code=303)
+    
+@router.post('/{entry_id}/delete')
+def delete_entry(entry_id: int, db: Session = Depends(get_db)):
+    entry = db.query(PipelineEntry).filter(PipelineEntry.id == entry_id).first()
+    if not entry:
+        return RedirectResponse(url='/pipeline-entries/', status_code=303)
 
+    db.delete(entry)
+    db.commit()
+    return RedirectResponse(url='/pipeline-entries/', status_code=303)
 
 @router.get('/{entry_id}/details/new', response_class=HTMLResponse)
 def new_detail(entry_id: int, request: Request, db: Session = Depends(get_db)):
