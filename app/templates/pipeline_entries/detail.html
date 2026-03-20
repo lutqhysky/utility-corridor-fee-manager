@@ -58,6 +58,12 @@
                 <th>入廊费含税合计</th>
                 <td>¥{{ '%.2f'|format(entry_fee_incl_tax_total or 0) }}</td>
             </tr>
+            <tr>
+                <th>折扣</th>
+                <td>{{ '{:.2%}'.format(entry_fee_discount or 0) }}</td>
+                <th>实际入廊费</th>
+                <td>¥{{ '%.2f'|format(entry_fee_actual_total or 0) }}</td>
+            </tr>
         </tbody>
     </table>
 </section>
@@ -77,6 +83,12 @@
                 <td>¥{{ '%.2f'|format(maintenance_fee_tax_amount or 0) }}</td>
                 <th>运维费含税合计</th>
                 <td>¥{{ '%.2f'|format(maintenance_fee_incl_tax_total or 0) }}</td>
+            </tr>
+            <tr>
+                <th>折扣</th>
+                <td>{{ '{:.2%}'.format(maintenance_fee_discount or 0) }}</td>
+                <th>实际运维费</th>
+                <td>¥{{ '%.2f'|format(maintenance_fee_actual_total or 0) }}</td>
             </tr>
         </tbody>
     </table>
