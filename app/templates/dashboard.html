@@ -1,13 +1,43 @@
 {% extends 'base.html' %}
 {% block content %}
+
 <div class="stats-grid">
-    <div class="stats-grid"><a href="/companies" style="text-decoration: none; color: inherit;"><div class="stat-card" style="cursor: pointer;"><span>单位总数</span> <strong>{{ stats.company_count }}</strong> </div></a>
-    <div class="stat-card"><span>入廊记录</span><strong>{{ stats.pipeline_count }}</strong></div>
-    <div class="stat-card"><span>收费记录</span><strong>{{ stats.fee_record_count }}</strong></div>
-    <div class="stat-card"><span>应收总额</span><strong>¥{{ '%.2f'|format(stats.total_receivable) }}</strong></div>
-    <div class="stat-card"><span>实收总额</span><strong>¥{{ '%.2f'|format(stats.total_received) }}</strong></div>
-    <div class="stat-card"><span>未收金额</span><strong>¥{{ '%.2f'|format(stats.total_unreceived) }}</strong></div>
-    <div class="stat-card warning"><span>逾期金额</span><strong>¥{{ '%.2f'|format(stats.overdue_amount) }}</strong></div>
+    <a href="/companies" style="text-decoration:none; color:inherit; display:block;">
+        <div class="stat-card" style="cursor:pointer; height:100%;">
+            <span>单位总数</span>
+            <strong>{{ stats.company_count }}</strong>
+        </div>
+    </a>
+
+    <div class="stat-card">
+        <span>入廊记录</span>
+        <strong>{{ stats.pipeline_count }}</strong>
+    </div>
+
+    <div class="stat-card">
+        <span>收费记录</span>
+        <strong>{{ stats.fee_record_count }}</strong>
+    </div>
+
+    <div class="stat-card">
+        <span>应收总额</span>
+        <strong>¥{{ '%.2f'|format(stats.total_receivable) }}</strong>
+    </div>
+
+    <div class="stat-card">
+        <span>实收总额</span>
+        <strong>¥{{ '%.2f'|format(stats.total_received) }}</strong>
+    </div>
+
+    <div class="stat-card">
+        <span>未收金额</span>
+        <strong>¥{{ '%.2f'|format(stats.total_unreceived) }}</strong>
+    </div>
+
+    <div class="stat-card warning">
+        <span>逾期金额</span>
+        <strong>¥{{ '%.2f'|format(stats.overdue_amount) }}</strong>
+    </div>
 </div>
 
 <section class="panel">
@@ -20,6 +50,7 @@
                 <th>收费期间</th>
                 <th>含税金额</th>
                 <th>应收时间</th>
+                <th>实收时间</th>
                 <th>收缴状态</th>
             </tr>
         </thead>
@@ -31,10 +62,12 @@
                 <td>{{ record.charge_period or '' }}</td>
                 <td>¥{{ '%.2f'|format(record.amount_incl_tax or 0) }}</td>
                 <td>{{ record.planned_receivable_date or '' }}</td>
+                <td>{{ record.actual_received_date or '' }}</td>
                 <td><span class="badge">{{ record.payment_status }}</span></td>
             </tr>
         {% endfor %}
         </tbody>
     </table>
 </section>
+
 {% endblock %}
