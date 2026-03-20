@@ -57,6 +57,12 @@
                     <th>运维费税率</th>
                     <td><input type="number" step="0.0001" name="maintenance_fee_tax_rate" value="{{ entry.maintenance_fee_tax_rate if entry else 0 }}"></td>
                 </tr>
+                <tr>
+                    <th>入廊费折扣</th>
+                    <td><input type="number" step="0.0001" name="entry_fee_discount" value="{{ entry.entry_fee_discount if entry else 1 }}"></td>
+                    <th>运维费折扣</th>
+                    <td><input type="number" step="0.0001" name="maintenance_fee_discount" value="{{ entry.maintenance_fee_discount if entry else 1 }}"></td>
+                </tr>
             </tbody>
         </table>
 
