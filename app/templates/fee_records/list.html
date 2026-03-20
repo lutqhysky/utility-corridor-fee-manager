@@ -33,16 +33,14 @@
             <tr>
                 <th>单位</th>
                 <th>收费类型</th>
-                <th>收费期间</th>
-                <th>不含税金额</th>
-                <th>税率</th>
-                <th>税金</th>
-                <th>含税金额</th>
+                <th>收费周期</th>
+                <th>应收金额</th>
                 <th>应收时间</th>
-                <th>实收金额</th>
+                <th>实际收金额</th>
                 <th>实收时间</th>
                 <th>状态</th>
                 <th>备注</th>
+                <th>操作</th>
             </tr>
         </thead>
         <tbody>
@@ -51,15 +49,18 @@
                 <td>{{ record.company.short_name or record.company.company_name }}</td>
                 <td>{{ record.fee_type }}</td>
                 <td>{{ record.charge_period or '' }}</td>
-                <td>¥{{ '%.2f'|format(record.amount_excl_tax or 0) }}</td>
-                <td>{{ '{:.0%}'.format(record.tax_rate or 0) }}</td>
-                <td>¥{{ '%.2f'|format(record.tax_amount or 0) }}</td>
                 <td>¥{{ '%.2f'|format(record.amount_incl_tax or 0) }}</td>
                 <td>{{ record.planned_receivable_date or '' }}</td>
                 <td>¥{{ '%.2f'|format(record.actual_received_amount or 0) }}</td>
                 <td>{{ record.actual_received_date or '' }}</td>
                 <td><span class="badge">{{ record.payment_status }}</span></td>
                 <td>{{ record.remark or '' }}</td>
+                <td>
+                    <a href="/fee-records/{{ record.id }}/edit">修改</a>
+                    <form method="post" action="/fee-records/{{ record.id }}/delete" style="display:inline; margin-left:8px;">
+                        <button type="submit" onclick="return confirm('确定删除这条收费记录吗？')">删除</button>
+                    </form>
+                </td>
             </tr>
         {% endfor %}
         </tbody>
