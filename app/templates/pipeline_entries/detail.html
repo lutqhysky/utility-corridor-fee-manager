@@ -3,6 +3,7 @@
 
 <div class="toolbar" style="margin-bottom: 16px;">
     <a class="button" href="/pipeline-entries/">返回入廊管线清单</a>
+    <a class="button" href="/pipeline-entries/{{ entry.id }}/edit">编辑项目</a>
 </div>
 
 <section class="panel">
@@ -36,6 +37,46 @@
             <tr>
                 <th>备注</th>
                 <td colspan="3">{{ entry.remark or '' }}</td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<section class="panel">
+    <h3>入廊费信息</h3>
+    <table>
+        <tbody>
+            <tr>
+                <th>不含税入廊费合计</th>
+                <td>¥{{ '%.2f'|format(entry_fee_excl_tax_total or 0) }}</td>
+                <th>税率</th>
+                <td>{{ '{:.2%}'.format(entry_fee_tax_rate or 0) }}</td>
+            </tr>
+            <tr>
+                <th>税金</th>
+                <td>¥{{ '%.2f'|format(entry_fee_tax_amount or 0) }}</td>
+                <th>入廊费含税合计</th>
+                <td>¥{{ '%.2f'|format(entry_fee_incl_tax_total or 0) }}</td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<section class="panel">
+    <h3>运维费信息</h3>
+    <table>
+        <tbody>
+            <tr>
+                <th>不含税运维费合计</th>
+                <td>¥{{ '%.2f'|format(maintenance_fee_excl_tax_total or 0) }}</td>
+                <th>税率</th>
+                <td>{{ '{:.2%}'.format(maintenance_fee_tax_rate or 0) }}</td>
+            </tr>
+            <tr>
+                <th>税金</th>
+                <td>¥{{ '%.2f'|format(maintenance_fee_tax_amount or 0) }}</td>
+                <th>运维费含税合计</th>
+                <td>¥{{ '%.2f'|format(maintenance_fee_incl_tax_total or 0) }}</td>
             </tr>
         </tbody>
     </table>
