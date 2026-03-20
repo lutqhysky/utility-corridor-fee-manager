@@ -25,6 +25,9 @@
                 <th>舱室</th>
                 <th>管线类型</th>
                 <th>入廊时间</th>
+                <th>入廊费</th>
+                <th>运维费用</th>
+                <th>操作</th>
             </tr>
         </thead>
         <tbody>
@@ -39,6 +42,14 @@
                 <td>{{ entry.cabin_type or '' }}</td>
                 <td>{{ entry.pipeline_type or '' }}</td>
                 <td>{{ entry.entry_date or '' }}</td>
+                <td>¥{{ '%.2f'|format(entry.actual_entry_fee or 0) }}</td>
+                <td>¥{{ '%.2f'|format(entry.actual_maintenance_fee or 0) }}</td>
+                <td>
+                    <a href="/pipeline-entries/{{ entry.id }}/edit">修改</a>
+                    <form method="post" action="/pipeline-entries/{{ entry.id }}/delete" style="display:inline; margin-left:8px;">
+                        <button type="submit" onclick="return confirm('确定删除这个项目吗？')">删除</button>
+                    </form>
+                </td>
             </tr>
         {% endfor %}
         </tbody>
