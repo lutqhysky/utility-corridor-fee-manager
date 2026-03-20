@@ -1,43 +1,96 @@
 {% extends 'base.html' %}
 {% block content %}
 <section class="panel form-panel">
-    <form method="post" class="form-grid">
+    <h3>{% if record %}编辑收费记录{% else %}新增收费记录{% endif %}</h3>
+
+    <form method="post" action="{% if record %}/fee-records/{{ record.id }}/edit{% else %}/fee-records/new{% endif %}" class="form-grid">
         <label>所属单位
             <select name="company_id" required>
                 {% for company in companies %}
-                <option value="{{ company.id }}">{{ company.short_name or company.company_name }}</option>
+                <option value="{{ company.id }}" {% if record and record.company_id == company.id %}selected{% endif %}>
+                    {{ company.short_name or company.company_name }}
+                </option>
                 {% endfor %}
             </select>
         </label>
+
         <label>关联入廊记录
             <select name="pipeline_entry_id">
                 <option value="">不关联</option>
                 {% for entry in pipeline_entries %}
-                <option value="{{ entry.id }}">{{ entry.company.short_name or entry.company.company_name }} - {{ entry.project_name or '未命名项目' }}</option>
+                <option value="{{ entry.id }}" {% if record and record.pipeline_entry_id == entry.id %}selected{% endif %}>
+                    {{ entry.company.short_name or entry.company.company_name }} - {{ entry.project_name or '未命名项目' }}
+                </option>
                 {% endfor %}
             </select>
         </label>
+
         <label>收费类型
-            <select name="fee_type"><option>入廊费</option><option>运维费</option></select>
-        </label>
-        <label>收费期间<input name="charge_period"></label>
-        <label>年度<input name="period_year" type="number"></label>
-        <label>季度<input name="period_quarter" type="number" min="1" max="4"></label>
-        <label>不含税金额<input name="amount_excl_tax" type="number" step="0.01"></label>
-        <label>税率（如0.09）<input name="tax_rate" type="number" step="0.01"></label>
-        <label>应收时间<input name="planned_receivable_date" type="date"></label>
-        <label>提醒时间<input name="remind_date" type="date"></label>
-        <label>最迟付款时间<input name="latest_payment_date" type="date"></label>
-        <label>实收金额<input name="actual_received_amount" type="number" step="0.01"></label>
-        <label>实收时间<input name="actual_received_date" type="date"></label>
-        <label>收缴状态
-            <select name="payment_status">
-                {% for status in statuses %}<option value="{{ status }}">{{ status }}</option>{% endfor %}
+            <select name="fee_type">
+                <option value="入廊费" {% if record and record.fee_type == '入廊费' %}selected{% endif %}>入廊费</option>
+                <option value="运维费" {% if record and record.fee_type == '运维费' %}selected{% endif %}>运维费</option>
             </select>
         </label>
-        <label>是否开票<input name="is_invoiced" value="否"></label>
-        <label class="full">备注<textarea name="remark" rows="4"></textarea></label>
-        <div class="full"><button type="submit">保存</button></div>
+
+        <label>收费期间
+            <input name="charge_period" value="{{ record.charge_period if record else '' }}">
+        </label>
+
+        <label>年度
+            <input name="period_year" type="number" value="{{ record.period_year if record and record.period_year is not none else '' }}">
+        </label>
+
+        <label>季度
+            <input name="period_quarter" type="number" min="1" max="4" value="{{ record.period_quarter if record and record.period_quarter is not none else '' }}">
+        </label>
+
+        <label>不含税金额
+            <input name="amount_excl_tax" type="number" step="0.01" value="{{ record.amount_excl_tax if record and record.amount_excl_tax is not none else 0 }}">
+        </label>
+
+        <label>税率（如0.09）
+            <input name="tax_rate" type="number" step="0.01" value="{{ record.tax_rate if record and record.tax_rate is not none else 0 }}">
+        </label>
+
+        <label>应收时间
+            <input name="planned_receivable_date" type="date" value="{{ record.planned_receivable_date if record and record.planned_receivable_date else '' }}">
+        </label>
+
+        <label>提醒时间
+            <input name="remind_date" type="date" value="{{ record.remind_date if record and record.remind_date else '' }}">
+        </label>
+
+        <label>最迟付款时间
+            <input name="latest_payment_date" type="date" value="{{ record.latest_payment_date if record and record.latest_payment_date else '' }}">
+        </label>
+
+        <label>实收金额
+            <input name="actual_received_amount" type="number" step="0.01" value="{{ record.actual_received_amount if record and record.actual_received_amount is not none else 0 }}">
+        </label>
+
+        <label>实收时间
+            <input name="actual_received_date" type="date" value="{{ record.actual_received_date if record and record.actual_received_date else '' }}">
+        </label>
+
+        <label>收缴状态
+            <select name="payment_status">
+                {% for status in statuses %}
+                <option value="{{ status }}" {% if record and record.payment_status == status %}selected{% endif %}>{{ status }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label>是否开票
+            <input name="is_invoiced" value="{{ record.is_invoiced if record else '否' }}">
+        </label>
+
+        <label class="full">备注
+            <textarea name="remark" rows="4">{{ record.remark if record else '' }}</textarea>
+        </label>
+
+        <div class="full">
+            <button type="submit">保存</button>
+        </div>
     </form>
 </section>
 {% endblock %}
