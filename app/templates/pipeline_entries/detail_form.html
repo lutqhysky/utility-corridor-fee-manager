@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="toolbar">
+    <a class="button" href="/pipeline-entries/{{ entry.id }}">返回项目详情</a>
+</div>
+
+<section class="panel">
+    <h3>{% if detail %}编辑收费明细{% else %}新增收费明细{% endif %}</h3>
+
+    <form method="post" action="{% if detail %}/pipeline-entries/details/{{ detail.id }}/edit{% else %}/pipeline-entries/{{ entry.id }}/details/new{% endif %}">
+        <table>
+            <tbody>
+                <tr>
+                    <th>管线类型</th>
+                    <td><input type="text" name="pipeline_type" value="{{ detail.pipeline_type if detail else '' }}"></td>
+                    <th>规格</th>
+                    <td><input type="text" name="specification" value="{{ detail.specification if detail else '' }}"></td>
+                </tr>
+                <tr>
+                    <th>人工工程量</th>
+                    <td><input type="number" step="0.01" name="engineering_quantity" value="{{ detail.engineering_quantity if detail else 0 }}"></td>
+                    <th>不含税入廊费（元/米）</th>
+                    <td><input type="number" step="0.01" name="entry_unit_price_excl_tax" value="{{ detail.entry_unit_price_excl_tax if detail else 0 }}"></td>
+                </tr>
+                <tr>
+                    <th>不含税入廊费合计</th>
+                    <td><input type="number" step="0.01" name="entry_amount_excl_tax" value="{{ detail.entry_amount_excl_tax if detail else 0 }}"></td>
+                    <th>不含税维护费（元/米·年）</th>
+                    <td><input type="number" step="0.01" name="maintenance_unit_price_excl_tax" value="{{ detail.maintenance_unit_price_excl_tax if detail else 0 }}"></td>
+                </tr>
+                <tr>
+                    <th>不含税维护费合计</th>
+                    <td><input type="number" step="0.01" name="maintenance_amount_excl_tax" value="{{ detail.maintenance_amount_excl_tax if detail else 0 }}"></td>
+                    <th>备注</th>
+                    <td><input type="text" name="remark" value="{{ detail.remark if detail else '' }}"></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div style="margin-top: 16px;">
+            <button type="submit">保存</button>
+        </div>
+    </form>
+</section>
+
+{% endblock %}
