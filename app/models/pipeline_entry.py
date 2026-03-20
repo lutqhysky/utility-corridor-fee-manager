@@ -1,26 +1,25 @@
-from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, Integer, String, Text, func
+from datetime import datetime
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from app.database import Base
 
 
-class PipelineEntry(Base):
-    __tablename__ = 'pipeline_entries'
+class PipelineEntryDetail(Base):
+    __tablename__ = "pipeline_entry_details"
 
     id = Column(Integer, primary_key=True, index=True)
-    company_id = Column(Integer, ForeignKey('companies.id'), nullable=False)
-    cabin_type = Column(String(100), nullable=True)
-    project_name = Column(String(255), nullable=True)
-    pipeline_type = Column(String(100), nullable=True)
-    specification = Column(String(255), nullable=True)
-    actual_length = Column(Float, nullable=True)
-    quantity_or_hole_count = Column(Float, nullable=True)
-    entry_date = Column(Date, nullable=True)
-    contract_sign_date_entry = Column(Date, nullable=True)
-    contract_sign_date_maintenance = Column(Date, nullable=True)
-    has_entry_application = Column(String(50), nullable=True)
-    remark = Column(Text, nullable=True)
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    pipeline_entry_id = Column(Integer, ForeignKey("pipeline_entries.id"), nullable=False)
 
-    company = relationship('Company', back_populates='pipeline_entries')
-    fee_records = relationship('FeeRecord', back_populates='pipeline_entry')
+    pipeline_type = Column(String, default="")
+    specification = Column(String, default="")
+    engineering_quantity = Column(Float, default=0)
+    entry_unit_price_excl_tax = Column(Float, default=0)
+    entry_amount_excl_tax = Column(Float, default=0)
+    maintenance_unit_price_excl_tax = Column(Float, default=0)
+    maintenance_amount_excl_tax = Column(Float, default=0)
+    remark = Column(String, default="")
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    pipeline_entry = relationship("PipelineEntry", back_populates="details")
