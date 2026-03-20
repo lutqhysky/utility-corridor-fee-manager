@@ -63,6 +63,8 @@ def create_entry(
     remark: str = Form(''),
     entry_fee_tax_rate: float = Form(0),
     maintenance_fee_tax_rate: float = Form(0),
+    entry_fee_discount: float = Form(1),
+    maintenance_fee_discount: float = Form(1),
     db: Session = Depends(get_db),
 ):
     db.add(PipelineEntry(
@@ -80,6 +82,8 @@ def create_entry(
         remark=remark,
         entry_fee_tax_rate=entry_fee_tax_rate,
         maintenance_fee_tax_rate=maintenance_fee_tax_rate,
+        entry_fee_discount=entry_fee_discount,
+        maintenance_fee_discount=maintenance_fee_discount,
     ))
     db.commit()
     return RedirectResponse(url='/pipeline-entries/', status_code=303)
@@ -96,14 +100,14 @@ def entry_detail(entry_id: int, request: Request, db: Session = Depends(get_db))
 
     entry_fee_tax_rate = entry.entry_fee_tax_rate or 0
     maintenance_fee_tax_rate = entry.maintenance_fee_tax_rate or 0
-    
+
     entry_fee_discount = entry.entry_fee_discount or 1
     maintenance_fee_discount = entry.maintenance_fee_discount or 1
-    
+
     entry_fee_tax_amount = entry_fee_excl_tax_total * entry_fee_tax_rate
     entry_fee_incl_tax_total = entry_fee_excl_tax_total + entry_fee_tax_amount
     entry_fee_actual_total = entry_fee_incl_tax_total * entry_fee_discount
-    
+
     maintenance_fee_tax_amount = maintenance_fee_excl_tax_total * maintenance_fee_tax_rate
     maintenance_fee_incl_tax_total = maintenance_fee_excl_tax_total + maintenance_fee_tax_amount
     maintenance_fee_actual_total = maintenance_fee_incl_tax_total * maintenance_fee_discount
@@ -117,14 +121,14 @@ def entry_detail(entry_id: int, request: Request, db: Session = Depends(get_db))
             'entry_fee_tax_rate': entry_fee_tax_rate,
             'entry_fee_tax_amount': entry_fee_tax_amount,
             'entry_fee_incl_tax_total': entry_fee_incl_tax_total,
+            'entry_fee_discount': entry_fee_discount,
+            'entry_fee_actual_total': entry_fee_actual_total,
             'maintenance_fee_excl_tax_total': maintenance_fee_excl_tax_total,
             'maintenance_fee_tax_rate': maintenance_fee_tax_rate,
             'maintenance_fee_tax_amount': maintenance_fee_tax_amount,
             'maintenance_fee_incl_tax_total': maintenance_fee_incl_tax_total,
-            'entry_fee_discount': entry_fee_discount,
-            'entry_fee_actual_total': entry_fee_actual_total,
             'maintenance_fee_discount': maintenance_fee_discount,
-            'maintenance_fee_actual_total': maintenance_fee_actual_total,     
+            'maintenance_fee_actual_total': maintenance_fee_actual_total,
             'title': f'项目详情 - {entry.project_name or ""}'
         }
     )
@@ -165,6 +169,8 @@ def update_entry(
     remark: str = Form(''),
     entry_fee_tax_rate: float = Form(0),
     maintenance_fee_tax_rate: float = Form(0),
+    entry_fee_discount: float = Form(1),
+    maintenance_fee_discount: float = Form(1),
     db: Session = Depends(get_db),
 ):
     entry = db.query(PipelineEntry).filter(PipelineEntry.id == entry_id).first()
@@ -185,6 +191,8 @@ def update_entry(
     entry.remark = remark
     entry.entry_fee_tax_rate = entry_fee_tax_rate
     entry.maintenance_fee_tax_rate = maintenance_fee_tax_rate
+    entry.entry_fee_discount = entry_fee_discount
+    entry.maintenance_fee_discount = maintenance_fee_discount
 
     db.commit()
     return RedirectResponse(url=f'/pipeline-entries/{entry_id}', status_code=303)
