@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="toolbar" style="margin-bottom: 16px;">
+    <a class="button" href="/pipeline-entries/">返回入廊管线清单</a>
+</div>
+
+<section class="panel">
+    <h3>项目基本信息</h3>
+    <table>
+        <tbody>
+            <tr>
+                <th>单位</th>
+                <td>{{ entry.company.short_name or entry.company.company_name }}</td>
+                <th>项目名称</th>
+                <td>{{ entry.project_name or '' }}</td>
+            </tr>
+            <tr>
+                <th>舱室</th>
+                <td>{{ entry.cabin_type or '' }}</td>
+                <th>管线类型</th>
+                <td>{{ entry.pipeline_type or '' }}</td>
+            </tr>
+            <tr>
+                <th>入廊时间</th>
+                <td>{{ entry.entry_date or '' }}</td>
+                <th>是否已申请入廊</th>
+                <td>{{ entry.has_entry_application or '' }}</td>
+            </tr>
+            <tr>
+                <th>入廊合同签订时间</th>
+                <td>{{ entry.contract_sign_date_entry or '' }}</td>
+                <th>运维合同签订时间</th>
+                <td>{{ entry.contract_sign_date_maintenance or '' }}</td>
+            </tr>
+            <tr>
+                <th>备注</th>
+                <td colspan="3">{{ entry.remark or '' }}</td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<section class="panel">
+    <div class="toolbar" style="margin-bottom: 12px;">
+        <h3 style="margin: 0;">项目收费明细</h3>
+        <a class="button" href="/pipeline-entries/{{ entry.id }}/details/new">新增明细</a>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>管线类型</th>
+                <th>规格</th>
+                <th>人工工程量</th>
+                <th>不含税入廊费（元/米）</th>
+                <th>不含税入廊费合计</th>
+                <th>不含税维护费（元/米·年）</th>
+                <th>不含税维护费合计</th>
+                <th>备注</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% if entry.details %}
+            {% for item in entry.details %}
+            <tr>
+                <td>{{ item.pipeline_type or '' }}</td>
+                <td>{{ item.specification or '' }}</td>
+                <td>{{ item.engineering_quantity or 0 }}</td>
+                <td>{{ item.entry_unit_price_excl_tax or 0 }}</td>
+                <td>{{ item.entry_amount_excl_tax or 0 }}</td>
+                <td>{{ item.maintenance_unit_price_excl_tax or 0 }}</td>
+                <td>{{ item.maintenance_amount_excl_tax or 0 }}</td>
+                <td>{{ item.remark or '' }}</td>
+                <td>
+                    <a href="/pipeline-entries/details/{{ item.id }}/edit">编辑</a>
+                    <form method="post" action="/pipeline-entries/details/{{ item.id }}/delete" style="display:inline; margin-left:8px;">
+                        <button type="submit" onclick="return confirm('确定删除这条明细吗？')">删除</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        {% else %}
+            <tr>
+                <td colspan="9" style="text-align:center;">暂无收费明细，请先新增</td>
+            </tr>
+        {% endif %}
+        </tbody>
+    </table>
+</section>
+
+{% endblock %}
