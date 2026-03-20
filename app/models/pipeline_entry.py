@@ -1,25 +1,27 @@
-from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, Float, Date, ForeignKey
 from sqlalchemy.orm import relationship
 from app.database import Base
 
 
-class PipelineEntryDetail(Base):
-    __tablename__ = "pipeline_entry_details"
+class PipelineEntry(Base):
+    __tablename__ = "pipeline_entries"
 
     id = Column(Integer, primary_key=True, index=True)
-    pipeline_entry_id = Column(Integer, ForeignKey("pipeline_entries.id"), nullable=False)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)
 
+    cabin_type = Column(String, default="")
+    project_name = Column(String, default="")
     pipeline_type = Column(String, default="")
     specification = Column(String, default="")
-    engineering_quantity = Column(Float, default=0)
-    entry_unit_price_excl_tax = Column(Float, default=0)
-    entry_amount_excl_tax = Column(Float, default=0)
-    maintenance_unit_price_excl_tax = Column(Float, default=0)
-    maintenance_amount_excl_tax = Column(Float, default=0)
+    actual_length = Column(Float, default=0)
+    quantity_or_hole_count = Column(Float, default=0)
+
+    entry_date = Column(Date, nullable=True)
+    contract_sign_date_entry = Column(Date, nullable=True)
+    contract_sign_date_maintenance = Column(Date, nullable=True)
+
+    has_entry_application = Column(String, default="")
     remark = Column(String, default="")
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    pipeline_entry = relationship("PipelineEntry", back_populates="details")
+    company = relationship("Company", back_populates="pipeline_entries")
+    details = relationship("PipelineEntryDetail", back_populates="pipeline_entry", cascade="all, delete-orphan")
