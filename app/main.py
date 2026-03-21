@@ -17,8 +17,4 @@ if callable(schema_upgrade):
 with database.SessionLocal() as db:
     seed_data(db)
 
-app.include_router(dashboard_router)
-app.include_router(companies_router)
-app.include_router(pipeline_entries_router)
-app.include_router(fee_records_router)
-app.include_router(contracts_router)
+app = create_app()
