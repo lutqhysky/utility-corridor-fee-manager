@@ -1,7 +1,8 @@
 from datetime import datetime
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Company, FeeRecord, PipelineEntry
@@ -12,7 +13,27 @@ templates = Jinja2Templates(directory='app/templates')
 
 
 def parse_date(value: str):
-    return datetime.strptime(value, '%Y-%m-%d').date() if value else None
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, '%Y-%m-%d').date()
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f'日期格式错误: {value}，正确格式应为 YYYY-MM-DD') from exc
+
+
+def validate_record_relations(db: Session, company_id: int, pipeline_entry_id: int | None):
+    company = db.query(Company).filter(Company.id == company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail='单位不存在')
+
+    if pipeline_entry_id is None:
+        return
+
+    pipeline_entry = db.query(PipelineEntry).filter(PipelineEntry.id == pipeline_entry_id).first()
+    if not pipeline_entry:
+        raise HTTPException(status_code=404, detail='入廊记录不存在')
+    if pipeline_entry.company_id != company_id:
+        raise HTTPException(status_code=422, detail='收费记录关联的入廊记录与所选单位不一致')
 
 
 @router.get('/', response_class=HTMLResponse)
@@ -78,29 +99,36 @@ def create_record(
     remark: str = Form(''),
     db: Session = Depends(get_db),
 ):
+    validate_record_relations(db, company_id, pipeline_entry_id)
     tax_amount, amount_incl_tax = calc_tax(amount_excl_tax, tax_rate)
 
-    db.add(FeeRecord(
-        company_id=company_id,
-        pipeline_entry_id=pipeline_entry_id,
-        fee_type=fee_type,
-        charge_period=charge_period,
-        period_year=period_year,
-        period_quarter=period_quarter,
-        amount_excl_tax=amount_excl_tax,
-        tax_rate=tax_rate,
-        tax_amount=tax_amount,
-        amount_incl_tax=amount_incl_tax,
-        planned_receivable_date=parse_date(planned_receivable_date),
-        remind_date=parse_date(remind_date),
-        latest_payment_date=parse_date(latest_payment_date),
-        actual_received_amount=actual_received_amount,
-        actual_received_date=parse_date(actual_received_date),
-        payment_status=payment_status,
-        is_invoiced=is_invoiced,
-        remark=remark,
-    ))
-    db.commit()
+    db.add(
+        FeeRecord(
+            company_id=company_id,
+            pipeline_entry_id=pipeline_entry_id,
+            fee_type=fee_type,
+            charge_period=charge_period,
+            period_year=period_year,
+            period_quarter=period_quarter,
+            amount_excl_tax=amount_excl_tax,
+            tax_rate=tax_rate,
+            tax_amount=tax_amount,
+            amount_incl_tax=amount_incl_tax,
+            planned_receivable_date=parse_date(planned_receivable_date),
+            remind_date=parse_date(remind_date),
+            latest_payment_date=parse_date(latest_payment_date),
+            actual_received_amount=actual_received_amount,
+            actual_received_date=parse_date(actual_received_date),
+            payment_status=payment_status,
+            is_invoiced=is_invoiced,
+            remark=remark,
+        )
+    )
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail='收费记录保存失败，请确认关联数据有效') from exc
     return RedirectResponse(url='/fee-records/', status_code=303)
 
 
@@ -152,6 +180,7 @@ def update_record(
     if not record:
         return RedirectResponse(url='/fee-records/', status_code=303)
 
+    validate_record_relations(db, company_id, pipeline_entry_id)
     tax_amount, amount_incl_tax = calc_tax(amount_excl_tax, tax_rate)
 
     record.company_id = company_id
@@ -173,7 +202,11 @@ def update_record(
     record.is_invoiced = is_invoiced
     record.remark = remark
 
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail='收费记录更新失败，请确认关联数据有效') from exc
     return RedirectResponse(url='/fee-records/', status_code=303)
 
 
