@@ -1,7 +1,8 @@
 from datetime import datetime
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Company, PipelineEntry, PipelineEntryDetail
@@ -11,7 +12,16 @@ templates = Jinja2Templates(directory='app/templates')
 
 
 def parse_date(value: str):
-    return datetime.strptime(value, '%Y-%m-%d').date() if value else None
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, '%Y-%m-%d').date()
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f'日期格式错误: {value}，正确格式应为 YYYY-MM-DD') from exc
+
+
+def get_discount_or_default(value: float | None):
+    return value if value is not None else 1
 
 
 @router.get('/', response_class=HTMLResponse)
@@ -29,8 +39,8 @@ def list_entries(request: Request, db: Session = Depends(get_db), company_id: in
         entry_fee_tax_rate = entry.entry_fee_tax_rate or 0
         maintenance_fee_tax_rate = entry.maintenance_fee_tax_rate or 0
 
-        entry_fee_discount = entry.entry_fee_discount or 1
-        maintenance_fee_discount = entry.maintenance_fee_discount or 1
+        entry_fee_discount = get_discount_or_default(entry.entry_fee_discount)
+        maintenance_fee_discount = get_discount_or_default(entry.maintenance_fee_discount)
 
         entry_fee_tax_amount = entry_fee_excl_tax_total * entry_fee_tax_rate
         entry_fee_incl_tax_total = entry_fee_excl_tax_total + entry_fee_tax_amount
@@ -87,6 +97,10 @@ def create_entry(
     maintenance_fee_discount: float = Form(1),
     db: Session = Depends(get_db),
 ):
+    company = db.query(Company).filter(Company.id == company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail='单位不存在')
+
     db.add(PipelineEntry(
         company_id=company_id,
         cabin_type=cabin_type,
@@ -105,7 +119,11 @@ def create_entry(
         entry_fee_discount=entry_fee_discount,
         maintenance_fee_discount=maintenance_fee_discount,
     ))
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail='入廊记录保存失败，请确认关联单位有效') from exc
     return RedirectResponse(url='/pipeline-entries/', status_code=303)
 
 
@@ -121,8 +139,8 @@ def entry_detail(entry_id: int, request: Request, db: Session = Depends(get_db))
     entry_fee_tax_rate = entry.entry_fee_tax_rate or 0
     maintenance_fee_tax_rate = entry.maintenance_fee_tax_rate or 0
 
-    entry_fee_discount = entry.entry_fee_discount or 1
-    maintenance_fee_discount = entry.maintenance_fee_discount or 1
+    entry_fee_discount = get_discount_or_default(entry.entry_fee_discount)
+    maintenance_fee_discount = get_discount_or_default(entry.maintenance_fee_discount)
 
     entry_fee_tax_amount = entry_fee_excl_tax_total * entry_fee_tax_rate
     entry_fee_incl_tax_total = entry_fee_excl_tax_total + entry_fee_tax_amount
@@ -197,6 +215,10 @@ def update_entry(
     if not entry:
         return RedirectResponse(url='/pipeline-entries/', status_code=303)
 
+    company = db.query(Company).filter(Company.id == company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail='单位不存在')
+
     entry.company_id = company_id
     entry.cabin_type = cabin_type
     entry.project_name = project_name
@@ -214,7 +236,11 @@ def update_entry(
     entry.entry_fee_discount = entry_fee_discount
     entry.maintenance_fee_discount = maintenance_fee_discount
 
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail='入廊记录更新失败，请确认关联单位有效') from exc
     return RedirectResponse(url=f'/pipeline-entries/{entry_id}', status_code=303)
     
 @router.post('/{entry_id}/delete')

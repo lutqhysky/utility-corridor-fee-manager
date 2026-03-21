@@ -2,13 +2,16 @@
 {% block content %}
 <section class="panel form-panel">
     <form method="post" class="form-grid">
-        <label>单位全称<input name="company_name" required></label>
-        <label>单位简称<input name="short_name"></label>
-        <label>单位类型<input name="company_type"></label>
-        <label>联系人<input name="contact_person"></label>
-        <label>联系电话<input name="contact_phone"></label>
-        <label class="full">备注<textarea name="remark" rows="4"></textarea></label>
-        <div class="full"><button type="submit">保存</button></div>
+        <label>单位全称<input name="company_name" value="{{ company.company_name if company else '' }}" required></label>
+        <label>单位简称<input name="short_name" value="{{ company.short_name if company else '' }}"></label>
+        <label>单位类型<input name="company_type" value="{{ company.company_type if company else '' }}"></label>
+        <label>联系人<input name="contact_person" value="{{ company.contact_person if company else '' }}"></label>
+        <label>联系电话<input name="contact_phone" value="{{ company.contact_phone if company else '' }}"></label>
+        <label class="full">备注<textarea name="remark" rows="4">{{ company.remark if company else '' }}</textarea></label>
+        <div class="full">
+            <button type="submit">保存</button>
+            <a class="button secondary" href="{{ '/companies/' ~ company.id if company else '/companies/' }}">取消</a>
+        </div>
     </form>
 </section>
 {% endblock %}
