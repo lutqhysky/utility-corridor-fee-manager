@@ -19,7 +19,13 @@
                 <td>{{ company.company_type or '' }}</td>
                 <td>{{ company.contact_person or '' }}</td>
                 <td>{{ company.contact_phone or '' }}</td>
-                <td><a href="/companies/{{ company.id }}">查看详情</a></td>
+                <td>
+                    <a href="/companies/{{ company.id }}">查看详情</a>
+                    <a href="/companies/{{ company.id }}/edit">编辑</a>
+                    <form method="post" action="/companies/{{ company.id }}/delete" style="display:inline;" onsubmit="return confirm('确认删除该单位及其关联数据吗？');">
+                        <button type="submit" class="link-button">删除</button>
+                    </form>
+                </td>
             </tr>
         {% endfor %}
         </tbody>
