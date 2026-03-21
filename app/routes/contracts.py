@@ -1,7 +1,8 @@
 from datetime import datetime
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Company, Contract
@@ -11,7 +12,12 @@ templates = Jinja2Templates(directory='app/templates')
 
 
 def parse_date(value: str):
-    return datetime.strptime(value, '%Y-%m-%d').date() if value else None
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, '%Y-%m-%d').date()
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f'日期格式错误: {value}，正确格式应为 YYYY-MM-DD') from exc
 
 
 @router.get('/', response_class=HTMLResponse)
@@ -38,6 +44,10 @@ def create_contract(
     remark: str = Form(''),
     db: Session = Depends(get_db),
 ):
+    company = db.query(Company).filter(Company.id == company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail='单位不存在')
+
     db.add(Contract(
         company_id=company_id,
         contract_type=contract_type,
@@ -48,5 +58,9 @@ def create_contract(
         file_path=file_path,
         remark=remark,
     ))
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail='合同备案保存失败，请确认关联单位有效') from exc
     return RedirectResponse(url='/contracts/', status_code=303)
