@@ -10,6 +10,13 @@ router = APIRouter(prefix='/companies', tags=['companies'])
 templates = Jinja2Templates(directory='app/templates')
 
 
+def get_company_or_404(db: Session, company_id: int):
+    company = db.query(Company).filter(Company.id == company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail='单位不存在')
+    return company
+
+
 @router.get('/', response_class=HTMLResponse)
 def list_companies(request: Request, db: Session = Depends(get_db), keyword: str = ''):
     query = db.query(Company)
@@ -49,7 +56,5 @@ def create_company(
 
 @router.get('/{company_id}', response_class=HTMLResponse)
 def company_detail(company_id: int, request: Request, db: Session = Depends(get_db)):
-    company = db.query(Company).filter(Company.id == company_id).first()
-    if not company:
-        raise HTTPException(status_code=404, detail='单位不存在')
+    company = get_company_or_404(db, company_id)
     return templates.TemplateResponse('companies/detail.html', {'request': request, 'company': company, 'title': '单位详情'})
