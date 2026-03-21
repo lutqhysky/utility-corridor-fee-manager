@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Company
@@ -33,8 +34,16 @@ def create_company(
     remark: str = Form(''),
     db: Session = Depends(get_db),
 ):
+    existing_company = db.query(Company).filter(Company.company_name == company_name).first()
+    if existing_company:
+        raise HTTPException(status_code=422, detail='单位名称已存在，请勿重复创建')
+
     db.add(Company(company_name=company_name, short_name=short_name, company_type=company_type, contact_person=contact_person, contact_phone=contact_phone, remark=remark))
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail='单位保存失败，请检查名称是否重复') from exc
     return RedirectResponse(url='/companies/', status_code=303)
 
 
