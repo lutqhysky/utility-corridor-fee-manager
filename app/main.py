@@ -9,27 +9,13 @@ from app.services.reminder_service import fee_reminder_scheduler
 from app.services.seed_service import seed_data
 
 
-def initialize_application():
-    database.Base.metadata.create_all(bind=database.engine)
-    schema_upgrade = getattr(database, 'ensure_sqlite_schema', None)
-    if callable(schema_upgrade):
-        schema_upgrade()
+database.Base.metadata.create_all(bind=database.engine)
+schema_upgrade = getattr(database, 'ensure_sqlite_schema', None)
+if callable(schema_upgrade):
+    schema_upgrade()
 
-    with database.SessionLocal() as db:
-        seed_data(db)
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    fee_reminder_scheduler.start()
-    yield
-    fee_reminder_scheduler.stop()
-
-
-initialize_application()
-
-app = FastAPI(title='综合管廊有偿使用费管理系统', lifespan=lifespan)
-app.mount('/static', StaticFiles(directory='app/static'), name='static')
+with database.SessionLocal() as db:
+    seed_data(db)
 
 app.include_router(dashboard_router)
 app.include_router(companies_router)

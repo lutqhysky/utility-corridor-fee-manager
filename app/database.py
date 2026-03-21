@@ -28,11 +28,6 @@ def ensure_sqlite_schema():
             'entry_fee_discount': 'FLOAT DEFAULT 1',
             'maintenance_fee_discount': 'FLOAT DEFAULT 1',
         },
-        'fee_records': {
-            'last_reminder_sent_at': 'DATETIME',
-            'last_reminder_for_date': 'DATE',
-            'last_reminder_channel': 'VARCHAR(50)',
-        },
     }
 
     database_path = DATA_DIR / 'corridor_fee_manager.db'
