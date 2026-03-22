@@ -9,7 +9,7 @@
 <body>
 <div class="layout" id="app-layout">
     <aside class="sidebar" id="sidebar">
-        <h1>管廊收费系统</h1>
+        <h1 id="sidebar-toggle" title="连续点击可收起/展开侧边栏">管廊收费系统</h1>
         <nav>
             <a href="/">首页概览</a>
             <a href="/companies/">单位管理</a>
@@ -29,51 +29,36 @@
 (function () {
     const layout = document.getElementById('app-layout');
     const sidebar = document.getElementById('sidebar');
+    const toggle = document.getElementById('sidebar-toggle');
     const storageKey = 'sidebar-collapsed';
-    const mobileMedia = window.matchMedia('(max-width: 900px)');
 
-    if (!layout || !sidebar) {
+    if (!layout || !sidebar || !toggle) {
         return;
     }
 
-    const isMobile = () => mobileMedia.matches;
-    const isCollapsed = () => layout.classList.contains('sidebar-collapsed');
-
-    const applyState = (collapsed, persist = true) => {
-        const nextCollapsed = !isMobile() && collapsed;
-        layout.classList.toggle('sidebar-collapsed', nextCollapsed);
-        sidebar.setAttribute('aria-expanded', nextCollapsed ? 'false' : 'true');
-
-        if (persist) {
-            window.localStorage.setItem(storageKey, String(nextCollapsed));
-        }
+    const applyState = (collapsed) => {
+        layout.classList.toggle('sidebar-collapsed', collapsed);
+        sidebar.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
     };
 
-    applyState(window.localStorage.getItem(storageKey) === 'true', false);
+    applyState(window.localStorage.getItem(storageKey) === 'true');
 
-    sidebar.addEventListener('dblclick', (event) => {
-        if (isMobile() || event.target.closest('a')) {
-            return;
-        }
+    const toggleSidebar = () => {
+        const collapsed = !layout.classList.contains('sidebar-collapsed');
+        applyState(collapsed);
+        window.localStorage.setItem(storageKey, String(collapsed));
+    };
 
-        applyState(!isCollapsed());
+    toggle.addEventListener('click', (event) => {
+        event.stopPropagation();
+        toggleSidebar();
     });
 
     sidebar.addEventListener('click', () => {
-        if (!isMobile() && isCollapsed()) {
-            applyState(false);
+        if (layout.classList.contains('sidebar-collapsed')) {
+            toggleSidebar();
         }
     });
-
-    const syncForViewport = () => {
-        applyState(window.localStorage.getItem(storageKey) === 'true', false);
-    };
-
-    if (typeof mobileMedia.addEventListener === 'function') {
-        mobileMedia.addEventListener('change', syncForViewport);
-    } else if (typeof mobileMedia.addListener === 'function') {
-        mobileMedia.addListener(syncForViewport);
-    }
 })();
 </script>
 </body>
