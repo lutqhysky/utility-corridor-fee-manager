@@ -7,9 +7,9 @@
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-<div class="layout">
-    <aside class="sidebar">
-        <h1>管廊收费系统</h1>
+<div class="layout" id="app-layout">
+    <aside class="sidebar" id="sidebar">
+        <h1 id="sidebar-toggle" title="连续点击可收起/展开侧边栏">管廊收费系统</h1>
         <nav>
             <a href="/">首页概览</a>
             <a href="/companies/">单位管理</a>
@@ -25,5 +25,41 @@
         {% block content %}{% endblock %}
     </main>
 </div>
+<script>
+(function () {
+    const layout = document.getElementById('app-layout');
+    const sidebar = document.getElementById('sidebar');
+    const toggle = document.getElementById('sidebar-toggle');
+    const storageKey = 'sidebar-collapsed';
+
+    if (!layout || !sidebar || !toggle) {
+        return;
+    }
+
+    const applyState = (collapsed) => {
+        layout.classList.toggle('sidebar-collapsed', collapsed);
+        sidebar.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    };
+
+    applyState(window.localStorage.getItem(storageKey) === 'true');
+
+    const toggleSidebar = () => {
+        const collapsed = !layout.classList.contains('sidebar-collapsed');
+        applyState(collapsed);
+        window.localStorage.setItem(storageKey, String(collapsed));
+    };
+
+    toggle.addEventListener('click', (event) => {
+        event.stopPropagation();
+        toggleSidebar();
+    });
+
+    sidebar.addEventListener('click', () => {
+        if (layout.classList.contains('sidebar-collapsed')) {
+            toggleSidebar();
+        }
+    });
+})();
+</script>
 </body>
 </html>
