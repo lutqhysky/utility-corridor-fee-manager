@@ -106,6 +106,39 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 http://127.0.0.1:8000
 ```
 
+健康检查地址：
+
+```bash
+http://127.0.0.1:8000/healthz
+```
+
+### 收费提醒机器人配置
+
+如果你希望系统自动对 **收费记录中状态为“未开始”且即将到达应收时间** 的数据发送机器人提醒，可以在启动前配置下面这些环境变量：
+
+```bash
+export FEE_REMINDER_CHANNEL=dingtalk
+export FEE_REMINDER_WEBHOOK='你的机器人 webhook 地址'
+export FEE_REMINDER_DAYS_AHEAD=3
+export FEE_REMINDER_CHECK_INTERVAL_SECONDS=300
+```
+
+说明：
+
+- `FEE_REMINDER_CHANNEL`：目前支持 `dingtalk`、`wecom`
+- `FEE_REMINDER_WEBHOOK`：对应机器人的 Webhook 地址
+- `FEE_REMINDER_DAYS_AHEAD`：提前多少天触发提醒，默认 3 天
+- `FEE_REMINDER_CHECK_INTERVAL_SECONDS`：后台每隔多久检查一次，默认 300 秒
+
+配置完成后，系统会：
+
+- 启动后自动轮询检查
+- 只对状态为 `未开始` 的收费记录检查
+- 当 `应收时间` 落在未来 N 天内时推送消息
+- 同一条记录针对同一个应收日期只推送一次，避免重复轰炸
+
+另外，你也可以在 **收费记录** 页面点击“执行提醒检查”按钮，手动测试机器人是否配置成功。
+
 ---
 
 ### 方式二：使用 Docker Compose 运行
