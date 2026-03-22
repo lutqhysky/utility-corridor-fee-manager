@@ -20,26 +20,19 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
     cursor.close()
 
 
-def get_expected_sqlite_columns():
-    return {
+def ensure_sqlite_schema():
+    expected_columns = {
         'pipeline_entries': {
             'entry_fee_tax_rate': 'FLOAT DEFAULT 0',
             'maintenance_fee_tax_rate': 'FLOAT DEFAULT 0',
             'entry_fee_discount': 'FLOAT DEFAULT 1',
             'maintenance_fee_discount': 'FLOAT DEFAULT 1',
         },
-        'fee_records': {
-            'last_reminder_sent_at': 'DATETIME',
-            'last_reminder_for_date': 'DATE',
-            'last_reminder_channel': 'VARCHAR(50)',
-        },
     }
 
-
-def ensure_sqlite_schema():
     database_path = DATA_DIR / 'corridor_fee_manager.db'
     with sqlite3.connect(database_path) as connection:
-        for table_name, columns in get_expected_sqlite_columns().items():
+        for table_name, columns in expected_columns.items():
             existing_columns = {
                 row[1]
                 for row in connection.execute(f'PRAGMA table_info({table_name})')

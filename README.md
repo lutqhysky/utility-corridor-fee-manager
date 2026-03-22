@@ -106,61 +106,6 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 http://127.0.0.1:8000
 ```
 
-健康检查地址：
-
-```bash
-http://127.0.0.1:8000/healthz
-```
-
-## GitHub 维护优先：推荐发布流程
-
-为了避免“服务器手改代码”和“GitHub 仓库代码”不一致，推荐以后统一采用下面的流程发布：
-
-### 1. GitHub 合并前检查清单
-
-在 GitHub 上合并 PR 到 `main` 前，至少确认：
-
-- `app/main.py` 已包含正确的应用入口顺序：
-  - 先定义 `initialize_application()`
-  - 再定义 `lifespan()`
-  - 再定义 `create_app()`
-  - 最后才是 `app = create_app()`
-- `app/routes/health.py` 已存在，并提供 `/healthz`
-- `docker-compose.yml` 已包含 `healthcheck`
-- 如果本次涉及提醒功能，则确认 `app/services/reminder_service.py` 的环境变量解析和发送逻辑也在本次变更里
-
-### 2. 服务器标准部署步骤
-
-当 GitHub 的 `main` 合并完成后，服务器只做下面这些标准动作：
-
-```bash
-cd /root/utility-corridor-fee-manager
-git pull
-docker compose down --remove-orphans
-docker compose up -d --build
-docker logs corridor-fee-manager --tail=80
-curl -i http://127.0.0.1:8000/healthz
-curl -i http://127.0.0.1:8000/
-```
-
-### 3. 发布后的判断标准
-
-- `/healthz` 返回 `200 OK`，说明应用进程和路由层已经正常
-- 首页 `/` 返回 `200 OK`，说明模板渲染和数据库初始化没有阻塞启动
-- `docker inspect --format='{{json .State.Health}}' corridor-fee-manager` 如果显示 `healthy`，说明容器自检也通过
-
-### 4. 不推荐再做的事情
-
-后续尽量避免下面这些做法：
-
-- 直接在服务器里手改 `app/main.py`
-- 只改服务器文件但不提交到 GitHub
-- 不看 `/healthz`，直接反复重启容器排错
-
-这样做的原因很简单：
-
-**服务器代码、镜像代码、GitHub 代码一旦不一致，后面会非常难排查。**
-
 ### 收费提醒机器人配置
 
 如果你希望系统自动对 **收费记录中状态为“未开始”且即将到达应收时间** 的数据发送机器人提醒，可以在启动前配置下面这些环境变量：
