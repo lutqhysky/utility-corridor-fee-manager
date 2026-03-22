@@ -25,6 +25,9 @@ class FeeRecord(Base):
     payment_status = Column(String(50), nullable=False, default='待收缴')
     is_invoiced = Column(String(50), nullable=True)
     remark = Column(Text, nullable=True)
+    last_reminder_sent_at = Column(DateTime, nullable=True)
+    last_reminder_for_date = Column(Date, nullable=True)
+    last_reminder_channel = Column(String(50), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
