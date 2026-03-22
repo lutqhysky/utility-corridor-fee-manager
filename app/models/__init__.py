@@ -4,3 +4,4 @@ from .pipeline_entry_detail import PipelineEntryDetail
 from .fee_standard import FeeStandard
 from .fee_record import FeeRecord
 from .contract import Contract
+from .app_setting import AppSetting
