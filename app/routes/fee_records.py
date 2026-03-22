@@ -8,7 +8,7 @@ from urllib.parse import quote
 from app.database import get_db
 from app.models import Company, FeeRecord, PipelineEntry
 from app.services.fee_calc_service import calc_tax
-from app.services.reminder_service import SUPPORTED_CHANNELS, get_reminder_settings, run_fee_reminders, save_reminder_settings
+from app.services.reminder_service import get_reminder_settings, run_fee_reminders
 
 router = APIRouter(prefix='/fee-records', tags=['fee_records'])
 templates = Jinja2Templates(directory='app/templates')
@@ -54,7 +54,7 @@ def list_records(
 
     records = query.order_by(FeeRecord.planned_receivable_date.desc()).all()
     companies = db.query(Company).order_by(Company.company_name).all()
-    reminder_settings = get_reminder_settings(db)
+    reminder_settings = get_reminder_settings()
 
     return templates.TemplateResponse(
         'fee_records/list.html',
@@ -72,31 +72,9 @@ def list_records(
 
 
 @router.post('/reminders/run')
-def run_reminders(db: Session = Depends(get_db)):
-    result = run_fee_reminders(db)
+def run_reminders():
+    result = run_fee_reminders()
     return RedirectResponse(url=f'/fee-records/?notice={quote(result.message)}', status_code=303)
-
-
-@router.post('/reminders/settings')
-def update_reminder_settings(
-    channel: str = Form(''),
-    webhook_url: str = Form(''),
-    days_ahead: int = Form(3),
-    check_interval_seconds: int = Form(300),
-    db: Session = Depends(get_db),
-):
-    channel = channel.strip().lower()
-    if channel and channel not in SUPPORTED_CHANNELS:
-        raise HTTPException(status_code=422, detail='提醒渠道只支持 dingtalk 或 wecom')
-
-    save_reminder_settings(
-        db=db,
-        channel=channel,
-        webhook_url=webhook_url,
-        days_ahead=days_ahead,
-        check_interval_seconds=check_interval_seconds,
-    )
-    return RedirectResponse(url=f'/fee-records/?notice={quote("提醒配置已保存")}', status_code=303)
 
 
 @router.get('/new', response_class=HTMLResponse)

@@ -49,31 +49,6 @@
     </p>
 </section>
 
-<section class="panel form-panel">
-    <h3>提醒配置</h3>
-    <form method="post" action="/fee-records/reminders/settings" class="form-grid">
-        <label>提醒渠道
-            <select name="channel">
-                <option value="" {% if not reminder_settings.channel %}selected{% endif %}>关闭提醒</option>
-                <option value="dingtalk" {% if reminder_settings.channel == 'dingtalk' %}selected{% endif %}>钉钉机器人</option>
-                <option value="wecom" {% if reminder_settings.channel == 'wecom' %}selected{% endif %}>企业微信机器人</option>
-            </select>
-        </label>
-        <label>Webhook 地址
-            <input name="webhook_url" value="{{ reminder_settings.webhook_url }}">
-        </label>
-        <label>提前天数
-            <input type="number" min="0" name="days_ahead" value="{{ reminder_settings.days_ahead }}">
-        </label>
-        <label>检查间隔（秒）
-            <input type="number" min="60" name="check_interval_seconds" value="{{ reminder_settings.check_interval_seconds }}">
-        </label>
-        <div class="full">
-            <button type="submit">保存提醒配置</button>
-        </div>
-    </form>
-</section>
-
 <section class="panel">
     <table>
         <thead>
