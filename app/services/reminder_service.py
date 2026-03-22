@@ -32,29 +32,18 @@ class ReminderRunResult:
     message: str
 
 
-def get_int_env(name: str, default: int, minimum: int) -> int:
-    raw_value = os.getenv(name, '').strip()
-    if not raw_value:
-        return max(default, minimum)
-
-    try:
-        return max(int(raw_value), minimum)
-    except ValueError:
-        return max(default, minimum)
-
-
 def get_reminder_settings() -> ReminderSettings:
     channel = os.getenv('FEE_REMINDER_CHANNEL', '').strip().lower()
     webhook_url = os.getenv('FEE_REMINDER_WEBHOOK', '').strip()
-    days_ahead = get_int_env('FEE_REMINDER_DAYS_AHEAD', default=3, minimum=0)
-    check_interval_seconds = get_int_env('FEE_REMINDER_CHECK_INTERVAL_SECONDS', default=300, minimum=60)
+    days_ahead = int(os.getenv('FEE_REMINDER_DAYS_AHEAD', '3'))
+    check_interval_seconds = int(os.getenv('FEE_REMINDER_CHECK_INTERVAL_SECONDS', '300'))
     enabled = channel in SUPPORTED_CHANNELS and bool(webhook_url)
     return ReminderSettings(
         enabled=enabled,
         channel=channel,
         webhook_url=webhook_url,
-        days_ahead=days_ahead,
-        check_interval_seconds=check_interval_seconds,
+        days_ahead=max(days_ahead, 0),
+        check_interval_seconds=max(check_interval_seconds, 60),
     )
 
 
