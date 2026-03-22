@@ -7,8 +7,8 @@
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-<div class="layout">
-    <aside class="sidebar">
+<div class="layout" id="app-layout">
+    <aside class="sidebar" id="sidebar">
         <h1>管廊收费系统</h1>
         <nav>
             <a href="/">首页概览</a>
@@ -25,5 +25,56 @@
         {% block content %}{% endblock %}
     </main>
 </div>
+<script>
+(function () {
+    const layout = document.getElementById('app-layout');
+    const sidebar = document.getElementById('sidebar');
+    const storageKey = 'sidebar-collapsed';
+    const mobileMedia = window.matchMedia('(max-width: 900px)');
+
+    if (!layout || !sidebar) {
+        return;
+    }
+
+    const isMobile = () => mobileMedia.matches;
+    const isCollapsed = () => layout.classList.contains('sidebar-collapsed');
+
+    const applyState = (collapsed, persist = true) => {
+        const nextCollapsed = !isMobile() && collapsed;
+        layout.classList.toggle('sidebar-collapsed', nextCollapsed);
+        sidebar.setAttribute('aria-expanded', nextCollapsed ? 'false' : 'true');
+
+        if (persist) {
+            window.localStorage.setItem(storageKey, String(nextCollapsed));
+        }
+    };
+
+    applyState(window.localStorage.getItem(storageKey) === 'true', false);
+
+    sidebar.addEventListener('dblclick', (event) => {
+        if (isMobile() || event.target.closest('a')) {
+            return;
+        }
+
+        applyState(!isCollapsed());
+    });
+
+    sidebar.addEventListener('click', () => {
+        if (!isMobile() && isCollapsed()) {
+            applyState(false);
+        }
+    });
+
+    const syncForViewport = () => {
+        applyState(window.localStorage.getItem(storageKey) === 'true', false);
+    };
+
+    if (typeof mobileMedia.addEventListener === 'function') {
+        mobileMedia.addEventListener('change', syncForViewport);
+    } else if (typeof mobileMedia.addListener === 'function') {
+        mobileMedia.addListener(syncForViewport);
+    }
+})();
+</script>
 </body>
 </html>
