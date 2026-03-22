@@ -9,16 +9,10 @@ from datetime import date, datetime, timedelta
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
-from app.models import AppSetting, FeeRecord
+from app.models import FeeRecord
 
 
 SUPPORTED_CHANNELS = {'dingtalk', 'wecom'}
-REMINDER_SETTING_KEYS = {
-    'channel': 'fee_reminder_channel',
-    'webhook_url': 'fee_reminder_webhook',
-    'days_ahead': 'fee_reminder_days_ahead',
-    'check_interval_seconds': 'fee_reminder_check_interval_seconds',
-}
 
 
 @dataclass
@@ -38,102 +32,19 @@ class ReminderRunResult:
     message: str
 
 
-def get_int_env(name: str, default: int, minimum: int) -> int:
-    raw_value = os.getenv(name, '').strip()
-    if not raw_value:
-        return max(default, minimum)
-
-    try:
-        return max(int(raw_value), minimum)
-    except ValueError:
-        return max(default, minimum)
-
-
-def get_int_value(raw_value: str, default: int, minimum: int) -> int:
-    if not raw_value:
-        return max(default, minimum)
-
-    try:
-        return max(int(raw_value), minimum)
-    except ValueError:
-        return max(default, minimum)
-
-
-def get_reminder_setting_values(db: Session) -> dict[str, str]:
-    rows = (
-        db.query(AppSetting)
-        .filter(AppSetting.key.in_(REMINDER_SETTING_KEYS.values()))
-        .all()
-    )
-    return {row.key: row.value or '' for row in rows}
-
-
-def get_reminder_settings(db: Session | None = None) -> ReminderSettings:
-    owns_session = db is None
-    session = db or SessionLocal()
-    setting_values = get_reminder_setting_values(session)
-
-    channel = (
-        setting_values.get(REMINDER_SETTING_KEYS['channel'])
-        or os.getenv('FEE_REMINDER_CHANNEL', '')
-    ).strip().lower()
-    webhook_url = (
-        setting_values.get(REMINDER_SETTING_KEYS['webhook_url'])
-        or os.getenv('FEE_REMINDER_WEBHOOK', '')
-    ).strip()
-    days_ahead = get_int_value(
-        setting_values.get(REMINDER_SETTING_KEYS['days_ahead'], ''),
-        default=get_int_env('FEE_REMINDER_DAYS_AHEAD', default=3, minimum=0),
-        minimum=0,
-    )
-    check_interval_seconds = get_int_value(
-        setting_values.get(REMINDER_SETTING_KEYS['check_interval_seconds'], ''),
-        default=get_int_env('FEE_REMINDER_CHECK_INTERVAL_SECONDS', default=300, minimum=60),
-        minimum=60,
-    )
+def get_reminder_settings() -> ReminderSettings:
+    channel = os.getenv('FEE_REMINDER_CHANNEL', '').strip().lower()
+    webhook_url = os.getenv('FEE_REMINDER_WEBHOOK', '').strip()
+    days_ahead = int(os.getenv('FEE_REMINDER_DAYS_AHEAD', '3'))
+    check_interval_seconds = int(os.getenv('FEE_REMINDER_CHECK_INTERVAL_SECONDS', '300'))
     enabled = channel in SUPPORTED_CHANNELS and bool(webhook_url)
-    settings = ReminderSettings(
+    return ReminderSettings(
         enabled=enabled,
         channel=channel,
         webhook_url=webhook_url,
-        days_ahead=days_ahead,
-        check_interval_seconds=check_interval_seconds,
+        days_ahead=max(days_ahead, 0),
+        check_interval_seconds=max(check_interval_seconds, 60),
     )
-    if owns_session:
-        session.close()
-    return settings
-
-
-def save_reminder_settings(
-    db: Session,
-    channel: str,
-    webhook_url: str,
-    days_ahead: int,
-    check_interval_seconds: int,
-):
-    values = {
-        REMINDER_SETTING_KEYS['channel']: channel.strip().lower(),
-        REMINDER_SETTING_KEYS['webhook_url']: webhook_url.strip(),
-        REMINDER_SETTING_KEYS['days_ahead']: str(max(days_ahead, 0)),
-        REMINDER_SETTING_KEYS['check_interval_seconds']: str(max(check_interval_seconds, 60)),
-    }
-
-    existing_rows = (
-        db.query(AppSetting)
-        .filter(AppSetting.key.in_(values.keys()))
-        .all()
-    )
-    existing_by_key = {row.key: row for row in existing_rows}
-
-    for key, value in values.items():
-        row = existing_by_key.get(key)
-        if row:
-            row.value = value
-            continue
-        db.add(AppSetting(key=key, value=value))
-
-    db.commit()
-    return get_reminder_settings(db)
 
 
 def build_fee_reminder_message(record: FeeRecord, today: date, days_ahead: int) -> str:
@@ -195,14 +106,12 @@ def send_robot_message(channel: str, webhook_url: str, content: str):
 
 
 def run_fee_reminders(db: Session | None = None, today: date | None = None) -> ReminderRunResult:
+    settings = get_reminder_settings()
+    if not settings.enabled:
+        return ReminderRunResult(False, 0, 0, '未启用提醒：请配置 FEE_REMINDER_CHANNEL 和 FEE_REMINDER_WEBHOOK。')
+
     owns_session = db is None
     session = db or SessionLocal()
-    settings = get_reminder_settings(session)
-    if not settings.enabled:
-        if owns_session:
-            session.close()
-        return ReminderRunResult(False, 0, 0, '未启用提醒：请先在网页端或环境变量中配置提醒渠道和 Webhook。')
-
     current_date = today or date.today()
     deadline = current_date + timedelta(days=settings.days_ahead)
     sent_count = 0
