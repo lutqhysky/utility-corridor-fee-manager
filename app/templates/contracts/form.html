@@ -13,8 +13,8 @@
         <label>合同名称<input name="contract_name" value="{{ contract.contract_name if contract else '' }}" required></label>
         <label>备案部门<input name="filing_department" value="{{ contract.filing_department if contract else '' }}"></label>
         <label>备案状态<input name="filing_status" value="{{ contract.filing_status if contract else '' }}"></label>
-        <label>签订时间<input name="sign_date" type="date" value="{{ contract.sign_date if contract and contract.sign_date else '' }}"></label>
-        <label class="full">附件路径<input name="file_path" value="{{ contract.file_path if contract else '' }}"></label>
+        <label>备案时间<input name="sign_date" type="date" value="{{ contract.sign_date if contract and contract.sign_date else '' }}"></label>
+        <label class="full">说明<input name="file_path" value="{{ contract.file_path if contract else '' }}"></label>
         <label class="full">备注<textarea name="remark" rows="4">{{ contract.remark if contract else '' }}</textarea></label>
         <div class="full">
             <button type="submit">保存</button>
