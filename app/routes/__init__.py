@@ -4,3 +4,4 @@ from .pipeline_entries import router as pipeline_entries_router
 from .fee_records import router as fee_records_router
 from .contracts import router as contracts_router
 from .health import router as health_router
+from .fee_summary import router as fee_summary_router
