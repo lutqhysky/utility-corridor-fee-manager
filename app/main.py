@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from app import database
-from app.routes import health_router, dashboard_router, companies_router, pipeline_entries_router, fee_records_router, contracts_router
+from app.routes import health_router, dashboard_router, companies_router, pipeline_entries_router, fee_records_router, contracts_router, fee_summary_router
 from app import models  # noqa
 from app.services.reminder_service import fee_reminder_scheduler
 from app.services.seed_service import seed_data
@@ -36,6 +36,7 @@ def register_routers(app: FastAPI):
     app.include_router(pipeline_entries_router)
     app.include_router(fee_records_router)
     app.include_router(contracts_router)
+    app.include_router(fee_summary_router)
 
 
 def create_app():
