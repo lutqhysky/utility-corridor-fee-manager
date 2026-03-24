@@ -24,6 +24,10 @@ def get_discount_or_default(value: float | None):
     return value if value is not None else 1
 
 
+def calc_detail_amount(quantity: float | None, unit_price: float | None) -> float:
+    return round(float(quantity or 0) * float(unit_price or 0), 2)
+
+
 @router.get('/', response_class=HTMLResponse)
 def list_entries(request: Request, db: Session = Depends(get_db), company_id: int | None = None):
     query = db.query(PipelineEntry)
@@ -277,15 +281,16 @@ def create_detail(
     specification: str = Form(''),
     engineering_quantity: float = Form(0),
     entry_unit_price_excl_tax: float = Form(0),
-    entry_amount_excl_tax: float = Form(0),
     maintenance_unit_price_excl_tax: float = Form(0),
-    maintenance_amount_excl_tax: float = Form(0),
     remark: str = Form(''),
     db: Session = Depends(get_db),
 ):
     entry = db.query(PipelineEntry).filter(PipelineEntry.id == entry_id).first()
     if not entry:
         return RedirectResponse(url='/pipeline-entries/', status_code=303)
+
+    entry_amount_excl_tax = calc_detail_amount(engineering_quantity, entry_unit_price_excl_tax)
+    maintenance_amount_excl_tax = calc_detail_amount(engineering_quantity, maintenance_unit_price_excl_tax)
 
     db.add(PipelineEntryDetail(
         pipeline_entry_id=entry_id,
@@ -330,9 +335,7 @@ def update_detail(
     specification: str = Form(''),
     engineering_quantity: float = Form(0),
     entry_unit_price_excl_tax: float = Form(0),
-    entry_amount_excl_tax: float = Form(0),
     maintenance_unit_price_excl_tax: float = Form(0),
-    maintenance_amount_excl_tax: float = Form(0),
     remark: str = Form(''),
     db: Session = Depends(get_db),
 ):
@@ -344,9 +347,9 @@ def update_detail(
     detail.specification = specification
     detail.engineering_quantity = engineering_quantity
     detail.entry_unit_price_excl_tax = entry_unit_price_excl_tax
-    detail.entry_amount_excl_tax = entry_amount_excl_tax
+    detail.entry_amount_excl_tax = calc_detail_amount(engineering_quantity, entry_unit_price_excl_tax)
     detail.maintenance_unit_price_excl_tax = maintenance_unit_price_excl_tax
-    detail.maintenance_amount_excl_tax = maintenance_amount_excl_tax
+    detail.maintenance_amount_excl_tax = calc_detail_amount(engineering_quantity, maintenance_unit_price_excl_tax)
     detail.remark = remark
 
     db.commit()
