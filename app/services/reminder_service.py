@@ -17,10 +17,15 @@ ACTIVE_PAYMENT_STATUSES = {'未开始', '待收缴', '部分收缴', '已逾期'
 
 
 @dataclass
-class ReminderSettings:
-    enabled: bool
+class ReminderTarget:
     channel: str
     webhook_url: str
+
+
+@dataclass
+class ReminderSettings:
+    enabled: bool
+    targets: list[ReminderTarget]
     days_ahead: int
     check_interval_seconds: int
     repeat_days: int
@@ -34,18 +39,56 @@ class ReminderRunResult:
     message: str
 
 
+def _append_target_if_valid(targets: list[ReminderTarget], seen: set[tuple[str, str]], channel: str, webhook_url: str):
+    normalized_channel = (channel or '').strip().lower()
+    normalized_webhook = (webhook_url or '').strip()
+
+    if normalized_channel not in SUPPORTED_CHANNELS:
+        return
+    if not normalized_webhook:
+        return
+
+    key = (normalized_channel, normalized_webhook)
+    if key in seen:
+        return
+
+    seen.add(key)
+    targets.append(ReminderTarget(channel=normalized_channel, webhook_url=normalized_webhook))
+
+
 def get_reminder_settings() -> ReminderSettings:
-    channel = os.getenv('FEE_REMINDER_CHANNEL', '').strip().lower()
-    webhook_url = os.getenv('FEE_REMINDER_WEBHOOK', '').strip()
+    targets: list[ReminderTarget] = []
+    seen: set[tuple[str, str]] = set()
+
+    # 新版：分别配置两个机器人
+    _append_target_if_valid(
+        targets,
+        seen,
+        'dingtalk',
+        os.getenv('FEE_REMINDER_DINGTALK_WEBHOOK', ''),
+    )
+    _append_target_if_valid(
+        targets,
+        seen,
+        'wecom',
+        os.getenv('FEE_REMINDER_WECOM_WEBHOOK', ''),
+    )
+
+    # 兼容旧版：单通道配置
+    _append_target_if_valid(
+        targets,
+        seen,
+        os.getenv('FEE_REMINDER_CHANNEL', ''),
+        os.getenv('FEE_REMINDER_WEBHOOK', ''),
+    )
+
     days_ahead = int(os.getenv('FEE_REMINDER_DAYS_AHEAD', '30'))
     check_interval_seconds = int(os.getenv('FEE_REMINDER_CHECK_INTERVAL_SECONDS', '3600'))
     repeat_days = int(os.getenv('FEE_REMINDER_REPEAT_DAYS', '2'))
-    enabled = channel in SUPPORTED_CHANNELS and bool(webhook_url)
 
     return ReminderSettings(
-        enabled=enabled,
-        channel=channel,
-        webhook_url=webhook_url,
+        enabled=bool(targets),
+        targets=targets,
         days_ahead=max(days_ahead, 0),
         check_interval_seconds=max(check_interval_seconds, 60),
         repeat_days=max(repeat_days, 1),
@@ -135,7 +178,12 @@ def should_send_reminder(record: FeeRecord, current_date: date, repeat_days: int
 def run_fee_reminders(db: Session | None = None, today: date | None = None) -> ReminderRunResult:
     settings = get_reminder_settings()
     if not settings.enabled:
-        return ReminderRunResult(False, 0, 0, '未启用提醒：请配置 FEE_REMINDER_CHANNEL 和 FEE_REMINDER_WEBHOOK。')
+        return ReminderRunResult(
+            False,
+            0,
+            0,
+            '未启用提醒：请至少配置 FEE_REMINDER_DINGTALK_WEBHOOK 或 FEE_REMINDER_WECOM_WEBHOOK。',
+        )
 
     owns_session = db is None
     session = db or SessionLocal()
@@ -161,11 +209,15 @@ def run_fee_reminders(db: Session | None = None, today: date | None = None) -> R
                 continue
 
             content = build_fee_reminder_message(record, current_date, settings.days_ahead)
-            send_robot_message(settings.channel, settings.webhook_url, content)
+
+            successful_channels: list[str] = []
+            for target in settings.targets:
+                send_robot_message(target.channel, target.webhook_url, content)
+                successful_channels.append(target.channel)
 
             record.last_reminder_sent_at = datetime.now()
             record.last_reminder_for_date = record.planned_receivable_date
-            record.last_reminder_channel = settings.channel
+            record.last_reminder_channel = ','.join(successful_channels)
             session.commit()
             sent_count += 1
 
