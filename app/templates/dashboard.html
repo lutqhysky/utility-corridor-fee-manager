@@ -40,34 +40,43 @@
     </div>
 </div>
 
-<section class="panel">
-    <h3>最近收费记录</h3>
-    <table>
-        <thead>
-            <tr>
-                <th>单位</th>
-                <th>收费类型</th>
-                <th>收费期间</th>
-                <th>含税金额</th>
-                <th>应收时间</th>
-                <th>实收时间</th>
-                <th>收缴状态</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for record in latest_records %}
-            <tr>
-                <td>{{ record.company.short_name or record.company.company_name }}</td>
-                <td>{{ record.fee_type }}</td>
-                <td>{{ record.charge_period or '' }}</td>
-                <td>¥{{ '%.2f'|format(record.amount_incl_tax or 0) }}</td>
-                <td>{{ record.planned_receivable_date or '' }}</td>
-                <td>{{ record.actual_received_date or '' }}</td>
-                <td><span class="badge">{{ record.payment_status }}</span></td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-</section>
+<details class="panel collapsible-panel">
+    <summary class="collapsible-trigger">
+        <span class="collapsible-title">最新收费记录</span>
+        <span class="collapsible-hint"></span>
+    </summary>
+    <div class="collapsible-content">
+        <table>
+            <thead>
+                <tr>
+                    <th>单位</th>
+                    <th>收费类型</th>
+                    <th>收费期间</th>
+                    <th>含税金额</th>
+                    <th>应收时间</th>
+                    <th>实收时间</th>
+                    <th>收缴状态</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for record in latest_records %}
+                <tr>
+                    <td>{{ (record.company.short_name if record.company else '') or (record.company.company_name if record.company else '未知单位') }}</td>
+                    <td>{{ record.fee_type }}</td>
+                    <td>{{ record.charge_period or '' }}</td>
+                    <td>¥{{ '%.2f'|format(record.amount_incl_tax or 0) }}</td>
+                    <td>{{ record.planned_receivable_date or '' }}</td>
+                    <td>{{ record.actual_received_date or '' }}</td>
+                    <td><span class="badge">{{ record.payment_status }}</span></td>
+                </tr>
+            {% else %}
+                <tr>
+                    <td colspan="7">暂无收费记录</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</details>
 
 {% endblock %}
