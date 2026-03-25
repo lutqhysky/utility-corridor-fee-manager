@@ -68,7 +68,8 @@ def build_login_redirect(next_url: str) -> str:
 
 
 def get_current_username(request) -> str | None:
-    return request.session.get(SESSION_USER_KEY)
+    session = request.scope.get('session') or {}
+    return session.get(SESSION_USER_KEY)
 
 
 def is_authenticated(request) -> bool:
