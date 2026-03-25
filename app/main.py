@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app import database
@@ -61,6 +62,27 @@ def register_routers(app: FastAPI):
     app.include_router(fee_summary_router)
 
 
+class RequireLoginMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+
+        # 这里先读一次当前用户，供模板等地方使用
+        request.state.user = get_current_username(request)
+
+        # 放行公开路径
+        if path in PUBLIC_EXACT_PATHS or any(path.startswith(prefix) for prefix in PUBLIC_PATH_PREFIXES):
+            return await call_next(request)
+
+        # 未登录则跳转登录页
+        if not request.state.user:
+            next_url = request.url.path
+            if request.url.query:
+                next_url = f'{next_url}?{request.url.query}'
+            return RedirectResponse(url=build_login_redirect(next_url), status_code=303)
+
+        return await call_next(request)
+
+
 def create_app():
     app = FastAPI(
         title='综合管廊有偿使用费管理系统',
@@ -70,6 +92,13 @@ def create_app():
         openapi_url=None,
     )
 
+    app.mount('/static', StaticFiles(directory=str(STATIC_DIR)), name='static')
+
+    # 先加登录校验中间件
+    app.add_middleware(RequireLoginMiddleware)
+
+    # 再加 SessionMiddleware
+    # 这样 SessionMiddleware 会在更外层先执行，request.scope['session'] 就可用了
     app.add_middleware(
         SessionMiddleware,
         secret_key=get_session_secret(),
@@ -78,24 +107,6 @@ def create_app():
         https_only=get_session_https_only(),
         max_age=60 * 60 * 12,
     )
-
-    app.mount('/static', StaticFiles(directory=str(STATIC_DIR)), name='static')
-
-    @app.middleware('http')
-    async def require_login(request: Request, call_next):
-        path = request.url.path
-        request.state.user = get_current_username(request)
-
-        if path in PUBLIC_EXACT_PATHS or any(path.startswith(prefix) for prefix in PUBLIC_PATH_PREFIXES):
-            return await call_next(request)
-
-        if not request.state.user:
-            next_url = request.url.path
-            if request.url.query:
-                next_url = f'{next_url}?{request.url.query}'
-            return RedirectResponse(url=build_login_redirect(next_url), status_code=303)
-
-        return await call_next(request)
 
     register_routers(app)
     return app
