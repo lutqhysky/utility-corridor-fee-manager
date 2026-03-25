@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title or '管理员登录' }}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="auth-body">
+<div class="auth-wrapper">
+    <div class="auth-card">
+        <div class="auth-card-header">
+            <h1>综合管廊有偿使用费管理系统</h1>
+            <p>管理员登录后才能访问业务页面</p>
+        </div>
+
+        {% if not auth_configured %}
+        <div class="alert alert-warning">
+            当前系统尚未配置管理员密码。<br>
+            请先在环境变量中设置 <code>APP_ADMIN_PASSWORD</code> 或 <code>APP_ADMIN_PASSWORD_HASH</code>。
+        </div>
+        {% endif %}
+
+        {% if error %}
+        <div class="alert alert-error">{{ error }}</div>
+        {% endif %}
+
+        <form method="post" action="/login" class="auth-form">
+            <input type="hidden" name="next_url" value="{{ next_url }}">
+
+            <label>
+                管理员账号
+                <input
+                    type="text"
+                    name="username"
+                    value="{{ admin_username }}"
+                    autocomplete="username"
+                    required
+                >
+            </label>
+
+            <label>
+                管理员密码
+                <input
+                    type="password"
+                    name="password"
+                    autocomplete="current-password"
+                    required
+                >
+            </label>
+
+            <button type="submit">登录系统</button>
+        </form>
+
+        <div class="auth-tip">
+            <strong>提示：</strong>
+            建议优先使用 <code>APP_ADMIN_PASSWORD_HASH</code>，比明文密码更安全。
+        </div>
+    </div>
+</div>
+</body>
+</html>
