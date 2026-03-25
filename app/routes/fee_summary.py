@@ -6,9 +6,10 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Company, FeeRecord
+from app.paths import TEMPLATES_DIR
 
 router = APIRouter(prefix='/fee-summary', tags=['fee_summary'])
-templates = Jinja2Templates(directory='app/templates')
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
 @router.get('/', response_class=HTMLResponse)

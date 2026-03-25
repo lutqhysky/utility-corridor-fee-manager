@@ -7,11 +7,12 @@ from sqlalchemy.orm import Session
 from urllib.parse import quote
 from app.database import get_db
 from app.models import Company, FeeRecord, PipelineEntry
+from app.paths import TEMPLATES_DIR
 from app.services.fee_calc_service import calc_tax
 from app.services.reminder_service import get_reminder_settings, run_fee_reminders
 
 router = APIRouter(prefix='/fee-records', tags=['fee_records'])
-templates = Jinja2Templates(directory='app/templates')
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
 def parse_date(value: str):
