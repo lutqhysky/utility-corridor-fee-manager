@@ -39,7 +39,6 @@
         <strong>¥{{ '%.2f'|format(stats.overdue_amount) }}</strong>
     </div>
 </div>
-
 <details class="panel collapsible-panel">
     <summary class="collapsible-trigger">
         <span class="collapsible-title">最新收费记录</span>
@@ -61,7 +60,7 @@
             <tbody>
             {% for record in latest_records %}
                 <tr>
-                    <td>{{ (record.company.short_name if record.company else '') or (record.company.company_name if record.company else '未知单位') }}</td>
+                    <td>{{ record.company.short_name or record.company.company_name }}</td>
                     <td>{{ record.fee_type }}</td>
                     <td>{{ record.charge_period or '' }}</td>
                     <td>¥{{ '%.2f'|format(record.amount_incl_tax or 0) }}</td>
@@ -74,5 +73,3 @@
         </table>
     </div>
 </details>
-
-{% endblock %}
