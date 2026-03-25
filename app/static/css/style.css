@@ -19,6 +19,24 @@ a { color: #2563eb; text-decoration: none; }
 .stat-card strong { font-size: 24px; }
 .stat-card.warning { border-left: 5px solid #ef4444; }
 .panel { padding: 18px; margin-bottom: 18px; overflow-x: auto; }
+.collapsible-panel { overflow: hidden; }
+.collapsible-panel summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  list-style: none;
+  cursor: pointer;
+}
+.collapsible-panel summary::-webkit-details-marker { display: none; }
+.collapsible-panel summary h3 { margin: 0; }
+.collapsible-panel summary::after {
+  content: "展开";
+  color: #2563eb;
+  font-size: 14px;
+  font-weight: 600;
+}
+.collapsible-panel[open] summary::after { content: "收起"; }
+.collapsible-panel > :not(summary) { margin-top: 12px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 12px; flex-wrap: wrap; }
 .inline-form { display: flex; gap: 10px; flex-wrap: wrap; }
 input, select, textarea, button { border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 12px; font-size: 14px; }
