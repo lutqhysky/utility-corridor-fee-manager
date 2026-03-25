@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from app import database
 from app.routes import health_router, dashboard_router, companies_router, pipeline_entries_router, fee_records_router, contracts_router, fee_summary_router
 from app import models  # noqa
+from app.paths import STATIC_DIR
 from app.services.reminder_service import fee_reminder_scheduler
 from app.services.seed_service import seed_data
 
@@ -41,7 +42,7 @@ def register_routers(app: FastAPI):
 
 def create_app():
     app = FastAPI(title='综合管廊有偿使用费管理系统', lifespan=lifespan)
-    app.mount('/static', StaticFiles(directory='app/static'), name='static')
+    app.mount('/static', StaticFiles(directory=str(STATIC_DIR)), name='static')
     register_routers(app)
     return app
 

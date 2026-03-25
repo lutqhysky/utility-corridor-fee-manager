@@ -5,9 +5,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Company
+from app.paths import TEMPLATES_DIR
 
 router = APIRouter(prefix='/companies', tags=['companies'])
-templates = Jinja2Templates(directory='app/templates')
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
 def get_company_or_404(db: Session, company_id: int):

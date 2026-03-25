@@ -7,9 +7,10 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.services.statistics_service import StatisticsService
 from app.models import FeeRecord
+from app.paths import TEMPLATES_DIR
 
 router = APIRouter()
-templates = Jinja2Templates(directory='app/templates')
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 logger = logging.getLogger(__name__)
 
 

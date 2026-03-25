@@ -6,9 +6,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Company, Contract
+from app.paths import TEMPLATES_DIR
 
 router = APIRouter(prefix='/contracts', tags=['contracts'])
-templates = Jinja2Templates(directory='app/templates')
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
 def parse_date(value: str):
