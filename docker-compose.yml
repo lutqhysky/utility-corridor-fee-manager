@@ -4,6 +4,12 @@ services:
     container_name: corridor-fee-manager
     ports:
       - "8000:8000"
+    environment:
+      APP_ADMIN_USERNAME: ${APP_ADMIN_USERNAME:-admin}
+      APP_ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD:-}
+      APP_ADMIN_PASSWORD_HASH: ${APP_ADMIN_PASSWORD_HASH:-}
+      APP_SESSION_SECRET: ${APP_SESSION_SECRET:-please-change-this-session-secret}
+      APP_SESSION_HTTPS_ONLY: ${APP_SESSION_HTTPS_ONLY:-false}
     volumes:
       - ./data:/app/data
       - ./uploads:/app/uploads
