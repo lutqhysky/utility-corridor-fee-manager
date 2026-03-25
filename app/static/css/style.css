@@ -19,45 +19,24 @@ a { color: #2563eb; text-decoration: none; }
 .stat-card strong { font-size: 24px; }
 .stat-card.warning { border-left: 5px solid #ef4444; }
 .panel { padding: 18px; margin-bottom: 18px; overflow-x: auto; }
-.collapsible-panel { padding: 0; overflow: hidden; }
-.collapsible-trigger {
+.collapsible-panel { overflow: hidden; }
+.collapsible-panel summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 16px 18px;
+  list-style: none;
   cursor: pointer;
-  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-  border-bottom: 1px solid transparent;
 }
-.collapsible-trigger::marker,
-.collapsible-trigger::-webkit-details-marker { display: none; content: ""; }
-.collapsible-title { font-size: 24px; font-weight: 700; color: #0f172a; }
-.collapsible-hint {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: #475569;
-  white-space: nowrap;
-}
-.collapsible-hint::before {
-  content: "▸";
+.collapsible-panel summary::-webkit-details-marker { display: none; }
+.collapsible-panel summary h3 { margin: 0; }
+.collapsible-panel summary::after {
+  content: "展开";
   color: #2563eb;
   font-size: 14px;
-  line-height: 1;
-  transform: translateY(-1px);
-  transition: transform 0.2s ease;
+  font-weight: 600;
 }
-.collapsible-hint::after { content: "点击展开"; }
-.collapsible-panel[open] .collapsible-trigger {
-  background: #ffffff;
-  border-bottom-color: #e2e8f0;
-}
-.collapsible-panel[open] .collapsible-hint::before { transform: rotate(90deg) translateX(-1px); }
-.collapsible-panel[open] .collapsible-hint::after { content: "点击收起"; }
-.collapsible-content { padding: 0 18px 18px; }
-.collapsible-content table { margin-top: 0; }
+.collapsible-panel[open] summary::after { content: "收起"; }
+.collapsible-panel > :not(summary) { margin-top: 12px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 12px; flex-wrap: wrap; }
 .inline-form { display: flex; gap: 10px; flex-wrap: wrap; }
 input, select, textarea, button { border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 12px; font-size: 14px; }
