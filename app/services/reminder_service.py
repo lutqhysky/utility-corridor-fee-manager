@@ -13,6 +13,7 @@ from app.models import FeeRecord
 
 
 SUPPORTED_CHANNELS = {'dingtalk', 'wecom'}
+ACTIVE_PAYMENT_STATUSES = {'未开始', '待收缴', '部分收缴', '已逾期'}
 
 
 @dataclass
@@ -22,6 +23,7 @@ class ReminderSettings:
     webhook_url: str
     days_ahead: int
     check_interval_seconds: int
+    repeat_days: int
 
 
 @dataclass
@@ -35,15 +37,18 @@ class ReminderRunResult:
 def get_reminder_settings() -> ReminderSettings:
     channel = os.getenv('FEE_REMINDER_CHANNEL', '').strip().lower()
     webhook_url = os.getenv('FEE_REMINDER_WEBHOOK', '').strip()
-    days_ahead = int(os.getenv('FEE_REMINDER_DAYS_AHEAD', '3'))
-    check_interval_seconds = int(os.getenv('FEE_REMINDER_CHECK_INTERVAL_SECONDS', '300'))
+    days_ahead = int(os.getenv('FEE_REMINDER_DAYS_AHEAD', '30'))
+    check_interval_seconds = int(os.getenv('FEE_REMINDER_CHECK_INTERVAL_SECONDS', '3600'))
+    repeat_days = int(os.getenv('FEE_REMINDER_REPEAT_DAYS', '2'))
     enabled = channel in SUPPORTED_CHANNELS and bool(webhook_url)
+
     return ReminderSettings(
         enabled=enabled,
         channel=channel,
         webhook_url=webhook_url,
         days_ahead=max(days_ahead, 0),
         check_interval_seconds=max(check_interval_seconds, 60),
+        repeat_days=max(repeat_days, 1),
     )
 
 
@@ -53,7 +58,15 @@ def build_fee_reminder_message(record: FeeRecord, today: date, days_ahead: int) 
     due_date = record.planned_receivable_date.isoformat() if record.planned_receivable_date else '未设置'
     amount = f'{record.amount_incl_tax or 0:.2f}'
     remaining_days = (record.planned_receivable_date - today).days if record.planned_receivable_date else None
-    remaining_text = f'距应收时间还有 {remaining_days} 天' if remaining_days is not None else '应收时间未设置'
+
+    if remaining_days is None:
+        remaining_text = '应收时间未设置'
+    elif remaining_days > 0:
+        remaining_text = f'距应收时间还有 {remaining_days} 天'
+    elif remaining_days == 0:
+        remaining_text = '今天就是应收时间'
+    else:
+        remaining_text = f'已逾期 {abs(remaining_days)} 天'
 
     return (
         f'【收费提醒】\n'
@@ -64,7 +77,7 @@ def build_fee_reminder_message(record: FeeRecord, today: date, days_ahead: int) 
         f'状态：{record.payment_status}\n'
         f'应收时间：{due_date}\n'
         f'含税金额：{amount} 元\n'
-        f'{remaining_text}（提醒阈值：提前 {days_ahead} 天）\n'
+        f'{remaining_text}（提醒窗口：提前 {days_ahead} 天）\n'
         f'备注：{record.remark or "无"}'
     )
 
@@ -105,6 +118,20 @@ def send_robot_message(channel: str, webhook_url: str, content: str):
         raise ValueError(f"企业微信机器人返回错误：{parsed_body.get('errmsg', body)}")
 
 
+def should_send_reminder(record: FeeRecord, current_date: date, repeat_days: int) -> bool:
+    if record.payment_status not in ACTIVE_PAYMENT_STATUSES:
+        return False
+
+    if not record.planned_receivable_date:
+        return False
+
+    if record.last_reminder_sent_at is None:
+        return True
+
+    last_sent_date = record.last_reminder_sent_at.date()
+    return (current_date - last_sent_date).days >= repeat_days
+
+
 def run_fee_reminders(db: Session | None = None, today: date | None = None) -> ReminderRunResult:
     settings = get_reminder_settings()
     if not settings.enabled:
@@ -120,7 +147,7 @@ def run_fee_reminders(db: Session | None = None, today: date | None = None) -> R
     try:
         records = (
             session.query(FeeRecord)
-            .filter(FeeRecord.payment_status == '未开始')
+            .filter(FeeRecord.payment_status.in_(list(ACTIVE_PAYMENT_STATUSES)))
             .filter(FeeRecord.planned_receivable_date.isnot(None))
             .filter(FeeRecord.planned_receivable_date >= current_date)
             .filter(FeeRecord.planned_receivable_date <= deadline)
@@ -129,12 +156,13 @@ def run_fee_reminders(db: Session | None = None, today: date | None = None) -> R
         )
 
         for record in records:
-            if record.last_reminder_for_date == record.planned_receivable_date:
+            if not should_send_reminder(record, current_date, settings.repeat_days):
                 skipped_count += 1
                 continue
 
             content = build_fee_reminder_message(record, current_date, settings.days_ahead)
             send_robot_message(settings.channel, settings.webhook_url, content)
+
             record.last_reminder_sent_at = datetime.now()
             record.last_reminder_for_date = record.planned_receivable_date
             record.last_reminder_channel = settings.channel
@@ -142,10 +170,11 @@ def run_fee_reminders(db: Session | None = None, today: date | None = None) -> R
             sent_count += 1
 
         if sent_count == 0 and skipped_count == 0:
-            message = f'没有待提醒数据：未来 {settings.days_ahead} 天内没有符合条件的“未开始”收费记录。'
+            message = f'没有待提醒数据：未来 {settings.days_ahead} 天内没有符合条件的收费记录。'
         else:
             message = f'提醒检查完成：已发送 {sent_count} 条，跳过 {skipped_count} 条。'
         return ReminderRunResult(True, sent_count, skipped_count, message)
+
     except (urllib.error.URLError, ValueError) as exc:
         if owns_session:
             session.rollback()
@@ -185,8 +214,8 @@ class FeeReminderScheduler:
             self._thread.join(timeout=1)
 
     def _run_loop(self):
-        settings = get_reminder_settings()
         while not self._stop_event.is_set():
+            settings = get_reminder_settings()
             run_fee_reminders()
             self._stop_event.wait(settings.check_interval_seconds)
 
