@@ -32,6 +32,8 @@ def get_expected_sqlite_columns():
             'last_reminder_sent_at': 'DATETIME',
             'last_reminder_for_date': 'DATE',
             'last_reminder_channel': 'VARCHAR(50)',
+            'created_at': 'DATETIME',
+            'updated_at': 'DATETIME',
         },
     }
 
