@@ -28,6 +28,7 @@ class PipelineEntry(Base):
 
     entry_fee_discount = Column(Float, default=1)
     maintenance_fee_discount = Column(Float, default=1)
+    charge_cycle = Column(String(20), default="年度")
 
     company = relationship("Company", back_populates="pipeline_entries")
     fee_records = relationship("FeeRecord", back_populates="pipeline_entry")
