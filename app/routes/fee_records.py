@@ -8,7 +8,6 @@ from urllib.parse import quote
 from app.database import get_db
 from app.models import Company, FeeRecord, PipelineEntry
 from app.paths import TEMPLATES_DIR
-from app.services.fee_calc_service import calc_tax
 from app.services.reminder_service import get_reminder_settings, run_fee_reminders
 
 router = APIRouter(prefix='/fee-records', tags=['fee_records'])
@@ -22,6 +21,47 @@ def parse_date(value: str):
         return datetime.strptime(value, '%Y-%m-%d').date()
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=f'日期格式错误: {value}，正确格式应为 YYYY-MM-DD') from exc
+
+
+def calculate_entry_actual_fees(entry: PipelineEntry) -> tuple[float, float]:
+    entry_fee_excl_tax_total = sum((item.entry_amount_excl_tax or 0) for item in entry.details)
+    maintenance_fee_excl_tax_total = sum((item.maintenance_amount_excl_tax or 0) for item in entry.details)
+
+    entry_fee_tax_rate = entry.entry_fee_tax_rate or 0
+    maintenance_fee_tax_rate = entry.maintenance_fee_tax_rate or 0
+
+    entry_fee_discount = entry.entry_fee_discount if entry.entry_fee_discount is not None else 1
+    maintenance_fee_discount = entry.maintenance_fee_discount if entry.maintenance_fee_discount is not None else 1
+
+    entry_actual_fee = (entry_fee_excl_tax_total * (1 + entry_fee_tax_rate)) * entry_fee_discount
+    maintenance_actual_fee = (maintenance_fee_excl_tax_total * (1 + maintenance_fee_tax_rate)) * maintenance_fee_discount
+    return round(entry_actual_fee, 2), round(maintenance_actual_fee, 2)
+
+
+def calc_excl_tax_from_incl_tax(amount_incl_tax: float, tax_rate: float) -> tuple[float, float]:
+    rate = float(tax_rate or 0)
+    total = float(amount_incl_tax or 0)
+    if rate <= 0:
+        return round(total, 2), 0
+    amount_excl_tax = round(total / (1 + rate), 2)
+    tax_amount = round(total - amount_excl_tax, 2)
+    return amount_excl_tax, tax_amount
+
+
+def resolve_amount_incl_tax(db: Session, fee_type: str, pipeline_entry_id: int | None, fallback_amount: float) -> float:
+    if pipeline_entry_id is None:
+        return float(fallback_amount or 0)
+
+    entry = db.query(PipelineEntry).filter(PipelineEntry.id == pipeline_entry_id).first()
+    if not entry:
+        return float(fallback_amount or 0)
+
+    entry_actual_fee, maintenance_actual_fee = calculate_entry_actual_fees(entry)
+    if fee_type == '入廊费':
+        return entry_actual_fee
+    if fee_type == '运维费':
+        return maintenance_actual_fee
+    return float(fallback_amount or 0)
 
 
 def validate_record_relations(db: Session, company_id: int, pipeline_entry_id: int | None):
@@ -82,6 +122,13 @@ def run_reminders():
 def new_record(request: Request, db: Session = Depends(get_db)):
     companies = db.query(Company).order_by(Company.company_name).all()
     pipeline_entries = db.query(PipelineEntry).order_by(PipelineEntry.id.desc()).all()
+    entry_fee_map = {}
+    for entry in pipeline_entries:
+        entry_actual_fee, maintenance_actual_fee = calculate_entry_actual_fees(entry)
+        entry_fee_map[entry.id] = {
+            'entry_actual_fee': entry_actual_fee,
+            'maintenance_actual_fee': maintenance_actual_fee,
+        }
     statuses = ['未开始', '待收缴', '部分收缴', '已收缴', '已逾期']
 
     return templates.TemplateResponse(
@@ -91,6 +138,7 @@ def new_record(request: Request, db: Session = Depends(get_db)):
             'record': None,
             'companies': companies,
             'pipeline_entries': pipeline_entries,
+            'entry_fee_map': entry_fee_map,
             'statuses': statuses,
             'title': '新增收费记录'
         }
@@ -105,7 +153,7 @@ def create_record(
     charge_period: str = Form(''),
     period_year: int | None = Form(None),
     period_quarter: int | None = Form(None),
-    amount_excl_tax: float = Form(0),
+    amount_incl_tax: float = Form(0),
     tax_rate: float = Form(0),
     planned_receivable_date: str = Form(''),
     remind_date: str = Form(''),
@@ -118,7 +166,12 @@ def create_record(
     db: Session = Depends(get_db),
 ):
     validate_record_relations(db, company_id, pipeline_entry_id)
-    tax_amount, amount_incl_tax = calc_tax(amount_excl_tax, tax_rate)
+    if fee_type == '入廊费':
+        tax_rate = 0.09
+    elif fee_type == '运维费':
+        tax_rate = 0.06
+    amount_incl_tax = resolve_amount_incl_tax(db, fee_type, pipeline_entry_id, amount_incl_tax)
+    amount_excl_tax, tax_amount = calc_excl_tax_from_incl_tax(amount_incl_tax, tax_rate)
 
     db.add(
         FeeRecord(
@@ -158,6 +211,13 @@ def edit_record(record_id: int, request: Request, db: Session = Depends(get_db))
 
     companies = db.query(Company).order_by(Company.company_name).all()
     pipeline_entries = db.query(PipelineEntry).order_by(PipelineEntry.id.desc()).all()
+    entry_fee_map = {}
+    for entry in pipeline_entries:
+        entry_actual_fee, maintenance_actual_fee = calculate_entry_actual_fees(entry)
+        entry_fee_map[entry.id] = {
+            'entry_actual_fee': entry_actual_fee,
+            'maintenance_actual_fee': maintenance_actual_fee,
+        }
     statuses = ['未开始', '待收缴', '部分收缴', '已收缴', '已逾期']
 
     return templates.TemplateResponse(
@@ -167,6 +227,7 @@ def edit_record(record_id: int, request: Request, db: Session = Depends(get_db))
             'record': record,
             'companies': companies,
             'pipeline_entries': pipeline_entries,
+            'entry_fee_map': entry_fee_map,
             'statuses': statuses,
             'title': '编辑收费记录'
         }
@@ -182,7 +243,7 @@ def update_record(
     charge_period: str = Form(''),
     period_year: int | None = Form(None),
     period_quarter: int | None = Form(None),
-    amount_excl_tax: float = Form(0),
+    amount_incl_tax: float = Form(0),
     tax_rate: float = Form(0),
     planned_receivable_date: str = Form(''),
     remind_date: str = Form(''),
@@ -199,7 +260,12 @@ def update_record(
         return RedirectResponse(url='/fee-records/', status_code=303)
 
     validate_record_relations(db, company_id, pipeline_entry_id)
-    tax_amount, amount_incl_tax = calc_tax(amount_excl_tax, tax_rate)
+    if fee_type == '入廊费':
+        tax_rate = 0.09
+    elif fee_type == '运维费':
+        tax_rate = 0.06
+    amount_incl_tax = resolve_amount_incl_tax(db, fee_type, pipeline_entry_id, amount_incl_tax)
+    amount_excl_tax, tax_amount = calc_excl_tax_from_incl_tax(amount_incl_tax, tax_rate)
 
     record.company_id = company_id
     record.pipeline_entry_id = pipeline_entry_id
