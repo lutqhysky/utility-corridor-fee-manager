@@ -15,10 +15,16 @@
         </label>
 
         <label>关联入廊记录
-            <select name="pipeline_entry_id">
+            <select id="pipeline_entry_id" name="pipeline_entry_id">
                 <option value="">不关联</option>
                 {% for entry in pipeline_entries %}
-                <option value="{{ entry.id }}" {% if record and record.pipeline_entry_id == entry.id %}selected{% endif %}>
+                {% set fee_info = entry_fee_map.get(entry.id, {}) %}
+                <option
+                    value="{{ entry.id }}"
+                    data-entry-actual-fee="{{ fee_info.get('entry_actual_fee', 0) }}"
+                    data-maintenance-actual-fee="{{ fee_info.get('maintenance_actual_fee', 0) }}"
+                    {% if record and record.pipeline_entry_id == entry.id %}selected{% endif %}
+                >
                     {{ entry.company.short_name or entry.company.company_name }} - {{ entry.project_name or '未命名项目' }}
                 </option>
                 {% endfor %}
@@ -26,7 +32,7 @@
         </label>
 
         <label>收费类型
-            <select name="fee_type">
+            <select id="fee_type" name="fee_type">
                 <option value="入廊费" {% if record and record.fee_type == '入廊费' %}selected{% endif %}>入廊费</option>
                 <option value="运维费" {% if record and record.fee_type == '运维费' %}selected{% endif %}>运维费</option>
             </select>
@@ -45,7 +51,7 @@
         </label>
 
         <label>税率（如0.09）
-            <input name="tax_rate" type="number" step="0.01" value="{{ record.tax_rate if record and record.tax_rate is not none else 0 }}">
+            <input id="tax_rate" name="tax_rate" type="number" step="0.01" value="{{ record.tax_rate if record and record.tax_rate is not none else 0 }}">
         </label>
 
         <label>应收时间
@@ -89,4 +95,49 @@
         </div>
     </form>
 </section>
+<script>
+    (function () {
+        const feeTypeSelect = document.getElementById('fee_type');
+        const pipelineEntrySelect = document.getElementById('pipeline_entry_id');
+        const taxRateInput = document.getElementById('tax_rate');
+        const amountInput = document.getElementById('amount_incl_tax');
+
+        if (!feeTypeSelect || !pipelineEntrySelect || !taxRateInput || !amountInput) {
+            return;
+        }
+
+        function getSelectedPipelineOption() {
+            return pipelineEntrySelect.options[pipelineEntrySelect.selectedIndex];
+        }
+
+        function syncTaxRate() {
+            if (feeTypeSelect.value === '入廊费') {
+                taxRateInput.value = '0.09';
+            } else {
+                taxRateInput.value = '0.06';
+            }
+        }
+
+        function syncAmountByPipelineEntry() {
+            const selected = getSelectedPipelineOption();
+            if (!selected || !selected.value) {
+                return;
+            }
+            if (feeTypeSelect.value === '入廊费') {
+                amountInput.value = selected.dataset.entryActualFee || '0';
+            } else {
+                amountInput.value = selected.dataset.maintenanceActualFee || '0';
+            }
+        }
+
+        function syncAll() {
+            syncTaxRate();
+            syncAmountByPipelineEntry();
+        }
+
+        feeTypeSelect.addEventListener('change', syncAll);
+        pipelineEntrySelect.addEventListener('change', syncAmountByPipelineEntry);
+        syncAll();
+    })();
+</script>
 {% endblock %}
