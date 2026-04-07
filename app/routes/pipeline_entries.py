@@ -100,6 +100,7 @@ def create_entry(
     maintenance_fee_tax_rate: float = Form(0),
     entry_fee_discount: float = Form(1),
     maintenance_fee_discount: float = Form(1),
+    charge_cycle: str = Form('年度'),
     db: Session = Depends(get_db),
 ):
     company = db.query(Company).filter(Company.id == company_id).first()
@@ -123,6 +124,7 @@ def create_entry(
         maintenance_fee_tax_rate=maintenance_fee_tax_rate,
         entry_fee_discount=entry_fee_discount,
         maintenance_fee_discount=maintenance_fee_discount,
+        charge_cycle=charge_cycle,
     ))
     try:
         db.commit()
@@ -214,6 +216,7 @@ def update_entry(
     maintenance_fee_tax_rate: float = Form(0),
     entry_fee_discount: float = Form(1),
     maintenance_fee_discount: float = Form(1),
+    charge_cycle: str = Form('年度'),
     db: Session = Depends(get_db),
 ):
     entry = db.query(PipelineEntry).filter(PipelineEntry.id == entry_id).first()
@@ -240,6 +243,7 @@ def update_entry(
     entry.maintenance_fee_tax_rate = maintenance_fee_tax_rate
     entry.entry_fee_discount = entry_fee_discount
     entry.maintenance_fee_discount = maintenance_fee_discount
+    entry.charge_cycle = charge_cycle
 
     try:
         db.commit()
