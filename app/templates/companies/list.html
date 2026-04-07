@@ -9,7 +9,7 @@
 </div>
 <section class="panel">
     <table>
-        <thead><tr><th>ID</th><th>单位全称</th><th>简称</th><th>类型</th><th>联系人</th><th>联系电话</th><th>操作</th></tr></thead>
+        <thead><tr><th>ID</th><th>单位全称</th><th>简称</th><th>类型</th><th>收缴金额</th><th>联系人</th><th>联系电话</th><th>操作</th></tr></thead>
         <tbody>
         {% for company in companies %}
             <tr>
@@ -17,6 +17,7 @@
                 <td>{{ company.company_name }}</td>
                 <td>{{ company.short_name or '' }}</td>
                 <td>{{ company.company_type or '' }}</td>
+                <td>¥{{ '%.2f'|format(company.total_received_amount or 0) }}</td>
                 <td>{{ company.contact_person or '' }}</td>
                 <td>{{ company.contact_phone or '' }}</td>
                 <td>

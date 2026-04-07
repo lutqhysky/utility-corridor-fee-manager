@@ -128,6 +128,69 @@ th { background: #f8fafc; color: #334155; }
 .form-grid label { display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #334155; }
 .form-grid .full { grid-column: 1 / -1; }
 
+.summary-layout {
+  display: block;
+}
+.summary-filter-panel {
+  padding: 0;
+  overflow: hidden;
+}
+.summary-filter-trigger {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  cursor: pointer;
+  border-bottom: 1px solid transparent;
+}
+.summary-filter-trigger::marker,
+.summary-filter-trigger::-webkit-details-marker {
+  display: none;
+}
+.summary-filter-trigger h3 {
+  margin: 0;
+}
+.summary-filter-hint::after {
+  content: "收起";
+  color: #64748b;
+  font-size: 13px;
+}
+.summary-filter-panel:not([open]) .summary-filter-hint::after {
+  content: "展开";
+}
+.summary-filter-panel[open] .summary-filter-trigger {
+  border-bottom-color: #e2e8f0;
+}
+.summary-year-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 16px 16px 16px;
+}
+.year-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 13px;
+}
+.year-chip:hover {
+  background: #dbeafe;
+}
+.year-chip.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+.summary-content tfoot th {
+  background: #f1f5f9;
+}
+
 /* 登录页 */
 .auth-body {
   min-height: 100vh;
