@@ -2,22 +2,17 @@
 {% block content %}
 
 <div class="summary-layout">
-    <div class="summary-content">
-        <details class="panel summary-filter-panel" open>
-            <summary class="summary-filter-trigger">
-                <h3>收费汇总</h3>
-                <span class="summary-filter-hint"></span>
-            </summary>
-            <div class="summary-year-links">
-                <a href="/fee-summary/" class="year-chip {% if not selected_year %}active{% endif %}">全部年度</a>
-                {% for y in years %}
-                <a href="/fee-summary/?year={{ y }}" class="year-chip {% if selected_year == y %}active{% endif %}">
-                    {{ y }}年度
-                </a>
-                {% endfor %}
-            </div>
-        </details>
+    <aside class="summary-year-menu panel">
+        <h3>收费汇总</h3>
+        <a href="/fee-summary/" class="{% if not selected_year %}active{% endif %}">全部年度</a>
+        {% for y in years %}
+        <a href="/fee-summary/?year={{ y }}" class="{% if selected_year == y %}active{% endif %}">
+            {{ y }}年度
+        </a>
+        {% endfor %}
+    </aside>
 
+    <div class="summary-content">
         <div class="stats-grid">
             <div class="stat-card">
                 <span>收款单位数</span>

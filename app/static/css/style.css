@@ -129,62 +129,29 @@ th { background: #f8fafc; color: #334155; }
 .form-grid .full { grid-column: 1 / -1; }
 
 .summary-layout {
-  display: block;
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 16px;
 }
-.summary-filter-panel {
-  padding: 0;
-  overflow: hidden;
-}
-.summary-filter-trigger {
-  list-style: none;
+.summary-year-menu {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px;
-  cursor: pointer;
-  border-bottom: 1px solid transparent;
-}
-.summary-filter-trigger::marker,
-.summary-filter-trigger::-webkit-details-marker {
-  display: none;
-}
-.summary-filter-trigger h3 {
-  margin: 0;
-}
-.summary-filter-hint::after {
-  content: "收起";
-  color: #64748b;
-  font-size: 13px;
-}
-.summary-filter-panel:not([open]) .summary-filter-hint::after {
-  content: "展开";
-}
-.summary-filter-panel[open] .summary-filter-trigger {
-  border-bottom-color: #e2e8f0;
-}
-.summary-year-links {
-  display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 8px;
-  padding: 12px 16px 16px 16px;
+  height: fit-content;
 }
-.year-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid #bfdbfe;
+.summary-year-menu h3 {
+  margin: 0 0 8px 0;
+}
+.summary-year-menu a {
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: #334155;
+}
+.summary-year-menu a:hover {
   background: #eff6ff;
-  color: #1d4ed8;
-  font-size: 13px;
 }
-.year-chip:hover {
-  background: #dbeafe;
-}
-.year-chip.active {
+.summary-year-menu a.active {
   background: #2563eb;
-  border-color: #2563eb;
   color: #fff;
 }
 .summary-content tfoot th {
@@ -273,4 +240,5 @@ code {
   .layout.sidebar-collapsed .sidebar h1,
   .layout.sidebar-collapsed .sidebar nav { opacity: 1; pointer-events: auto; }
   .form-grid { grid-template-columns: 1fr; }
+  .summary-layout { grid-template-columns: 1fr; }
 }
