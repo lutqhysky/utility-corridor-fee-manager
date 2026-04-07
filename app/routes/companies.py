@@ -2,9 +2,10 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import Company
+from app.models import Company, FeeRecord
 from app.paths import TEMPLATES_DIR
 
 router = APIRouter(prefix='/companies', tags=['companies'])
@@ -24,6 +25,19 @@ def list_companies(request: Request, db: Session = Depends(get_db), keyword: str
     if keyword:
         query = query.filter(Company.company_name.contains(keyword) | Company.short_name.contains(keyword))
     companies = query.order_by(Company.id.desc()).all()
+
+    received_amount_rows = (
+        db.query(
+            FeeRecord.company_id,
+            func.coalesce(func.sum(FeeRecord.actual_received_amount), 0).label('total_received_amount')
+        )
+        .group_by(FeeRecord.company_id)
+        .all()
+    )
+    received_amount_map = {row.company_id: row.total_received_amount for row in received_amount_rows}
+    for company in companies:
+        company.total_received_amount = received_amount_map.get(company.id, 0)
+
     return templates.TemplateResponse('companies/list.html', {'request': request, 'companies': companies, 'keyword': keyword, 'title': '单位管理'})
 
 
