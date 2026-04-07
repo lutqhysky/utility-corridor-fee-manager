@@ -1,58 +1,66 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<div class="toolbar">
-    <form method="get" class="inline-form">
-        <select name="year">
-            <option value="">全部年度</option>
-            {% for y in years %}
-            <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}年</option>
-            {% endfor %}
-        </select>
-        <button type="submit">查询</button>
-    </form>
-</div>
+<div class="summary-layout">
+    <aside class="summary-year-menu panel">
+        <h3>收费汇总</h3>
+        <a href="/fee-summary/" class="{% if not selected_year %}active{% endif %}">全部年度</a>
+        {% for y in years %}
+        <a href="/fee-summary/?year={{ y }}" class="{% if selected_year == y %}active{% endif %}">
+            {{ y }}年度
+        </a>
+        {% endfor %}
+    </aside>
 
-<div class="stats-grid">
-    <div class="stat-card">
-        <span>收款单位数</span>
-        <strong>{{ company_count }}</strong>
-    </div>
-    <div class="stat-card">
-        <span>{% if selected_year %}{{ selected_year }}年{% else %}全部年度{% endif %}实收总额</span>
-        <strong>¥{{ '%.2f'|format(total_received) }}</strong>
+    <div class="summary-content">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span>收款单位数</span>
+                <strong>{{ company_count }}</strong>
+            </div>
+            <div class="stat-card">
+                <span>{% if selected_year %}{{ selected_year }}年度{% else %}全部年度{% endif %}实收总额</span>
+                <strong>¥{{ '%.2f'|format(total_received) }}</strong>
+            </div>
+        </div>
+
+        <section class="panel">
+            <table>
+                <thead>
+                    <tr>
+                        <th>年度</th>
+                        <th>单位名称</th>
+                        <th>单位简称</th>
+                        <th>收费记录笔数</th>
+                        <th>实收总金额</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% if summary_rows %}
+                    {% for row in summary_rows %}
+                    <tr>
+                        <td>{{ row.year|int }}</td>
+                        <td>{{ row.company_name }}</td>
+                        <td>{{ row.short_name or '' }}</td>
+                        <td>{{ row.record_count }}</td>
+                        <td>¥{{ '%.2f'|format(row.total_received or 0) }}</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align:center;">暂无符合条件的实收数据</td>
+                    </tr>
+                {% endif %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th colspan="4" style="text-align:right;">汇总金额</th>
+                        <th>¥{{ '%.2f'|format(total_received) }}</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </section>
     </div>
 </div>
-
-<section class="panel">
-    <table>
-        <thead>
-            <tr>
-                <th>年度</th>
-                <th>单位名称</th>
-                <th>单位简称</th>
-                <th>收费记录笔数</th>
-                <th>实收总金额</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% if summary_rows %}
-            {% for row in summary_rows %}
-            <tr>
-                <td>{{ row.year|int }}</td>
-                <td>{{ row.company_name }}</td>
-                <td>{{ row.short_name or '' }}</td>
-                <td>{{ row.record_count }}</td>
-                <td>¥{{ '%.2f'|format(row.total_received or 0) }}</td>
-            </tr>
-            {% endfor %}
-        {% else %}
-            <tr>
-                <td colspan="5" style="text-align:center;">暂无符合条件的实收数据</td>
-            </tr>
-        {% endif %}
-        </tbody>
-    </table>
-</section>
 
 {% endblock %}

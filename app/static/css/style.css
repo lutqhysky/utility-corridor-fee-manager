@@ -128,6 +128,36 @@ th { background: #f8fafc; color: #334155; }
 .form-grid label { display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #334155; }
 .form-grid .full { grid-column: 1 / -1; }
 
+.summary-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 16px;
+}
+.summary-year-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: fit-content;
+}
+.summary-year-menu h3 {
+  margin: 0 0 8px 0;
+}
+.summary-year-menu a {
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: #334155;
+}
+.summary-year-menu a:hover {
+  background: #eff6ff;
+}
+.summary-year-menu a.active {
+  background: #2563eb;
+  color: #fff;
+}
+.summary-content tfoot th {
+  background: #f1f5f9;
+}
+
 /* 登录页 */
 .auth-body {
   min-height: 100vh;
@@ -210,4 +240,5 @@ code {
   .layout.sidebar-collapsed .sidebar h1,
   .layout.sidebar-collapsed .sidebar nav { opacity: 1; pointer-events: auto; }
   .form-grid { grid-template-columns: 1fr; }
+  .summary-layout { grid-template-columns: 1fr; }
 }
