@@ -27,6 +27,7 @@ def get_expected_sqlite_columns():
             'maintenance_fee_tax_rate': 'FLOAT DEFAULT 0',
             'entry_fee_discount': 'FLOAT DEFAULT 1',
             'maintenance_fee_discount': 'FLOAT DEFAULT 1',
+            'charge_cycle': "VARCHAR(20) DEFAULT '年度'",
         },
         'fee_records': {
             'last_reminder_sent_at': 'DATETIME',

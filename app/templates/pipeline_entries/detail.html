@@ -25,16 +25,18 @@
             <tr>
                 <th>入廊时间</th>
                 <td>{{ entry.entry_date or '' }}</td>
+                <th>收费周期</th>
+                <td>{{ entry.charge_cycle or '' }}</td>
+            </tr>
+            <tr>
                 <th>是否已申请入廊</th>
                 <td>{{ entry.has_entry_application or '' }}</td>
-            </tr>
-            <tr>
                 <th>入廊合同签订时间</th>
                 <td>{{ entry.contract_sign_date_entry or '' }}</td>
-                <th>运维合同签订时间</th>
-                <td>{{ entry.contract_sign_date_maintenance or '' }}</td>
             </tr>
             <tr>
+                <th>运维合同签订时间</th>
+                <td>{{ entry.contract_sign_date_maintenance or '' }}</td>
                 <th>备注</th>
                 <td colspan="3">{{ entry.remark or '' }}</td>
             </tr>

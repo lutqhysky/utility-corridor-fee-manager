@@ -79,7 +79,7 @@
                 <td><span class="badge">{{ record.payment_status }}</span></td>
                 <td>
                     {% if record.last_reminder_sent_at %}
-                        已于 {{ record.last_reminder_sent_at }} 通过 {{ record.last_reminder_channel or '机器人' }} 提醒
+                        已提醒
                     {% else %}
                         未提醒
                     {% endif %}
