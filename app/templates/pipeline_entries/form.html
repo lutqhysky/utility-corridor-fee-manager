@@ -63,6 +63,18 @@
                     <th>运维费折扣</th>
                     <td><input type="number" step="0.0001" name="maintenance_fee_discount" value="{{ entry.maintenance_fee_discount if entry else 1 }}"></td>
                 </tr>
+                <tr>
+                    <th>收费周期</th>
+                    <td>
+                        <select name="charge_cycle">
+                            {% set selected_cycle = entry.charge_cycle if entry and entry.charge_cycle else '年度' %}
+                            <option value="季度" {% if selected_cycle == '季度' %}selected{% endif %}>季度</option>
+                            <option value="年度" {% if selected_cycle == '年度' %}selected{% endif %}>年度</option>
+                        </select>
+                    </td>
+                    <th></th>
+                    <td></td>
+                </tr>
             </tbody>
         </table>
 

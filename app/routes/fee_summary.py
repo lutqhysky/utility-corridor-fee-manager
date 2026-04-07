@@ -14,6 +14,9 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 @router.get('/', response_class=HTMLResponse)
 def fee_summary(request: Request, db: Session = Depends(get_db), year: int | None = None):
+    years = list(range(2024, 2042))
+    selected_year = year if year in years else None
+
     base_query = (
         db.query(
             extract('year', FeeRecord.actual_received_date).label('year'),
@@ -29,8 +32,8 @@ def fee_summary(request: Request, db: Session = Depends(get_db), year: int | Non
         .filter(FeeRecord.actual_received_amount > 0)
     )
 
-    if year:
-        base_query = base_query.filter(extract('year', FeeRecord.actual_received_date) == year)
+    if selected_year:
+        base_query = base_query.filter(extract('year', FeeRecord.actual_received_date) == selected_year)
 
     summary_rows = (
         base_query.group_by(
@@ -46,19 +49,6 @@ def fee_summary(request: Request, db: Session = Depends(get_db), year: int | Non
         .all()
     )
 
-    years = [
-        int(item[0])
-        for item in (
-            db.query(extract('year', FeeRecord.actual_received_date))
-            .filter(FeeRecord.actual_received_date.isnot(None))
-            .filter(FeeRecord.actual_received_amount.isnot(None))
-            .filter(FeeRecord.actual_received_amount > 0)
-            .distinct()
-            .order_by(extract('year', FeeRecord.actual_received_date).desc())
-            .all()
-        )
-    ]
-
     total_received = sum(float(row.total_received or 0) for row in summary_rows)
     company_count = len({row.company_id for row in summary_rows})
 
@@ -68,7 +58,7 @@ def fee_summary(request: Request, db: Session = Depends(get_db), year: int | Non
             'request': request,
             'summary_rows': summary_rows,
             'years': years,
-            'selected_year': year,
+            'selected_year': selected_year,
             'total_received': total_received,
             'company_count': company_count,
             'title': '收费汇总',
