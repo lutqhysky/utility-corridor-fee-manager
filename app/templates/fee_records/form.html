@@ -144,14 +144,10 @@
             amountTouched = true;
         });
         feeTypeSelect.addEventListener('change', syncAll);
-        pipelineEntrySelect.addEventListener('change', function () {
-            amountTouched = false;
-            syncAmountByPipelineEntry(true);
-        });
+        pipelineEntrySelect.addEventListener('change', syncAmountByPipelineEntry);
         syncTaxRate();
-        const currentAmount = (amountInput.value || '').trim();
-        if (!isEditMode || currentAmount === '' || Number(currentAmount) === 0) {
-            syncAmountByPipelineEntry(true);
+        if (!isEditMode) {
+            syncAmountByPipelineEntry();
         }
     })();
 </script>
