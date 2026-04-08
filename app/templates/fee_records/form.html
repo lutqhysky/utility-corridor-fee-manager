@@ -102,6 +102,7 @@
         const pipelineEntrySelect = document.getElementById('pipeline_entry_id');
         const taxRateInput = document.getElementById('tax_rate');
         const amountInput = document.getElementById('amount_incl_tax');
+        let amountTouched = false;
 
         if (!feeTypeSelect || !pipelineEntrySelect || !taxRateInput || !amountInput) {
             return;
@@ -119,7 +120,10 @@
             }
         }
 
-        function syncAmountByPipelineEntry() {
+        function syncAmountByPipelineEntry(force = false) {
+            if (amountTouched && !force) {
+                return;
+            }
             const selected = getSelectedPipelineOption();
             if (!selected || !selected.value) {
                 return;
@@ -136,6 +140,9 @@
             syncAmountByPipelineEntry();
         }
 
+        amountInput.addEventListener('input', function () {
+            amountTouched = true;
+        });
         feeTypeSelect.addEventListener('change', syncAll);
         pipelineEntrySelect.addEventListener('change', syncAmountByPipelineEntry);
         syncTaxRate();
