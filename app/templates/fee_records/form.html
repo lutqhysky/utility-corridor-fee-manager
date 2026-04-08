@@ -97,6 +97,7 @@
 </section>
 <script>
     (function () {
+        const isEditMode = {{ 'true' if record else 'false' }};
         const feeTypeSelect = document.getElementById('fee_type');
         const pipelineEntrySelect = document.getElementById('pipeline_entry_id');
         const taxRateInput = document.getElementById('tax_rate');
@@ -137,7 +138,10 @@
 
         feeTypeSelect.addEventListener('change', syncAll);
         pipelineEntrySelect.addEventListener('change', syncAmountByPipelineEntry);
-        syncAll();
+        syncTaxRate();
+        if (!isEditMode) {
+            syncAmountByPipelineEntry();
+        }
     })();
 </script>
 {% endblock %}
