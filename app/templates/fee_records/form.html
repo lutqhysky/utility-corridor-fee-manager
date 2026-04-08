@@ -46,8 +46,8 @@
             <input name="period_year" type="number" value="{{ record.period_year if record and record.period_year is not none else '' }}">
         </label>
 
-        <label>不含税金额
-            <input name="amount_excl_tax" type="number" step="0.01" value="{{ record.amount_excl_tax if record and record.amount_excl_tax is not none else 0 }}">
+        <label>含税金额
+            <input id="amount_incl_tax" name="amount_incl_tax" type="number" step="0.01" value="{{ record.amount_incl_tax if record and record.amount_incl_tax is not none else 0 }}">
         </label>
 
         <label>税率（如0.09）
@@ -97,6 +97,7 @@
 </section>
 <script>
     (function () {
+        const isEditMode = {{ 'true' if record else 'false' }};
         const feeTypeSelect = document.getElementById('fee_type');
         const pipelineEntrySelect = document.getElementById('pipeline_entry_id');
         const taxRateInput = document.getElementById('tax_rate');
@@ -137,7 +138,11 @@
 
         feeTypeSelect.addEventListener('change', syncAll);
         pipelineEntrySelect.addEventListener('change', syncAmountByPipelineEntry);
-        syncAll();
+        syncTaxRate();
+        const currentAmount = (amountInput.value || '').trim();
+        if (!isEditMode || currentAmount === '' || Number(currentAmount) === 0) {
+            syncAmountByPipelineEntry();
+        }
     })();
 </script>
 {% endblock %}
