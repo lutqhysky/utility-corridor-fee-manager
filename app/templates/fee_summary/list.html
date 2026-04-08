@@ -1,18 +1,23 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<div class="summary-layout">
-    <aside class="summary-year-menu panel">
-        <h3>收费汇总</h3>
-        <a href="/fee-summary/" class="{% if not selected_year %}active{% endif %}">全部年度</a>
-        {% for y in years %}
-        <a href="/fee-summary/?year={{ y }}" class="{% if selected_year == y %}active{% endif %}">
-            {{ y }}年度
-        </a>
-        {% endfor %}
-    </aside>
+<div class="summary-content">
+    <section class="panel summary-filter-panel">
+        <div class="summary-filter-head">
+            <h3>收费汇总</h3>
+            <span>按年度筛选</span>
+        </div>
+        <div class="summary-year-tabs">
+            <a href="/fee-summary/" class="{% if not selected_year %}active{% endif %}">全部年度</a>
+            {% for y in years %}
+            <a href="/fee-summary/?year={{ y }}" class="{% if selected_year == y %}active{% endif %}">
+                {{ y }}年度
+            </a>
+            {% endfor %}
+        </div>
+    </section>
 
-    <div class="summary-content">
+    <div class="summary-main">
         <div class="stats-grid">
             <div class="stat-card">
                 <span>收款单位数</span>
