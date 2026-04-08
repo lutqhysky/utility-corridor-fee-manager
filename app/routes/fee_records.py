@@ -48,22 +48,6 @@ def calc_excl_tax_from_incl_tax(amount_incl_tax: float, tax_rate: float) -> tupl
     return amount_excl_tax, tax_amount
 
 
-def resolve_amount_incl_tax(db: Session, fee_type: str, pipeline_entry_id: int | None, fallback_amount: float) -> float:
-    if pipeline_entry_id is None:
-        return float(fallback_amount or 0)
-
-    entry = db.query(PipelineEntry).filter(PipelineEntry.id == pipeline_entry_id).first()
-    if not entry:
-        return float(fallback_amount or 0)
-
-    entry_actual_fee, maintenance_actual_fee = calculate_entry_actual_fees(entry)
-    if fee_type == '入廊费':
-        return entry_actual_fee
-    if fee_type == '运维费':
-        return maintenance_actual_fee
-    return float(fallback_amount or 0)
-
-
 def validate_record_relations(db: Session, company_id: int, pipeline_entry_id: int | None):
     company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
@@ -170,7 +154,6 @@ def create_record(
         tax_rate = 0.09
     elif fee_type == '运维费':
         tax_rate = 0.06
-    amount_incl_tax = resolve_amount_incl_tax(db, fee_type, pipeline_entry_id, amount_incl_tax)
     amount_excl_tax, tax_amount = calc_excl_tax_from_incl_tax(amount_incl_tax, tax_rate)
 
     db.add(
@@ -264,7 +247,6 @@ def update_record(
         tax_rate = 0.09
     elif fee_type == '运维费':
         tax_rate = 0.06
-    amount_incl_tax = resolve_amount_incl_tax(db, fee_type, pipeline_entry_id, amount_incl_tax)
     amount_excl_tax, tax_amount = calc_excl_tax_from_incl_tax(amount_incl_tax, tax_rate)
 
     record.company_id = company_id
