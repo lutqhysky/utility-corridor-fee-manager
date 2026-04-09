@@ -23,12 +23,18 @@
                     value="{{ entry.id }}"
                     data-entry-actual-fee="{{ fee_info.get('entry_actual_fee', 0) }}"
                     data-maintenance-actual-fee="{{ fee_info.get('maintenance_actual_fee', 0) }}"
+                    data-project-name="{{ entry.project_name or '' }}"
                     {% if record and record.pipeline_entry_id == entry.id %}selected{% endif %}
                 >
                     {{ entry.company.short_name or entry.company.company_name }} - {{ entry.project_name or '未命名项目' }}
                 </option>
                 {% endfor %}
             </select>
+        </label>
+
+
+        <label>项目名称
+            <input id="project_name" name="project_name" value="{{ record.project_name if record and record.project_name else '' }}">
         </label>
 
         <label>收费类型
@@ -102,9 +108,10 @@
         const pipelineEntrySelect = document.getElementById('pipeline_entry_id');
         const taxRateInput = document.getElementById('tax_rate');
         const amountInput = document.getElementById('amount_incl_tax');
+        const projectNameInput = document.getElementById('project_name');
         let amountTouched = false;
 
-        if (!feeTypeSelect || !pipelineEntrySelect || !taxRateInput || !amountInput) {
+        if (!feeTypeSelect || !pipelineEntrySelect || !taxRateInput || !amountInput || !projectNameInput) {
             return;
         }
 
@@ -135,19 +142,35 @@
             }
         }
 
+        function syncProjectNameByPipelineEntry(force = false) {
+            if (isEditMode && !force) {
+                return;
+            }
+            const selected = getSelectedPipelineOption();
+            if (!selected || !selected.value) {
+                return;
+            }
+            projectNameInput.value = selected.dataset.projectName || '';
+        }
+
         function syncAll() {
             syncTaxRate();
             syncAmountByPipelineEntry();
+            syncProjectNameByPipelineEntry();
         }
 
         amountInput.addEventListener('input', function () {
             amountTouched = true;
         });
         feeTypeSelect.addEventListener('change', syncAll);
-        pipelineEntrySelect.addEventListener('change', syncAmountByPipelineEntry);
+        pipelineEntrySelect.addEventListener('change', function () {
+            syncAmountByPipelineEntry();
+            syncProjectNameByPipelineEntry(true);
+        });
         syncTaxRate();
         if (!isEditMode) {
             syncAmountByPipelineEntry();
+            syncProjectNameByPipelineEntry(true);
         }
     })();
 </script>

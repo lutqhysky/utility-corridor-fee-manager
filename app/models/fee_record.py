@@ -9,6 +9,7 @@ class FeeRecord(Base):
     id = Column(Integer, primary_key=True, index=True)
     company_id = Column(Integer, ForeignKey('companies.id'), nullable=False)
     pipeline_entry_id = Column(Integer, ForeignKey('pipeline_entries.id'), nullable=True)
+    project_name = Column(String(200), nullable=True)
     fee_type = Column(String(50), nullable=False)
     charge_period = Column(String(100), nullable=True)
     period_year = Column(Integer, nullable=True)
