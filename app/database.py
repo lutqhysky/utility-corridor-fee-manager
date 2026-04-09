@@ -30,6 +30,7 @@ def get_expected_sqlite_columns():
             'charge_cycle': "VARCHAR(20) DEFAULT '年度'",
         },
         'fee_records': {
+            'project_name': 'VARCHAR(200)',
             'last_reminder_sent_at': 'DATETIME',
             'last_reminder_for_date': 'DATE',
             'last_reminder_channel': 'VARCHAR(50)',

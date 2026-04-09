@@ -133,6 +133,7 @@ def new_record(request: Request, db: Session = Depends(get_db)):
 def create_record(
     company_id: int = Form(...),
     pipeline_entry_id: int | None = Form(None),
+    project_name: str = Form(''),
     fee_type: str = Form(...),
     charge_period: str = Form(''),
     period_year: int | None = Form(None),
@@ -160,6 +161,7 @@ def create_record(
         FeeRecord(
             company_id=company_id,
             pipeline_entry_id=pipeline_entry_id,
+            project_name=project_name,
             fee_type=fee_type,
             charge_period=charge_period,
             period_year=period_year,
@@ -222,6 +224,7 @@ def update_record(
     record_id: int,
     company_id: int = Form(...),
     pipeline_entry_id: int | None = Form(None),
+    project_name: str = Form(''),
     fee_type: str = Form(...),
     charge_period: str = Form(''),
     period_year: int | None = Form(None),
@@ -251,6 +254,7 @@ def update_record(
 
     record.company_id = company_id
     record.pipeline_entry_id = pipeline_entry_id
+    record.project_name = project_name
     record.fee_type = fee_type
     record.charge_period = charge_period
     record.period_year = period_year
