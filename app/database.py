@@ -1,4 +1,5 @@
 import sqlite3
+import os
 from pathlib import Path
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -6,7 +7,31 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / 'data'
 DATA_DIR.mkdir(parents=True, exist_ok=True)
-DATABASE_URL = f"sqlite:///{DATA_DIR / 'corridor_fee_manager.db'}"
+
+
+def resolve_database_path() -> Path:
+    explicit_path = os.getenv('APP_DATABASE_PATH', '').strip()
+    if explicit_path:
+        return Path(explicit_path).expanduser().resolve()
+
+    default_path = DATA_DIR / 'corridor_fee_manager.db'
+    legacy_paths = [
+        DATA_DIR / 'corridor_fee.db',
+        DATA_DIR / 'utility_corridor_fee_manager.db',
+    ]
+
+    if default_path.exists():
+        return default_path
+
+    for legacy_path in legacy_paths:
+        if legacy_path.exists():
+            return legacy_path
+
+    return default_path
+
+
+DATABASE_PATH = resolve_database_path()
+DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -41,8 +66,7 @@ def get_expected_sqlite_columns():
 
 
 def ensure_sqlite_schema():
-    database_path = DATA_DIR / 'corridor_fee_manager.db'
-    with sqlite3.connect(database_path) as connection:
+    with sqlite3.connect(DATABASE_PATH) as connection:
         for table_name, columns in get_expected_sqlite_columns().items():
             existing_columns = {
                 row[1]
