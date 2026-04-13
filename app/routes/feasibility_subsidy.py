@@ -36,6 +36,7 @@ def list_periods(request: Request, db: Session = Depends(get_db)):
     for period in periods:
         running_payable += period.current_receivable or 0
         actual_received = sum((item.amount or 0) for item in period.details)
+        period.cumulative_payable = running_payable
         period.actual_received = actual_received
         running_received += actual_received
         period.cumulative_received = running_received
@@ -104,6 +105,7 @@ def update_period(
     start_date: str = Form(''),
     end_date: str = Form(''),
     current_receivable: float = Form(0),
+    cumulative_payable: float = Form(0),
     db: Session = Depends(get_db),
 ):
     period = db.query(FeasibilitySubsidyPeriod).filter(FeasibilitySubsidyPeriod.id == period_id).first()
@@ -114,6 +116,7 @@ def update_period(
     period.start_date = parse_date(start_date)
     period.end_date = parse_date(end_date)
     period.current_receivable = current_receivable
+    period.cumulative_payable = cumulative_payable
     db.commit()
     return RedirectResponse(url='/feasibility-subsidy/', status_code=303)
 
