@@ -24,6 +24,7 @@ from app.routes import (
     dashboard_router,
     fee_records_router,
     fee_summary_router,
+    feasibility_subsidy_router,
     health_router,
     pipeline_entries_router,
 )
@@ -60,6 +61,7 @@ def register_routers(app: FastAPI):
     app.include_router(fee_records_router)
     app.include_router(contracts_router)
     app.include_router(fee_summary_router)
+    app.include_router(feasibility_subsidy_router)
 
 
 class RequireLoginMiddleware(BaseHTTPMiddleware):
