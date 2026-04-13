@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<section class="panel" style="max-width:860px;">
+    <form method="post" action="/feasibility-subsidy/{{ period.id }}/edit" class="form-grid">
+        <label>
+            运营期
+            <input name="operating_period" value="{{ period.operating_period }}" required>
+        </label>
+        <label>
+            当期应收可行性缺口补助
+            <input type="number" name="current_receivable" step="0.01" min="0" value="{{ period.current_receivable or 0 }}">
+        </label>
+        <label>
+            起始时间
+            <input type="date" name="start_date" value="{{ period.start_date or '' }}">
+        </label>
+        <label>
+            截止时间
+            <input type="date" name="end_date" value="{{ period.end_date or '' }}">
+        </label>
+
+        <div class="full" style="display:flex; gap:10px; margin-top:8px;">
+            <button type="submit">保存修改</button>
+            <a class="button secondary" href="/feasibility-subsidy/">取消</a>
+        </div>
+    </form>
+</section>
+
+{% endblock %}
