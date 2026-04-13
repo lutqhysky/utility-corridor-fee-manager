@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<section class="panel" style="margin-bottom:16px;">
+    <p style="margin:0 0 8px 0;">运营期：<strong>{{ period.operating_period }}</strong></p>
+    <p style="margin:0 0 8px 0;">时间范围：{{ period.start_date or '' }} 至 {{ period.end_date or '' }}</p>
+    <p style="margin:0;">当前运营期实际收到合计：<strong>¥{{ '%.2f'|format(actual_received or 0) }}</strong></p>
+</section>
+
+<section class="panel" style="margin-bottom:16px;">
+    <h3 style="margin-top:0;">新增收款明细</h3>
+    <form method="post" action="/feasibility-subsidy/{{ period.id }}/details/new" class="inline-form" style="flex-wrap:wrap;">
+        <label>收款时间 <input type="date" name="received_date"></label>
+        <label>收款金额 <input type="number" name="amount" step="0.01" min="0" value="0"></label>
+        <input name="remark" placeholder="备注（可选）">
+        <button type="submit">新增明细</button>
+    </form>
+</section>
+
+<section class="panel">
+    <table>
+        <thead>
+            <tr>
+                <th>收款时间</th>
+                <th>收款金额</th>
+                <th>备注</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if details %}
+                {% for detail in details %}
+                <tr>
+                    <td>{{ detail.received_date or '' }}</td>
+                    <td>¥{{ '%.2f'|format(detail.amount or 0) }}</td>
+                    <td>{{ detail.remark or '' }}</td>
+                    <td>
+                        <form method="post" action="/feasibility-subsidy/{{ period.id }}/details/{{ detail.id }}/delete" style="display:inline;">
+                            <button type="submit" onclick="return confirm('确定删除这条收款明细吗？')">删除</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="4" style="text-align:center;">暂无明细，请先新增收款记录</td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</section>
+
+<div style="margin-top:12px;">
+    <a class="button" href="/feasibility-subsidy/">返回可行性缺口补助列表</a>
+</div>
+
+{% endblock %}
