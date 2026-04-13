@@ -20,7 +20,6 @@
                 <th>起始时间</th>
                 <th>截止时间</th>
                 <th>当期应收可行性缺口补助</th>
-                <th>累计应付可行性缺口补助</th>
                 <th>实际收到可行性缺口补助</th>
                 <th>累计收到可行性缺口补助</th>
                 <th>欠付可行性缺口补助</th>
@@ -36,7 +35,6 @@
                     <td>{{ period.start_date or '' }}</td>
                     <td>{{ period.end_date or '' }}</td>
                     <td>¥{{ '%.2f'|format(period.current_receivable or 0) }}</td>
-                    <td>¥{{ '%.2f'|format(period.cumulative_payable or 0) }}</td>
                     <td>¥{{ '%.2f'|format(period.actual_received or 0) }}</td>
                     <td>¥{{ '%.2f'|format(period.cumulative_received or 0) }}</td>
                     <td>¥{{ '%.2f'|format(period.arrears or 0) }}</td>
@@ -52,7 +50,7 @@
                 {% endfor %}
             {% else %}
                 <tr>
-                    <td colspan="10" style="text-align:center;">暂无可行性缺口补助数据</td>
+                    <td colspan="9" style="text-align:center;">暂无可行性缺口补助数据</td>
                 </tr>
             {% endif %}
         </tbody>

@@ -41,7 +41,7 @@ def list_periods(request: Request, db: Session = Depends(get_db)):
         running_received += actual_received
         period.cumulative_received = running_received
         period.arrears = (period.current_receivable or 0) - actual_received
-        period.cumulative_arrears = (period.cumulative_payable or 0) - running_received
+        period.cumulative_arrears = running_payable - running_received
 
     return templates.TemplateResponse(
         'feasibility_subsidy/list.html',
