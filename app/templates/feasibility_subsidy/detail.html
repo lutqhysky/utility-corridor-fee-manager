@@ -10,7 +10,7 @@
 <section class="panel" style="margin-bottom:16px;">
     <h3 style="margin-top:0;">新增收款明细</h3>
     <form method="post" action="/feasibility-subsidy/{{ period.id }}/details/new" class="inline-form" style="flex-wrap:wrap;">
-        <label>收款时间 <input type="date" name="received_date"></label>
+        <label>收款时间 <input type="date" name="received_date" placeholder="YYYY-MM-DD"></label>
         <label>收款金额 <input type="number" name="amount" step="0.01" min="0" value="0"></label>
         <input name="remark" placeholder="备注（可选）">
         <button type="submit">新增明细</button>
@@ -35,6 +35,8 @@
                     <td>¥{{ '%.2f'|format(detail.amount or 0) }}</td>
                     <td>{{ detail.remark or '' }}</td>
                     <td>
+                        <a href="/feasibility-subsidy/{{ period.id }}/details/{{ detail.id }}/edit">修改</a>
+                        <span style="color:#cbd5e1; margin:0 6px;">|</span>
                         <form method="post" action="/feasibility-subsidy/{{ period.id }}/details/{{ detail.id }}/delete" style="display:inline;">
                             <button type="submit" onclick="return confirm('确定删除这条收款明细吗？')">删除</button>
                         </form>

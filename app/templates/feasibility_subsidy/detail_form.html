@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<section class="panel" style="max-width:860px;">
+    <p style="margin-top:0;">运营期：<strong>{{ period.operating_period }}</strong></p>
+    <form method="post" action="/feasibility-subsidy/{{ period.id }}/details/{{ detail.id }}/edit" class="form-grid">
+        <label>
+            收款时间
+            <input type="date" name="received_date" value="{{ detail.received_date or '' }}" placeholder="YYYY-MM-DD">
+        </label>
+        <label>
+            收款金额
+            <input type="number" name="amount" step="0.01" min="0" value="{{ detail.amount or 0 }}">
+        </label>
+        <label class="full">
+            备注
+            <input name="remark" value="{{ detail.remark or '' }}" placeholder="备注（可选）">
+        </label>
+
+        <div class="full" style="display:flex; gap:10px; margin-top:8px;">
+            <button type="submit">保存修改</button>
+            <a class="button secondary" href="/feasibility-subsidy/{{ period.id }}">取消</a>
+        </div>
+    </form>
+</section>
+
+{% endblock %}
