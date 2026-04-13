@@ -32,16 +32,13 @@ def list_periods(request: Request, db: Session = Depends(get_db)):
     )
 
     running_received = 0.0
-    running_payable = 0.0
     for period in periods:
         actual_received = sum((item.amount or 0) for item in period.details)
         period.actual_received = actual_received
-        running_payable += period.current_receivable or 0
-        period.cumulative_payable = running_payable
         running_received += actual_received
         period.cumulative_received = running_received
         period.arrears = (period.current_receivable or 0) - actual_received
-        period.cumulative_arrears = running_payable - running_received
+        period.cumulative_arrears = (period.cumulative_payable or 0) - running_received
 
     return templates.TemplateResponse(
         'feasibility_subsidy/list.html',
@@ -59,6 +56,7 @@ def create_period(
     start_date: str = Form(''),
     end_date: str = Form(''),
     current_receivable: float = Form(0),
+    cumulative_payable: float = Form(0),
     db: Session = Depends(get_db),
 ):
     db.add(
@@ -67,50 +65,12 @@ def create_period(
             start_date=parse_date(start_date),
             end_date=parse_date(end_date),
             current_receivable=current_receivable,
+            cumulative_payable=cumulative_payable,
         )
     )
     db.commit()
     return RedirectResponse(url='/feasibility-subsidy/', status_code=303)
 
-
-
-
-@router.get('/{period_id}/edit', response_class=HTMLResponse)
-def edit_period(period_id: int, request: Request, db: Session = Depends(get_db)):
-    period = db.query(FeasibilitySubsidyPeriod).filter(FeasibilitySubsidyPeriod.id == period_id).first()
-    if not period:
-        return RedirectResponse(url='/feasibility-subsidy/', status_code=303)
-
-    return templates.TemplateResponse(
-        'feasibility_subsidy/form.html',
-        {
-            'request': request,
-            'period': period,
-            'title': f'修改运营期 - {period.operating_period}',
-        },
-    )
-
-
-@router.post('/{period_id}/edit')
-def update_period(
-    period_id: int,
-    operating_period: str = Form(''),
-    start_date: str = Form(''),
-    end_date: str = Form(''),
-    current_receivable: float = Form(0),
-    db: Session = Depends(get_db),
-):
-    period = db.query(FeasibilitySubsidyPeriod).filter(FeasibilitySubsidyPeriod.id == period_id).first()
-    if not period:
-        return RedirectResponse(url='/feasibility-subsidy/', status_code=303)
-
-    period.operating_period = operating_period
-    period.start_date = parse_date(start_date)
-    period.end_date = parse_date(end_date)
-    period.current_receivable = current_receivable
-
-    db.commit()
-    return RedirectResponse(url='/feasibility-subsidy/', status_code=303)
 
 @router.post('/{period_id}/delete')
 def delete_period(period_id: int, db: Session = Depends(get_db)):
