@@ -105,6 +105,7 @@ def update_period(
     start_date: str = Form(''),
     end_date: str = Form(''),
     current_receivable: float = Form(0),
+    cumulative_payable: float = Form(0),
     db: Session = Depends(get_db),
 ):
     period = db.query(FeasibilitySubsidyPeriod).filter(FeasibilitySubsidyPeriod.id == period_id).first()
@@ -115,6 +116,7 @@ def update_period(
     period.start_date = parse_date(start_date)
     period.end_date = parse_date(end_date)
     period.current_receivable = current_receivable
+    period.cumulative_payable = cumulative_payable
     db.commit()
     return RedirectResponse(url='/feasibility-subsidy/', status_code=303)
 
