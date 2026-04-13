@@ -32,8 +32,11 @@ def list_periods(request: Request, db: Session = Depends(get_db)):
     )
 
     running_received = 0.0
+    running_payable = 0.0
     for period in periods:
+        running_payable += period.current_receivable or 0
         actual_received = sum((item.amount or 0) for item in period.details)
+        period.cumulative_payable = running_payable
         period.actual_received = actual_received
         running_received += actual_received
         period.cumulative_received = running_received
@@ -56,7 +59,6 @@ def create_period(
     start_date: str = Form(''),
     end_date: str = Form(''),
     current_receivable: float = Form(0),
-    cumulative_payable: float = Form(0),
     db: Session = Depends(get_db),
 ):
     db.add(
@@ -65,7 +67,6 @@ def create_period(
             start_date=parse_date(start_date),
             end_date=parse_date(end_date),
             current_receivable=current_receivable,
-            cumulative_payable=cumulative_payable,
         )
     )
     db.commit()
