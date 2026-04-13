@@ -5,8 +5,8 @@
     <h3 style="margin-top:0;">新增运营期</h3>
     <form method="post" action="/feasibility-subsidy/new" class="inline-form" style="flex-wrap:wrap;">
         <input name="operating_period" placeholder="运营期（如：2026年第一季度）" required>
-        <label>起始时间 <input type="date" name="start_date"></label>
-        <label>截止时间 <input type="date" name="end_date"></label>
+        <label>起始时间 <input type="date" name="start_date" placeholder="YYYY-MM-DD"></label>
+        <label>截止时间 <input type="date" name="end_date" placeholder="YYYY-MM-DD"></label>
         <label>当期应收 <input type="number" name="current_receivable" step="0.01" min="0" value="0"></label>
         <label>累计应付 <input type="number" name="cumulative_payable" step="0.01" min="0" value="0"></label>
         <button type="submit">新增</button>
@@ -43,6 +43,8 @@
                     <td>¥{{ '%.2f'|format(period.arrears or 0) }}</td>
                     <td>¥{{ '%.2f'|format(period.cumulative_arrears or 0) }}</td>
                     <td>
+                        <a href="/feasibility-subsidy/{{ period.id }}/edit">修改</a>
+                        <span style="color:#cbd5e1; margin:0 6px;">|</span>
                         <form method="post" action="/feasibility-subsidy/{{ period.id }}/delete" style="display:inline;">
                             <button type="submit" onclick="return confirm('确定删除该运营期及其明细吗？')">删除</button>
                         </form>
