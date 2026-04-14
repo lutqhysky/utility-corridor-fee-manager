@@ -23,6 +23,18 @@ def parse_date(value: str):
         raise HTTPException(status_code=422, detail=f'日期格式错误: {value}，正确格式应为 YYYY-MM-DD') from exc
 
 
+def parse_optional_int(value: str) -> int | None:
+    if value is None:
+        return None
+    stripped = value.strip()
+    if not stripped:
+        return None
+    try:
+        return int(stripped)
+    except ValueError:
+        return None
+
+
 def calculate_entry_actual_fees(entry: PipelineEntry) -> tuple[float, float]:
     entry_fee_excl_tax_total = sum((item.entry_amount_excl_tax or 0) for item in entry.details)
     maintenance_fee_excl_tax_total = sum((item.maintenance_amount_excl_tax or 0) for item in entry.details)
@@ -67,13 +79,14 @@ def validate_record_relations(db: Session, company_id: int, pipeline_entry_id: i
 def list_records(
     request: Request,
     db: Session = Depends(get_db),
-    company_id: int | None = None,
+    company_id: str = '',
     status: str = '',
     notice: str = '',
 ):
+    selected_company_id = parse_optional_int(company_id)
     query = db.query(FeeRecord)
-    if company_id:
-        query = query.filter(FeeRecord.company_id == company_id)
+    if selected_company_id:
+        query = query.filter(FeeRecord.company_id == selected_company_id)
     if status:
         query = query.filter(FeeRecord.payment_status == status)
 
@@ -87,7 +100,7 @@ def list_records(
             'request': request,
             'records': records,
             'companies': companies,
-            'selected_company_id': company_id,
+            'selected_company_id': selected_company_id,
             'selected_status': status,
             'notice': notice,
             'reminder_settings': reminder_settings,

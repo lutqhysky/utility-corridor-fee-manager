@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
 from app.services.statistics_service import StatisticsService
 from app.models import FeeRecord
@@ -18,7 +18,18 @@ logger = logging.getLogger(__name__)
 def dashboard(request: Request, db: Session = Depends(get_db)):
     try:
         stats = StatisticsService.dashboard(db)
-        latest_records = db.query(FeeRecord).order_by(FeeRecord.created_at.desc()).limit(8).all()
+        latest_records = (
+            db.query(FeeRecord)
+            .options(joinedload(FeeRecord.company), joinedload(FeeRecord.pipeline_entry))
+            .order_by(FeeRecord.created_at.desc())
+            .limit(8)
+            .all()
+        )
+        for record in latest_records:
+            record.dashboard_project_name = (
+                record.project_name
+                or (record.pipeline_entry.project_name if record.pipeline_entry else '')
+            )
     except Exception:
         logger.exception('Dashboard data query failed, fallback to empty values.')
         stats = {
