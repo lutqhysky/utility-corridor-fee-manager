@@ -62,7 +62,13 @@
             {% for record in latest_records %}
                 <tr>
                     <td>{{ record.company.short_name or record.company.company_name }}</td>
-                    <td>{{ record.project_name or '' }}</td>
+                    <td>
+                        {% if record.pipeline_entry_id %}
+                            <a href="/pipeline-entries/{{ record.pipeline_entry_id }}">{{ record.project_name or '' }}</a>
+                        {% else %}
+                            {{ record.project_name or '' }}
+                        {% endif %}
+                    </td>
                     <td>{{ record.fee_type }}</td>
                     <td>{{ record.charge_period or '' }}</td>
                     <td>¥{{ '%.2f'|format(record.amount_incl_tax or 0) }}</td>
