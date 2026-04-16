@@ -79,9 +79,8 @@
                 <td>¥{{ '%.2f'|format(record.actual_received_amount or 0) }}</td>
                 <td>{{ record.actual_received_date or '' }}</td>
                 <td>
-                    {% set payment_status = (record.payment_status or '')|trim %}
-                    <span class="badge{% if payment_status == '待收缴' %} badge-pending{% endif %}">
-                        {{ payment_status }}
+                    <span class="badge {% if record.payment_status == '待收缴' %}badge-pending{% endif %}">
+                        {{ record.payment_status }}
                     </span>
                 </td>
                 <td>

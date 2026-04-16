@@ -123,7 +123,7 @@ th, td { text-align: left; padding: 12px 10px; border-bottom: 1px solid #e5e7eb;
 th { background: #f8fafc; color: #334155; }
 
 .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; background: #dbeafe; color: #1d4ed8; font-size: 12px; }
-.badge.badge-pending { color: #dc2626 !important; }
+.badge.badge-pending { color: #dc2626; }
 
 .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
 .form-grid label { display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #334155; }
