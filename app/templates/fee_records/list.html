@@ -78,7 +78,11 @@
                 <td>{{ record.planned_receivable_date or '' }}</td>
                 <td>¥{{ '%.2f'|format(record.actual_received_amount or 0) }}</td>
                 <td>{{ record.actual_received_date or '' }}</td>
-                <td><span class="badge">{{ record.payment_status }}</span></td>
+                <td>
+                    <span class="badge {% if record.payment_status == '待收缴' %}badge-pending{% endif %}">
+                        {{ record.payment_status }}
+                    </span>
+                </td>
                 <td>
                     {% if record.last_reminder_sent_at %}
                         已提醒
