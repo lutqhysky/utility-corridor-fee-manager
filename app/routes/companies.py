@@ -3,7 +3,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+# 核心修改 1：引入 selectinload 用于预加载关联数据
+from sqlalchemy.orm import Session, selectinload
 from app.database import get_db
 from app.models import Company, FeeRecord
 from app.paths import TEMPLATES_DIR
@@ -113,7 +114,22 @@ def update_company(
 
 @router.get('/{company_id}', response_class=HTMLResponse)
 def company_detail(company_id: int, request: Request, db: Session = Depends(get_db)):
-    company = get_company_or_404(db, company_id)
+    # 核心修改 2：使用 selectinload 提前加载该单位的 入廊记录、收费记录、合同 数据。
+    # 这样在渲染模板的 for 循环时，就不会再向数据库发送额外的查询请求（解决 N+1 导致页面卡顿的问题）。
+    company = (
+        db.query(Company)
+        .options(
+            selectinload(Company.pipeline_entries),
+            selectinload(Company.fee_records),
+            selectinload(Company.contracts)
+        )
+        .filter(Company.id == company_id)
+        .first()
+    )
+    
+    if not company:
+        raise HTTPException(status_code=404, detail='单位不存在')
+        
     return templates.TemplateResponse('companies/detail.html', {'request': request, 'company': company, 'title': '单位详情'})
 
 
