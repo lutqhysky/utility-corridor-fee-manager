@@ -6,7 +6,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from urllib.parse import quote
 from app.database import get_db
-from app.models import Company, FeeRecord, PipelineEntry
+# 引入了 FeeStandard 模型
+from app.models import Company, FeeRecord, PipelineEntry, FeeStandard 
 from app.paths import TEMPLATES_DIR
 from app.services.reminder_service import get_reminder_settings, run_fee_reminders
 
@@ -164,11 +165,17 @@ def create_record(
     db: Session = Depends(get_db),
 ):
     validate_record_relations(db, company_id, pipeline_entry_id)
-    if fee_type == '入廊费':
-        tax_rate = 0.09
-    elif fee_type == '运维费':
-        tax_rate = 0.06
-    amount_excl_tax, tax_amount = calc_excl_tax_from_incl_tax(amount_incl_tax, tax_rate)
+    
+    # --- 核心修改部分开始：动态获取税率 ---
+    standard = db.query(FeeStandard).filter(FeeStandard.fee_type == fee_type).first()
+    if standard and standard.tax_rate is not None:
+        actual_tax_rate = float(standard.tax_rate)
+    else:
+        # 如果数据库没有配置该费用类型的税率，则使用前端传入的值（兜底逻辑）
+        actual_tax_rate = float(tax_rate)
+    # --- 核心修改部分结束 ---
+
+    amount_excl_tax, tax_amount = calc_excl_tax_from_incl_tax(amount_incl_tax, actual_tax_rate)
 
     db.add(
         FeeRecord(
@@ -180,7 +187,7 @@ def create_record(
             period_year=period_year,
             period_quarter=period_quarter,
             amount_excl_tax=amount_excl_tax,
-            tax_rate=tax_rate,
+            tax_rate=actual_tax_rate,  # 使用动态计算出的税率
             tax_amount=tax_amount,
             amount_incl_tax=amount_incl_tax,
             planned_receivable_date=parse_date(planned_receivable_date),
@@ -259,11 +266,16 @@ def update_record(
         return RedirectResponse(url='/fee-records/', status_code=303)
 
     validate_record_relations(db, company_id, pipeline_entry_id)
-    if fee_type == '入廊费':
-        tax_rate = 0.09
-    elif fee_type == '运维费':
-        tax_rate = 0.06
-    amount_excl_tax, tax_amount = calc_excl_tax_from_incl_tax(amount_incl_tax, tax_rate)
+    
+    # --- 核心修改部分开始：更新操作同样动态获取税率 ---
+    standard = db.query(FeeStandard).filter(FeeStandard.fee_type == fee_type).first()
+    if standard and standard.tax_rate is not None:
+        actual_tax_rate = float(standard.tax_rate)
+    else:
+        actual_tax_rate = float(tax_rate)
+    # --- 核心修改部分结束 ---
+
+    amount_excl_tax, tax_amount = calc_excl_tax_from_incl_tax(amount_incl_tax, actual_tax_rate)
 
     record.company_id = company_id
     record.pipeline_entry_id = pipeline_entry_id
@@ -273,7 +285,7 @@ def update_record(
     record.period_year = period_year
     record.period_quarter = period_quarter
     record.amount_excl_tax = amount_excl_tax
-    record.tax_rate = tax_rate
+    record.tax_rate = actual_tax_rate  # 更新为动态计算的税率
     record.tax_amount = tax_amount
     record.amount_incl_tax = amount_incl_tax
     record.planned_receivable_date = parse_date(planned_receivable_date)
