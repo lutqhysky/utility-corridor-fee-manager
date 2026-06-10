@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="panel form-panel">
+    <form method="post" action="{% if contract %}/maintenance-contracts/{{ contract.id }}/edit{% else %}/maintenance-contracts/new{% endif %}" class="form-grid">
+        
+        <label class="full">
+            合同名称 <span style="color: #dc2626;">*</span>
+            <input name="contract_name" value="{{ contract.contract_name if contract else '' }}" required placeholder="请输入运维合同全称">
+        </label>
+        
+        <label>
+            甲方单位 (发包方) <span style="color: #dc2626;">*</span>
+            <input name="party_a" value="{{ contract.party_a if contract else '' }}" required placeholder="请输入甲方单位全称">
+        </label>
+        
+        <label>
+            乙方单位 (服务方) <span style="color: #dc2626;">*</span>
+            <input name="party_b" value="{{ contract.party_b if contract else '' }}" required placeholder="请输入乙方单位全称">
+        </label>
+        
+        <label>
+            合同签订时间
+            <input name="sign_date" type="date" value="{{ contract.sign_date if contract and contract.sign_date else '' }}">
+        </label>
+        
+        <div style="display: flex; gap: 10px; align-items: flex-end;">
+            <label style="flex: 1; margin: 0;">
+                服务开始时间
+                <input name="start_date" type="date" value="{{ contract.start_date if contract and contract.start_date else '' }}">
+            </label>
+            <label style="flex: 1; margin: 0;">
+                服务结束时间
+                <input name="end_date" type="date" value="{{ contract.end_date if contract and contract.end_date else '' }}">
+            </label>
+        </div>
+
+        <label class="full">
+            合同主要内容
+            <textarea name="content" rows="8" style="resize: vertical; line-height: 1.5; padding: 12px;" placeholder="建议在此处录入核心条款、运维公里数、测算收费基准说明等详尽文本...">{{ contract.content if contract else '' }}</textarea>
+        </label>
+        
+        <div class="full" style="margin-top: 10px;">
+            <button type="submit">保存备案</button>
+            <a class="button secondary" href="/maintenance-contracts/">取消</a>
+        </div>
+    </form>
+</section>
+{% endblock %}
