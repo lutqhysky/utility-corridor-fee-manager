@@ -110,15 +110,19 @@ def list_records(
     db: Session = Depends(get_db),
     company_id: str = '',
     status: str = '',
+    project: str = '',
     notice: str = '',
 ):
     selected_company_id = parse_optional_int(company_id)
+    selected_project = (project or '').strip()
     query = db.query(FeeRecord)
     if selected_company_id:
         query = query.filter(FeeRecord.company_id == selected_company_id)
     # '__overdue__' 是动态逾期筛选，不对应数据库里的状态值，查询后再在内存中过滤
     if status and status != OVERDUE_FILTER_VALUE:
         query = query.filter(FeeRecord.payment_status == status)
+    if selected_project:
+        query = query.filter(FeeRecord.project_name == selected_project)
 
     records = query.order_by(FeeRecord.planned_receivable_date.desc()).all()
     today = date.today()
@@ -127,6 +131,11 @@ def list_records(
         records = [record for record in records if record.is_overdue_view]
     overdue_count = sum(1 for record in records if record.is_overdue_view)
     companies = db.query(Company).order_by(Company.company_name).all()
+    project_query = db.query(FeeRecord.project_name).filter(
+        FeeRecord.project_name.isnot(None), FeeRecord.project_name != '')
+    if selected_company_id:
+        project_query = project_query.filter(FeeRecord.company_id == selected_company_id)
+    project_names = [row[0] for row in project_query.distinct().order_by(FeeRecord.project_name).all()]
     reminder_settings = get_reminder_settings(db)
     last_run_at = get_setting(db, 'reminder.last_run_at', '')
     last_run_summary = get_setting(db, 'reminder.last_run_summary', '')
@@ -139,6 +148,8 @@ def list_records(
             'companies': companies,
             'selected_company_id': selected_company_id,
             'selected_status': status,
+            'project_names': project_names,
+            'selected_project': selected_project,
             'overdue_filter_value': OVERDUE_FILTER_VALUE,
             'overdue_count': overdue_count,
             'notice': notice,
@@ -163,6 +174,7 @@ def export_records(
     db: Session = Depends(get_db),
     company_id: str = '',
     status: str = '',
+    project: str = '',
 ):
     """导出收费记录为 Excel，沿用列表页的筛选条件。"""
     import io
@@ -172,11 +184,14 @@ def export_records(
     from openpyxl.utils import get_column_letter
 
     selected_company_id = parse_optional_int(company_id)
+    selected_project = (project or '').strip()
     query = db.query(FeeRecord)
     if selected_company_id:
         query = query.filter(FeeRecord.company_id == selected_company_id)
     if status and status != OVERDUE_FILTER_VALUE:
         query = query.filter(FeeRecord.payment_status == status)
+    if selected_project:
+        query = query.filter(FeeRecord.project_name == selected_project)
 
     records = query.order_by(FeeRecord.planned_receivable_date.desc()).all()
     today = date.today()

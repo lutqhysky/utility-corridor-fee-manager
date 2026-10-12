@@ -24,11 +24,20 @@
             </option>
         </select>
 
+        <select name="project">
+            <option value="">全部项目</option>
+            {% for name in project_names %}
+            <option value="{{ name }}" {% if selected_project == name %}selected{% endif %}>
+                {{ name }}
+            </option>
+            {% endfor %}
+        </select>
+
         <button type="submit">筛选</button>
     </form>
 
     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-        <a class="button" href="/fee-records/export?company_id={{ selected_company_id or '' }}&status={{ selected_status or '' }}">导出Excel</a>
+        <a class="button" href="/fee-records/export?company_id={{ selected_company_id or '' }}&status={{ selected_status or '' }}&project={{ selected_project or '' }}">导出Excel</a>
         <form method="post" action="/fee-records/reminders/run" style="display:inline;">
             <button type="submit">执行提醒检查</button>
         </form>
