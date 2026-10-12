@@ -273,3 +273,11 @@ code {
   font-weight: bold;
   border: 1px solid #fca5a5;
 }
+
+/* 长文本单元格省略显示：避免过长内容把其他列挤扁，悬停显示全文 */
+.td-ellipsis {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

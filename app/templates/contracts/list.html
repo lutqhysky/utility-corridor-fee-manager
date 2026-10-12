@@ -29,7 +29,7 @@
         {% for contract in contracts %}
             <tr>
                 <td>{{ contract.company.short_name or contract.company.company_name }}</td>
-                <td>{{ contract.contract_name }}</td>
+                <td class="td-ellipsis" title="{{ contract.contract_name }}">{{ contract.contract_name }}</td>
                 <td>{{ contract.contract_type or '' }}</td>
                 <td>{{ contract.filing_department or '' }}</td>
                 <td>
@@ -42,7 +42,7 @@
                     {% endif %}
                 </td>
                 <td>{{ contract.sign_date or '' }}</td>
-                <td>{{ contract.remark or '' }}</td>
+                <td class="td-ellipsis" title="{{ contract.remark or '' }}">{{ contract.remark or '' }}</td>
                 <td>
                     <a href="/contracts/{{ contract.id }}/edit">编辑</a>
                     <form method="post" action="/contracts/{{ contract.id }}/delete" style="display:inline; margin-left:8px;">
