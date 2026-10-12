@@ -81,7 +81,7 @@
         {% for record in records %}
             <tr>
                 <td>{{ record.company.short_name or record.company.company_name }}</td>
-                <td>{{ record.project_name or '' }}</td>
+                <td class="td-ellipsis" title="{{ record.project_name or '' }}">{{ record.project_name or '' }}</td>
                 <td>{{ record.fee_type }}</td>
                 <td>{{ record.charge_period or '' }}</td>
                 <td>¥{{ '%.2f'|format(record.amount_incl_tax or 0) }}</td>
@@ -104,7 +104,7 @@
                         未提醒
                     {% endif %}
                 </td>
-                <td>{{ record.remark or '' }}</td>
+                <td class="td-ellipsis" title="{{ record.remark or '' }}">{{ record.remark or '' }}</td>
                 <td>
                     <a href="/fee-records/{{ record.id }}/edit">修改</a>
                     <form method="post" action="/fee-records/{{ record.id }}/delete" style="display:inline; margin-left:8px;">

@@ -14,7 +14,7 @@
         {% for company in companies %}
             <tr>
                 <td>{{ company.id }}</td>
-                <td>{{ company.company_name }}</td>
+                <td class="td-ellipsis" title="{{ company.company_name }}">{{ company.company_name }}</td>
                 <td>{{ company.short_name or '' }}</td>
                 <td>{{ company.company_type or '' }}</td>
                 <td>¥{{ '%.2f'|format(company.total_received_amount or 0) }}</td>

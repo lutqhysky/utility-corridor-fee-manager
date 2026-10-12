@@ -36,7 +36,7 @@
             <tr>
                 <td>{{ entry.company.short_name or entry.company.company_name }}</td>
                 <td>
-                    <a href="/pipeline-entries/{{ entry.id }}">
+                    <a href="/pipeline-entries/{{ entry.id }}" class="td-ellipsis" title="{{ entry.project_name or '' }}" style="display:inline-block; max-width:280px; vertical-align:bottom;">
                         {{ entry.project_name or '' }}
                     </a>
                 </td>
