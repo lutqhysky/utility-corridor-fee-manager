@@ -379,3 +379,108 @@ def delete_detail(detail_id: int, db: Session = Depends(get_db)):
     db.delete(detail)
     db.commit()
     return RedirectResponse(url=f'/pipeline-entries/{entry_id}', status_code=303)
+
+
+PRINT_REGION_TITLE = '山西转型综合改革示范区潇河产业园区太原起步区'
+PRINT_TARGET_ROWS = 19  # 表格目标总行数（含表头），不足时用空白行补齐以撑满 A4
+
+
+def _fmt_money(value) -> str:
+    return '%.2f' % float(value or 0)
+
+
+def _fmt_qty(value) -> str:
+    return '%g' % float(value or 0)
+
+
+def _fmt_pct(value) -> str:
+    return '%g%%' % (float(value or 0) * 100)
+
+
+@router.get('/{entry_id}/print/{fee_kind}', response_class=HTMLResponse)
+def print_fee_sheet(entry_id: int, fee_kind: str, request: Request, db: Session = Depends(get_db)):
+    """打印费用单：fee_kind 为 entry（入廊费）或 maintenance（运维费）。"""
+    if fee_kind not in ('entry', 'maintenance'):
+        return RedirectResponse(url='/pipeline-entries/', status_code=303)
+    entry = db.query(PipelineEntry).filter(PipelineEntry.id == entry_id).first()
+    if not entry:
+        return RedirectResponse(url='/pipeline-entries/', status_code=303)
+
+    is_entry = fee_kind == 'entry'
+    fee_label = '入廊费' if is_entry else '运维费'
+    if is_entry:
+        tax_rate = entry.entry_fee_tax_rate or 0
+        discount = get_discount_or_default(entry.entry_fee_discount)
+        qty_header = '入廊工程量'
+        price_header = '不含税入廊费（元/米·孔）'
+        amount_header = '不含税入廊费合计'
+    else:
+        tax_rate = entry.maintenance_fee_tax_rate or 0
+        discount = get_discount_or_default(entry.maintenance_fee_discount)
+        qty_header = '运维工程量'
+        price_header = '不含税运维费（元/米·年）'
+        amount_header = '不含税运维费合计'
+
+    rows = []
+    for item in entry.details:
+        qty = item.engineering_quantity or 0
+        if is_entry:
+            unit_price = item.entry_unit_price_excl_tax or 0
+            amount = item.entry_amount_excl_tax or 0
+        else:
+            unit_price = item.maintenance_unit_price_excl_tax or 0
+            amount = item.maintenance_amount_excl_tax or 0
+        if not amount and qty and unit_price:
+            amount = calc_detail_amount(qty, unit_price)
+        rows.append({
+            'pipeline_type': item.pipeline_type or '',
+            'specification': item.specification or '',
+            'unit': '米',
+            'quantity': _fmt_qty(qty),
+            'unit_price': _fmt_money(unit_price),
+            'amount': _fmt_money(amount),
+            'remark': item.remark or '',
+            '_amount_value': float(amount or 0),
+        })
+
+    subtotal = sum(row['_amount_value'] for row in rows)
+    tax_amount = subtotal * tax_rate
+    total_incl_tax = subtotal + tax_amount
+
+    show_discount = abs(float(discount) - 1) > 1e-9
+    actual_subtotal = subtotal * discount
+    actual_tax = actual_subtotal * tax_rate
+    actual_total = actual_subtotal + actual_tax
+
+    cabin = entry.cabin_type or ''
+    note_text = (
+        f'根据管线入廊合同约定，本项目{cabin}{fee_label}按照上述金额的{_fmt_pct(discount)}收取。'
+        '实际综合管廊有偿使用费如下：'
+    )
+
+    fixed_rows = 1 + len(rows) + 3 + (4 if show_discount else 0)
+    blank_rows = list(range(max(0, PRINT_TARGET_ROWS - fixed_rows)))
+
+    return templates.TemplateResponse(
+        'pipeline_entries/print.html',
+        {
+            'request': request,
+            'region_title': PRINT_REGION_TITLE,
+            'sheet_title': f'{entry.project_name or ""}管廊{cabin}有偿使用费（{fee_label}）',
+            'qty_header': qty_header,
+            'price_header': price_header,
+            'amount_header': amount_header,
+            'rows': rows,
+            'subtotal': _fmt_money(subtotal),
+            'tax_rate_text': _fmt_pct(tax_rate),
+            'tax_amount': _fmt_money(tax_amount),
+            'total_incl_tax': _fmt_money(total_incl_tax),
+            'show_discount': show_discount,
+            'note_text': note_text,
+            'actual_subtotal': _fmt_money(actual_subtotal),
+            'actual_tax': _fmt_money(actual_tax),
+            'actual_total': _fmt_money(actual_total),
+            'blank_rows': blank_rows,
+            'title': f'打印{fee_label} - {entry.project_name or ""}',
+        },
+    )

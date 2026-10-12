@@ -53,7 +53,9 @@
                 <td>¥{{ '%.2f'|format(entry.actual_maintenance_fee or 0) }}</td>
                 <td>{{ entry.charge_cycle or '' }}</td>
                 <td>
-                    <a href="/pipeline-entries/{{ entry.id }}/edit">修改</a>
+                    <a href="/pipeline-entries/{{ entry.id }}/print/entry" target="_blank">打印入廊费</a>
+                    <a href="/pipeline-entries/{{ entry.id }}/print/maintenance" target="_blank" style="margin-left:8px;">打印运维费</a>
+                    <a href="/pipeline-entries/{{ entry.id }}/edit" style="margin-left:8px;">修改</a>
                     <form method="post" action="/pipeline-entries/{{ entry.id }}/delete" style="display:inline; margin-left:8px;">
                         <button type="submit" onclick="return confirm('确定删除这个项目吗？')">删除</button>
                     </form>

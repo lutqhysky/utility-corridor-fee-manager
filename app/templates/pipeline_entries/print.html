@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ title }}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif; background: #e2e8f0; margin: 0; padding: 24px; color: #000; }
+  .toolbar { width: 210mm; max-width: 100%; margin: 0 auto 16px; display: flex; gap: 12px; align-items: center; }
+  .toolbar button { padding: 10px 22px; font-size: 15px; border: none; border-radius: 8px; background: #2563eb; color: #fff; cursor: pointer; }
+  .toolbar button:hover { background: #1d4ed8; }
+  .toolbar span { color: #64748b; font-size: 13px; }
+  .sheet { width: 210mm; max-width: 100%; min-height: 297mm; margin: 0 auto; background: #fff;
+           padding: 14mm 15mm; box-shadow: 0 4px 18px rgba(0,0,0,.12); }
+  .sheet h2 { text-align: center; font-size: 24px; line-height: 1.9; margin: 2mm 0 4mm; font-weight: 700; }
+  .unit { text-align: right; font-size: 15px; margin-bottom: 6mm; }
+  table.fee { width: 100%; border-collapse: collapse; table-layout: fixed; border: 3px solid #000; }
+  table.fee th, table.fee td { border: 1px solid #000; padding: 9px 8px; font-size: 15px;
+    height: 44px; white-space: nowrap; overflow: hidden; }
+  table.fee thead th { font-weight: 700; text-align: center; background: #fff; }
+  table.fee td { text-align: center; }
+  table.fee td.num { text-align: right; font-variant-numeric: tabular-nums; padding-right: 14px; }
+  table.fee td.label { text-align: center; font-weight: 700; }
+  table.fee td.note-cell { text-align: left; padding: 9px 16px; }
+  @page { size: A4 portrait; margin: 14mm 15mm; }
+  @media print {
+    body { background: #fff; padding: 0; }
+    .toolbar { display: none; }
+    .sheet { box-shadow: none; width: auto; min-height: auto; padding: 0; }
+  }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <button onclick="window.print()">打印</button>
+    <span>{{ sheet_title }}（{{ rows|length }} 条明细）</span>
+  </div>
+
+  <div class="sheet">
+    <h2>{{ region_title }}<br>{{ sheet_title }}</h2>
+    <div class="unit">单位：元</div>
+
+    <table class="fee">
+      <colgroup>
+        <col style="width:14%"><col style="width:14%"><col style="width:8%">
+        <col style="width:14%"><col style="width:24%"><col style="width:16%"><col style="width:10%">
+      </colgroup>
+      <thead>
+        <tr>
+          <th>管线类型</th><th>规格</th><th>单位</th><th>{{ qty_header }}</th>
+          <th>{{ price_header }}</th><th>{{ amount_header }}</th><th>备注</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{{ row.pipeline_type }}</td><td>{{ row.specification }}</td><td>{{ row.unit }}</td>
+          <td class="num">{{ row.quantity }}</td><td class="num">{{ row.unit_price }}</td><td class="num">{{ row.amount }}</td>
+          <td>{{ row.remark }}</td>
+        </tr>
+        {% endfor %}
+        <tr>
+          <td class="label">不含税合计</td><td></td><td></td><td></td><td></td>
+          <td class="num">{{ subtotal }}</td><td></td>
+        </tr>
+        <tr>
+          <td class="label">税（率）金</td><td></td><td></td><td></td>
+          <td class="num">{{ tax_rate_text }}</td><td class="num">{{ tax_amount }}</td><td></td>
+        </tr>
+        <tr>
+          <td class="label">含税合计</td><td></td><td></td><td></td><td></td>
+          <td class="num">{{ total_incl_tax }}</td><td></td>
+        </tr>
+        {% for _ in blank_rows %}
+        <tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        {% endfor %}
+        {% if show_discount %}
+        <tr>
+          <td class="note-cell" colspan="7">{{ note_text }}</td>
+        </tr>
+        <tr>
+          <td class="label">不含税合计</td><td></td><td></td><td></td><td></td>
+          <td class="num">{{ actual_subtotal }}</td><td></td>
+        </tr>
+        <tr>
+          <td class="label">税（率）金</td><td></td><td></td><td></td>
+          <td class="num">{{ tax_rate_text }}</td><td class="num">{{ actual_tax }}</td><td></td>
+        </tr>
+        <tr>
+          <td class="label">含税合计</td><td></td><td></td><td></td><td></td>
+          <td class="num">{{ actual_total }}</td><td></td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+<script>
+function autofitCells() {
+  document.querySelectorAll('table.fee th, table.fee td').forEach(function(cell) {
+    if (!cell.textContent.trim()) return;
+    var base = parseFloat(cell.dataset.baseSize || getComputedStyle(cell).fontSize);
+    cell.dataset.baseSize = base;
+    var size = base;
+    cell.style.fontSize = size + 'px';
+    while (cell.scrollWidth > cell.clientWidth + 1 && size > 9) {
+      size -= 0.5;
+      cell.style.fontSize = size + 'px';
+    }
+  });
+}
+window.addEventListener('load', autofitCells);
+window.addEventListener('beforeprint', autofitCells);
+</script>
+</body>
+</html>
