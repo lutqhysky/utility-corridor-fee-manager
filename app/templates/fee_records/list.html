@@ -80,7 +80,6 @@
                 <th>实际收金额</th>
                 <th>实收时间</th>
                 <th>状态</th>
-                <th>提醒状态</th>
                 <th>备注</th>
                 <th>操作</th>
             </tr>
@@ -103,13 +102,6 @@
                     <span class="badge {% if record.payment_status == '待收缴' %}badge-pending{% endif %}">
                         {{ record.payment_status }}
                     </span>
-                    {% endif %}
-                </td>
-                <td>
-                    {% if record.last_reminder_sent_at %}
-                        已提醒
-                    {% else %}
-                        未提醒
                     {% endif %}
                 </td>
                 <td class="td-ellipsis" title="{{ record.remark or '' }}">{{ record.remark or '' }}</td>
