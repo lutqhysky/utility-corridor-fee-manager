@@ -23,6 +23,7 @@
   table.fee td.num { text-align: right; font-variant-numeric: tabular-nums; padding-right: 14px; }
   table.fee td.label { text-align: center; font-weight: 700; }
   table.fee td.note-cell { text-align: left; padding: 9px 16px; }
+  table.fee td.spec { white-space: normal; }
   @page { size: A4 portrait; margin: 14mm 15mm; }
   @media print {
     body { background: #fff; padding: 0; }
@@ -55,7 +56,7 @@
       <tbody>
         {% for row in rows %}
         <tr>
-          <td>{{ row.pipeline_type }}</td><td>{{ row.specification }}</td><td>{{ row.unit }}</td>
+          <td>{{ row.pipeline_type }}</td><td class="spec">{{ row.specification }}</td><td>{{ row.unit }}</td>
           <td class="num">{{ row.quantity }}</td><td class="num">{{ row.unit_price }}</td><td class="num">{{ row.amount }}</td>
           <td>{{ row.remark }}</td>
         </tr>
@@ -98,6 +99,7 @@
 function autofitCells() {
   document.querySelectorAll('table.fee th, table.fee td').forEach(function(cell) {
     if (!cell.textContent.trim()) return;
+    if (cell.classList.contains('spec')) return;  // 规格列保持字号、允许换行
     var base = parseFloat(cell.dataset.baseSize || getComputedStyle(cell).fontSize);
     cell.dataset.baseSize = base;
     var size = base;
