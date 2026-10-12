@@ -5,5 +5,6 @@ from .fee_standard import FeeStandard
 from .fee_record import FeeRecord
 from .contract import Contract
 from .app_setting import AppSetting
+from .reminder_log import ReminderLog
 
 from .feasibility_subsidy import FeasibilitySubsidyPeriod, FeasibilitySubsidyDetail

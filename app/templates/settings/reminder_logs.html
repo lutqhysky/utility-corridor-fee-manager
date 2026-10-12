@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="toolbar">
+    <h3 style="margin:0;">提醒发送日志（最近 100 条）</h3>
+    <a class="button" href="/settings/reminders">返回提醒设置</a>
+</div>
+
+<section class="panel">
+    <table>
+        <thead>
+            <tr>
+                <th>时间</th>
+                <th>类型</th>
+                <th>渠道</th>
+                <th>目标</th>
+                <th>标题</th>
+                <th>状态</th>
+                <th>错误信息</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for log in logs %}
+            <tr>
+                <td style="white-space:nowrap;">{{ log.created_at }}</td>
+                <td>
+                    {% if log.kind == 'digest' %}每日汇总
+                    {% elif log.kind == 'test' %}测试推送
+                    {% else %}单条提醒{% endif %}
+                </td>
+                <td>{{ log.channel or '' }}</td>
+                <td>{{ log.target or '' }}</td>
+                <td class="td-ellipsis" title="{{ log.title or '' }}">{{ log.title or '' }}</td>
+                <td>
+                    {% if log.status == 'success' %}
+                    <span class="badge">成功</span>
+                    {% else %}
+                    <span class="badge badge-pending">失败</span>
+                    {% endif %}
+                </td>
+                <td class="td-ellipsis" title="{{ log.error or '' }}">{{ log.error or '' }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% if not logs %}
+    <p style="color:#64748b;">暂无发送记录。</p>
+    {% endif %}
+</section>
+
+{% endblock %}

@@ -8,3 +8,4 @@ from .contracts import router as contracts_router
 from .health import router as health_router
 from .fee_summary import router as fee_summary_router
 from .feasibility_subsidy import router as feasibility_subsidy_router
+from .settings import router as settings_router

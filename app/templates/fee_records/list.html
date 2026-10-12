@@ -27,11 +27,15 @@
         <button type="submit">筛选</button>
     </form>
 
-    <div style="display:flex; gap:8px; align-items:center;">
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
         <a class="button" href="/fee-records/export?company_id={{ selected_company_id or '' }}&status={{ selected_status or '' }}">导出Excel</a>
         <form method="post" action="/fee-records/reminders/run" style="display:inline;">
             <button type="submit">执行提醒检查</button>
         </form>
+        <form method="post" action="/fee-records/reminders/digest" style="display:inline;">
+            <button type="submit">发送今日汇总</button>
+        </form>
+        <a class="button" href="/settings/reminders">提醒设置</a>
         <a class="button" href="/fee-records/new">新增收费记录</a>
     </div>
 </div>
@@ -56,6 +60,10 @@
     </p>
     <p style="margin:8px 0 0 0;">
         对状态为“未开始 / 待收缴 / 部分收缴 / 已逾期”、应收时间在未来 {{ reminder_settings.days_ahead }} 天内（含已逾期）的记录发送提醒；已逾期的记录会收到催缴提醒。
+    </p>
+    <p style="margin:8px 0 0 0;">
+        上次自动检查：{{ last_run_at or '尚未运行' }}{% if last_run_summary %}；{{ last_run_summary }}{% endif %}
+        {% if reminder_settings.daily_digest_enabled %}；每日汇总推送已启用（{{ reminder_settings.daily_digest_time }}）{% endif %}
     </p>
 </section>
 

@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block content %}
+
+{% if notice %}
+<section class="panel"><strong>{{ notice }}</strong></section>
+{% endif %}
+
+<section class="panel">
+    <p style="margin:0 0 12px 0;">
+        当前状态：{% if settings.enabled %}已启用（{{ settings.targets|length }} 个渠道）{% else %}<strong style="color:#dc2626;">未启用（未配置推送渠道）</strong>{% endif %}；
+        也可通过环境变量配置（数据库中的配置优先）。
+    </p>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <form method="post" action="/settings/reminders/test" style="display:inline;">
+            <button type="submit">发送测试推送</button>
+        </form>
+        <a class="button" href="/settings/reminders/logs">查看发送日志</a>
+        <a class="button" href="/fee-records/" style="background:#64748b;">返回收费记录</a>
+    </div>
+</section>
+
+<section class="panel">
+    <h3 style="margin-top:0;">推送策略</h3>
+    <form method="post" action="/settings/reminders/save">
+        <table>
+            <tbody>
+                <tr>
+                    <th style="width:220px;">每日汇总推送</th>
+                    <td>
+                        <input type="checkbox" name="daily_digest_enabled" value="1" {% if values.daily_digest_enabled == '1' %}checked{% endif %}>
+                        启用
+                        <span style="margin-left:16px;">推送时间</span>
+                        <input type="time" name="daily_digest_time" value="{{ values.daily_digest_time or '09:00' }}">
+                    </td>
+                </tr>
+                <tr>
+                    <th>到期提前提醒天数</th>
+                    <td><input type="number" min="0" name="days_ahead" value="{{ values.days_ahead or '30' }}" style="width:120px;"> 天（应收时间进入该窗口即提醒；已逾期记录会收到催缴）</td>
+                </tr>
+                <tr>
+                    <th>后台检查间隔</th>
+                    <td><input type="number" min="60" name="check_interval_seconds" value="{{ values.check_interval_seconds or '3600' }}" style="width:120px;"> 秒</td>
+                </tr>
+                <tr>
+                    <th>重复提醒间隔</th>
+                    <td><input type="number" min="1" name="repeat_days" value="{{ values.repeat_days or '2' }}" style="width:120px;"> 天（同一记录隔这么多天可再推一次）</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>推送渠道（至少配置一个）</h3>
+        <table>
+            <tbody>
+                <tr>
+                    <th style="width:220px;">Bark（iPhone 推送）</th>
+                    <td>
+                        <input type="text" name="bark_key" value="{{ values.bark_key or '' }}" placeholder="设备 key，或自建服务器完整 URL" style="width:420px;">
+                        <div style="color:#64748b; font-size:13px; margin-top:6px;">填 Bark App 里的设备 key（走 api.day.app），或自建 Bark 服务器地址。</div>
+                    </td>
+                </tr>
+                <tr>
+                    <th>Gotify（自建推送）</th>
+                    <td>
+                        <div>服务器地址 <input type="text" name="gotify_server" value="{{ values.gotify_server or '' }}" placeholder="https://gotify.example.com" style="width:320px;"></div>
+                        <div style="margin-top:8px;">App Token <input type="text" name="gotify_token" value="{{ values.gotify_token or '' }}" placeholder="应用 Token" style="width:320px;"></div>
+                    </td>
+                </tr>
+                <tr>
+                    <th>钉钉机器人</th>
+                    <td><input type="text" name="dingtalk_webhook" value="{{ values.dingtalk_webhook or '' }}" placeholder="https://oapi.dingtalk.com/robot/send?access_token=..." style="width:420px;"></td>
+                </tr>
+                <tr>
+                    <th>企业微信机器人</th>
+                    <td><input type="text" name="wecom_webhook" value="{{ values.wecom_webhook or '' }}" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=..." style="width:420px;"></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div style="margin-top:16px;">
+            <button type="submit">保存设置</button>
+        </div>
+    </form>
+</section>
+
+{% endblock %}

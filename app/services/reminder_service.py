@@ -1,34 +1,133 @@
+"""收费提醒服务。
+
+渠道：钉钉 / 企业微信（机器人 webhook）、Bark（iPhone 推送）、Gotify（自建推送服务）。
+配置：优先读数据库 app_settings（提醒设置页可改，实时生效），环境变量作兜底。
+可见性：每次发送记 ReminderLog；每次检查记 last_run；每日 09:00（可配）推送汇总。
+"""
 import json
+import logging
 import os
 import threading
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
-from app.models import FeeRecord
+from app.models import AppSetting, FeeRecord, ReminderLog
 
+logger = logging.getLogger(__name__)
 
-SUPPORTED_CHANNELS = {'dingtalk', 'wecom'}
+SUPPORTED_CHANNELS = {'dingtalk', 'wecom', 'bark', 'gotify'}
 ACTIVE_PAYMENT_STATUSES = {'未开始', '待收缴', '部分收缴', '已逾期'}
 
+
+# ---------------- 配置读写（数据库优先，环境变量兜底） ----------------
+
+def get_setting(db: Session, key: str, default=None):
+    row = db.query(AppSetting).filter(AppSetting.key == key).first()
+    if row is None or row.value is None or row.value == '':
+        return default
+    return row.value
+
+
+def set_setting(db: Session, key: str, value: str) -> None:
+    row = db.query(AppSetting).filter(AppSetting.key == key).first()
+    if row is None:
+        db.add(AppSetting(key=key, value=value))
+    else:
+        row.value = value
+
+
+def _with_own_session(func):
+    """用独立会话执行业务，避免与主流程的事务互相影响。"""
+
+    def wrapper(*args, **kwargs):
+        session = SessionLocal()
+        try:
+            result = func(session, *args, **kwargs)
+            session.commit()
+            return result
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    return wrapper
+
+
+@_with_own_session
+def _save_last_run(session: Session, message: str) -> None:
+    set_setting(session, 'reminder.last_run_at', datetime.now().isoformat(timespec='seconds'))
+    set_setting(session, 'reminder.last_run_summary', message)
+
+
+@_with_own_session
+def _write_log(session: Session, channel: str, target_desc: str, title: str,
+               content: str, status: str, error: str, kind: str) -> None:
+    session.add(ReminderLog(
+        channel=channel,
+        target=target_desc,
+        title=title,
+        content=(content or '')[:2000],
+        status=status,
+        error=(error or '')[:2000] or None,
+        kind=kind,
+    ))
+    # 只保留最近 500 条日志，避免无限增长
+    old_ids = [
+        row.id for row in
+        session.query(ReminderLog.id).order_by(ReminderLog.id.desc()).offset(500).all()
+    ]
+    if old_ids:
+        session.query(ReminderLog).filter(ReminderLog.id.in_(old_ids)).delete(synchronize_session=False)
+
+
+def mask_target(channel: str, target) -> str:
+    """目标脱敏描述（日志里不出现完整 webhook/密钥）。"""
+    if channel in ('dingtalk', 'wecom'):
+        try:
+            host = urllib.parse.urlparse(target.webhook_url).netloc or target.webhook_url[:24]
+        except Exception:
+            host = '***'
+        return '%s:%s' % (channel, host)
+    if channel == 'bark':
+        key = target.webhook_url
+        if key.startswith('http'):
+            return 'bark:%s' % urllib.parse.urlparse(key).netloc
+        return 'bark:%s***' % key[:4] if len(key) > 4 else 'bark:***'
+    if channel == 'gotify':
+        try:
+            host = urllib.parse.urlparse(target.webhook_url).netloc or '***'
+        except Exception:
+            host = '***'
+        return 'gotify:%s' % host
+    return '%s:***' % channel
+
+
+# ---------------- 目标与配置 ----------------
 
 @dataclass
 class ReminderTarget:
     channel: str
-    webhook_url: str
+    webhook_url: str  # dingtalk/wecom: webhook；bark: key 或自建 URL；gotify: 服务器地址
+    extra: str = ''   # gotify: app token
 
 
 @dataclass
 class ReminderSettings:
     enabled: bool
-    targets: list[ReminderTarget]
+    targets: list
     days_ahead: int
     check_interval_seconds: int
     repeat_days: int
+    daily_digest_enabled: bool = True
+    daily_digest_time: str = '09:00'
 
 
 @dataclass
@@ -39,164 +138,226 @@ class ReminderRunResult:
     message: str
 
 
-def _append_target_if_valid(targets: list[ReminderTarget], seen: set[tuple[str, str]], channel: str, webhook_url: str):
+def _append_target_if_valid(targets: list, seen: set, channel: str,
+                            webhook_url: str, extra: str = '') -> None:
     normalized_channel = (channel or '').strip().lower()
     normalized_webhook = (webhook_url or '').strip()
-
-    if normalized_channel not in SUPPORTED_CHANNELS:
+    if normalized_channel not in SUPPORTED_CHANNELS or not normalized_webhook:
         return
-    if not normalized_webhook:
-        return
-
-    key = (normalized_channel, normalized_webhook)
+    key = (normalized_channel, normalized_webhook, (extra or '').strip())
     if key in seen:
         return
-
     seen.add(key)
-    targets.append(ReminderTarget(channel=normalized_channel, webhook_url=normalized_webhook))
+    targets.append(ReminderTarget(
+        channel=normalized_channel,
+        webhook_url=normalized_webhook,
+        extra=(extra or '').strip(),
+    ))
 
 
-def get_reminder_settings() -> ReminderSettings:
-    targets: list[ReminderTarget] = []
-    seen: set[tuple[str, str]] = set()
+def _cfg(db: Session, key: str, env_name: str, default: str) -> str:
+    value = get_setting(db, key, None)
+    if value is not None:
+        return value
+    return os.getenv(env_name, default)
 
-    # 新版：分别配置两个机器人
-    _append_target_if_valid(
-        targets,
-        seen,
-        'dingtalk',
-        os.getenv('FEE_REMINDER_DINGTALK_WEBHOOK', ''),
-    )
-    _append_target_if_valid(
-        targets,
-        seen,
-        'wecom',
-        os.getenv('FEE_REMINDER_WECOM_WEBHOOK', ''),
-    )
 
-    # 兼容旧版：单通道配置
-    _append_target_if_valid(
-        targets,
-        seen,
-        os.getenv('FEE_REMINDER_CHANNEL', ''),
-        os.getenv('FEE_REMINDER_WEBHOOK', ''),
-    )
+def _cfg_int(db: Session, key: str, env_name: str, default: int, minimum: int) -> int:
+    raw = _cfg(db, key, env_name, str(default))
+    try:
+        return max(int(raw), minimum)
+    except (TypeError, ValueError):
+        return default
 
-    days_ahead = int(os.getenv('FEE_REMINDER_DAYS_AHEAD', '30'))
-    check_interval_seconds = int(os.getenv('FEE_REMINDER_CHECK_INTERVAL_SECONDS', '3600'))
-    repeat_days = int(os.getenv('FEE_REMINDER_REPEAT_DAYS', '2'))
 
-    return ReminderSettings(
-        enabled=bool(targets),
-        targets=targets,
-        days_ahead=max(days_ahead, 0),
-        check_interval_seconds=max(check_interval_seconds, 60),
-        repeat_days=max(repeat_days, 1),
-    )
+def get_reminder_settings(db: Session = None):
+    """读取提醒配置。db 为空时用独立短会话读取。"""
+    owns_session = db is None
+    session = db or SessionLocal()
+    try:
+        targets: list = []
+        seen: set = set()
+
+        _append_target_if_valid(targets, seen, 'dingtalk',
+                                _cfg(session, 'reminder.dingtalk.webhook', 'FEE_REMINDER_DINGTALK_WEBHOOK', ''))
+        _append_target_if_valid(targets, seen, 'wecom',
+                                _cfg(session, 'reminder.wecom.webhook', 'FEE_REMINDER_WECOM_WEBHOOK', ''))
+        # 兼容旧版单通道配置
+        _append_target_if_valid(targets, seen,
+                                os.getenv('FEE_REMINDER_CHANNEL', ''),
+                                os.getenv('FEE_REMINDER_WEBHOOK', ''))
+        _append_target_if_valid(targets, seen, 'bark',
+                                _cfg(session, 'reminder.bark.key', 'FEE_REMINDER_BARK_KEY', ''))
+        _append_target_if_valid(
+            targets, seen, 'gotify',
+            _cfg(session, 'reminder.gotify.server', 'FEE_REMINDER_GOTIFY_SERVER', ''),
+            _cfg(session, 'reminder.gotify.token', 'FEE_REMINDER_GOTIFY_TOKEN', ''),
+        )
+
+        days_ahead = _cfg_int(session, 'reminder.days_ahead', 'FEE_REMINDER_DAYS_AHEAD', 30, 0)
+        check_interval = _cfg_int(session, 'reminder.check_interval_seconds',
+                                  'FEE_REMINDER_CHECK_INTERVAL_SECONDS', 3600, 60)
+        repeat_days = _cfg_int(session, 'reminder.repeat_days', 'FEE_REMINDER_REPEAT_DAYS', 2, 1)
+        digest_enabled = _cfg(session, 'reminder.daily_digest_enabled',
+                              'FEE_REMINDER_DAILY_DIGEST_ENABLED', '1') == '1'
+        digest_time = _cfg(session, 'reminder.daily_digest_time',
+                           'FEE_REMINDER_DAILY_DIGEST_TIME', '09:00') or '09:00'
+
+        return ReminderSettings(
+            enabled=bool(targets),
+            targets=targets,
+            days_ahead=days_ahead,
+            check_interval_seconds=check_interval,
+            repeat_days=repeat_days,
+            daily_digest_enabled=digest_enabled,
+            daily_digest_time=digest_time,
+        )
+    finally:
+        if owns_session:
+            session.close()
+
+
+# ---------------- 消息构造 ----------------
+
+def build_fee_reminder_title(record: FeeRecord, today: date) -> str:
+    if record.planned_receivable_date and record.planned_receivable_date < today:
+        days = (today - record.planned_receivable_date).days
+        return '收费催缴：已逾期%d天' % days
+    return '收费提醒'
 
 
 def build_fee_reminder_message(record: FeeRecord, today: date, days_ahead: int) -> str:
     company_name = record.company.short_name or record.company.company_name
     project_name = record.pipeline_entry.project_name if record.pipeline_entry else '未关联入廊项目'
     due_date = record.planned_receivable_date.isoformat() if record.planned_receivable_date else '未设置'
-    amount = f'{record.amount_incl_tax or 0:.2f}'
+    amount = '%.2f' % float(record.amount_incl_tax or 0)
     remaining_days = (record.planned_receivable_date - today).days if record.planned_receivable_date else None
 
     if remaining_days is None:
         remaining_text = '应收时间未设置'
     elif remaining_days > 0:
-        remaining_text = f'距应收时间还有 {remaining_days} 天'
+        remaining_text = '距应收时间还有 %d 天' % remaining_days
     elif remaining_days == 0:
         remaining_text = '今天就是应收时间'
     else:
-        remaining_text = f'已逾期 {abs(remaining_days)} 天'
+        remaining_text = '已逾期 %d 天' % abs(remaining_days)
 
     return (
-        f'【收费提醒】\n'
-        f'单位：{company_name}\n'
-        f'项目：{project_name}\n'
-        f'收费类型：{record.fee_type}\n'
-        f'收费期间：{record.charge_period or "未填写"}\n'
-        f'状态：{record.payment_status}\n'
-        f'应收时间：{due_date}\n'
-        f'含税金额：{amount} 元\n'
-        f'{remaining_text}（提醒窗口：提前 {days_ahead} 天）\n'
-        f'备注：{record.remark or "无"}'
+        '【收费提醒】\n'
+        '单位：%s\n'
+        '项目：%s\n'
+        '收费类型：%s\n'
+        '收费期间：%s\n'
+        '状态：%s\n'
+        '应收时间：%s\n'
+        '含税金额：%s 元\n'
+        '%s（提醒窗口：提前 %d 天）\n'
+        '备注：%s' % (
+            company_name, project_name, record.fee_type,
+            record.charge_period or '未填写', record.payment_status,
+            due_date, amount, remaining_text, days_ahead,
+            record.remark or '无',
+        )
     )
 
 
-def build_robot_payload(channel: str, content: str) -> dict:
-    if channel == 'dingtalk':
-        return {
-            'msgtype': 'text',
-            'text': {'content': content},
-        }
-    if channel == 'wecom':
-        return {
-            'msgtype': 'text',
-            'text': {'content': content},
-        }
-    raise ValueError(f'不支持的提醒渠道: {channel}')
+# ---------------- 各渠道发送 ----------------
 
-
-def send_robot_message(channel: str, webhook_url: str, content: str):
-    payload = json.dumps(build_robot_payload(channel, content)).encode('utf-8')
+def send_robot_message(channel: str, webhook_url: str, content: str) -> None:
+    """钉钉 / 企业微信机器人：POST JSON 文本消息。"""
+    payload = json.dumps({'msgtype': 'text', 'text': {'content': content}}).encode('utf-8')
     request = urllib.request.Request(
-        webhook_url,
-        data=payload,
-        headers={'Content-Type': 'application/json'},
-        method='POST',
-    )
+        webhook_url, data=payload, headers={'Content-Type': 'application/json'}, method='POST')
     with urllib.request.urlopen(request, timeout=10) as response:
         body = response.read().decode('utf-8') or '{}'
-
     try:
-        parsed_body = json.loads(body)
+        parsed = json.loads(body)
     except json.JSONDecodeError:
         return
+    if parsed.get('errcode') not in (None, 0):
+        raise ValueError('机器人返回错误：%s' % parsed.get('errmsg', body))
 
-    if channel == 'dingtalk' and parsed_body.get('errcode') not in (None, 0):
-        raise ValueError(f"钉钉机器人返回错误：{parsed_body.get('errmsg', body)}")
-    if channel == 'wecom' and parsed_body.get('errcode') not in (None, 0):
-        raise ValueError(f"企业微信机器人返回错误：{parsed_body.get('errmsg', body)}")
 
+def send_bark_message(key_or_url: str, title: str, content: str) -> None:
+    """Bark：GET 推送。key_or_url 可为设备 key（走 api.day.app）或自建服务器完整 URL。"""
+    key_or_url = (key_or_url or '').strip().rstrip('/')
+    if key_or_url.startswith('http'):
+        if key_or_url.count('/') <= 2:
+            raise ValueError('Bark 自建地址需包含设备 key')
+        url = '%s/%s/%s' % (key_or_url, urllib.parse.quote(title),
+                            urllib.parse.quote(content[:500]))
+    else:
+        if not key_or_url:
+            raise ValueError('Bark key 为空')
+        url = 'https://api.day.app/%s/%s/%s' % (
+            key_or_url, urllib.parse.quote(title), urllib.parse.quote(content[:500]))
+    with urllib.request.urlopen(url, timeout=10) as response:
+        body = response.read().decode('utf-8') or '{}'
+    try:
+        parsed = json.loads(body)
+    except json.JSONDecodeError:
+        return
+    if parsed.get('code') != 200:
+        raise ValueError('Bark 返回错误：%s' % parsed.get('message', body))
+
+
+def send_gotify_message(server: str, token: str, title: str, content: str,
+                        priority: int = 5) -> None:
+    """Gotify：POST /message?token=xxx。"""
+    server = (server or '').rstrip('/')
+    if not server or not token:
+        raise ValueError('Gotify 服务器地址或 Token 为空')
+    payload = json.dumps({'title': title, 'message': content, 'priority': priority}).encode('utf-8')
+    url = '%s/message?token=%s' % (server, urllib.parse.quote(token))
+    request = urllib.request.Request(
+        url, data=payload, headers={'Content-Type': 'application/json'}, method='POST')
+    with urllib.request.urlopen(request, timeout=10) as response:
+        if response.status not in (200, 201):
+            raise ValueError('Gotify 返回 HTTP %s' % response.status)
+
+
+def send_to_target(target: ReminderTarget, title: str, content: str) -> None:
+    if target.channel in ('dingtalk', 'wecom'):
+        send_robot_message(target.channel, target.webhook_url, content)
+    elif target.channel == 'bark':
+        send_bark_message(target.webhook_url, title, content)
+    elif target.channel == 'gotify':
+        send_gotify_message(target.webhook_url, target.extra, title, content)
+    else:
+        raise ValueError('不支持的提醒渠道: %s' % target.channel)
+
+
+# ---------------- 单条提醒 ----------------
 
 def should_send_reminder(record: FeeRecord, current_date: date, repeat_days: int) -> bool:
     if record.payment_status not in ACTIVE_PAYMENT_STATUSES:
         return False
-
     if not record.planned_receivable_date:
         return False
-
     if record.last_reminder_sent_at is None:
         return True
-
     last_sent_date = record.last_reminder_sent_at.date()
     return (current_date - last_sent_date).days >= repeat_days
 
 
-def run_fee_reminders(db: Session | None = None, today: date | None = None) -> ReminderRunResult:
-    settings = get_reminder_settings()
-    if not settings.enabled:
-        return ReminderRunResult(
-            False,
-            0,
-            0,
-            '未启用提醒：请至少配置 FEE_REMINDER_DINGTALK_WEBHOOK 或 FEE_REMINDER_WECOM_WEBHOOK。',
-        )
-
+def run_fee_reminders(db: Session = None, today: date = None):
     owns_session = db is None
     session = db or SessionLocal()
-    current_date = today or date.today()
-    deadline = current_date + timedelta(days=settings.days_ahead)
-    sent_count = 0
-    skipped_count = 0
-    overdue_sent_count = 0
-
     try:
-        # 提醒范围：应收时间落在 [今天 - ∞, 今天 + days_ahead] 区间内的未结清记录。
-        # 注意不要加 planned_receivable_date >= today 的下限过滤，否则已逾期的记录
-        # 会被排除在外、永远收不到催缴提醒（历史 bug）。
+        settings = get_reminder_settings(session)
+        if not settings.enabled:
+            result = ReminderRunResult(False, 0, 0, '未启用提醒：请在“提醒设置”页配置至少一个推送渠道。')
+            _save_last_run(result.message)
+            return result
+
+        current_date = today or date.today()
+        deadline = current_date + timedelta(days=settings.days_ahead)
+        sent_count = 0
+        skipped_count = 0
+        overdue_sent_count = 0
+
+        # 提醒范围：应收时间落在 (-∞, 今天 + days_ahead] 的未结清记录。
+        # 不要加 planned_receivable_date >= today 的下限，否则已逾期记录会被排除、收不到催缴。
         records = (
             session.query(FeeRecord)
             .filter(FeeRecord.payment_status.in_(list(ACTIVE_PAYMENT_STATUSES)))
@@ -211,52 +372,172 @@ def run_fee_reminders(db: Session | None = None, today: date | None = None) -> R
                 skipped_count += 1
                 continue
 
+            title = build_fee_reminder_title(record, current_date)
             content = build_fee_reminder_message(record, current_date, settings.days_ahead)
 
-            successful_channels: list[str] = []
+            successful_channels: list = []
             for target in settings.targets:
-                send_robot_message(target.channel, target.webhook_url, content)
-                successful_channels.append(target.channel)
+                desc = mask_target(target.channel, target)
+                try:
+                    send_to_target(target, title, content)
+                    successful_channels.append(target.channel)
+                    _write_log(target.channel, desc, title, content, 'success', '',
+                               ReminderLog.KIND_SINGLE)
+                except Exception as exc:
+                    logger.warning('提醒发送失败 channel=%s: %s', target.channel, exc)
+                    _write_log(target.channel, desc, title, content, 'failed', str(exc),
+                               ReminderLog.KIND_SINGLE)
 
-            record.last_reminder_sent_at = datetime.now()
-            record.last_reminder_for_date = record.planned_receivable_date
-            record.last_reminder_channel = ','.join(successful_channels)
-            session.commit()
-            sent_count += 1
-            if record.planned_receivable_date < current_date:
-                overdue_sent_count += 1
+            if successful_channels:
+                record.last_reminder_sent_at = datetime.now()
+                record.last_reminder_for_date = record.planned_receivable_date
+                record.last_reminder_channel = ','.join(successful_channels)
+                session.commit()
+                sent_count += 1
+                if record.planned_receivable_date < current_date:
+                    overdue_sent_count += 1
 
         if sent_count == 0 and skipped_count == 0:
-            message = f'没有待提醒数据：未来 {settings.days_ahead} 天内（含已逾期）没有符合条件的收费记录。'
+            message = '没有待提醒数据：未来 %d 天内（含已逾期）没有符合条件的收费记录。' % settings.days_ahead
         else:
-            message = (
-                f'提醒检查完成：已发送 {sent_count} 条'
-                f'（其中逾期催缴 {overdue_sent_count} 条），'
-                f'跳过 {skipped_count} 条。'
-            )
-        return ReminderRunResult(True, sent_count, skipped_count, message)
-
-    except (urllib.error.URLError, ValueError) as exc:
-        if owns_session:
-            session.rollback()
-        return ReminderRunResult(True, sent_count, skipped_count, f'提醒发送失败：{exc}')
+            message = ('提醒检查完成：已发送 %d 条（其中逾期催缴 %d 条），跳过 %d 条。'
+                       % (sent_count, overdue_sent_count, skipped_count))
+        result = ReminderRunResult(True, sent_count, skipped_count, message)
+        _save_last_run(message)
+        return result
     except Exception as exc:
+        logger.exception('提醒检查异常')
         if owns_session:
             session.rollback()
-        return ReminderRunResult(True, sent_count, skipped_count, f'提醒发送失败：{exc}')
+        result = ReminderRunResult(True, 0, 0, '提醒发送失败：%s' % exc)
+        try:
+            _save_last_run(result.message)
+        except Exception:
+            pass
+        return result
     finally:
         if owns_session:
             session.close()
 
 
+# ---------------- 每日汇总 ----------------
+
+def build_daily_digest(db: Session, today: date):
+    """构造每日汇总：今日到期 / 已逾期 / 未来7天到期。返回 (标题, 正文, 统计)。"""
+    outstanding = FeeRecord.amount_incl_tax - func.coalesce(FeeRecord.actual_received_amount, 0)
+    base = (
+        db.query(FeeRecord)
+        .filter(FeeRecord.payment_status.in_(list(ACTIVE_PAYMENT_STATUSES)))
+        .filter(FeeRecord.planned_receivable_date.isnot(None))
+        .filter(outstanding > 0)
+    )
+    due_today = base.filter(FeeRecord.planned_receivable_date == today).order_by(
+        FeeRecord.amount_incl_tax.desc()).all()
+    overdue = base.filter(FeeRecord.planned_receivable_date < today).order_by(
+        FeeRecord.planned_receivable_date.asc()).all()
+    upcoming = base.filter(
+        FeeRecord.planned_receivable_date > today,
+        FeeRecord.planned_receivable_date <= today + timedelta(days=7),
+    ).order_by(FeeRecord.planned_receivable_date.asc()).all()
+
+    def amount_sum(rows) -> float:
+        return float(sum(float(r.amount_incl_tax or 0) - float(r.actual_received_amount or 0)
+                         for r in rows))
+
+    def line(r: FeeRecord) -> str:
+        name = r.company.short_name or r.company.company_name if r.company else ''
+        remain = float(r.amount_incl_tax or 0) - float(r.actual_received_amount or 0)
+        due = r.planned_receivable_date.isoformat()
+        overdue_days = (today - r.planned_receivable_date).days if r.planned_receivable_date < today else 0
+        suffix = '（已逾期%d天）' % overdue_days if overdue_days > 0 else ''
+        return '- %s｜%s｜应收%s｜未收¥%s%s' % (name, r.fee_type, due, '%.2f' % remain, suffix)
+
+    parts = ['【收费日报 %s】' % today.isoformat(),
+             '今日到期 %d 笔，未收 ¥%.2f' % (len(due_today), amount_sum(due_today)),
+             '已逾期 %d 笔，未收 ¥%.2f' % (len(overdue), amount_sum(overdue)),
+             '未来7天到期 %d 笔' % len(upcoming)]
+    if overdue:
+        parts += ['', '逾期明细：'] + [line(r) for r in overdue]
+    if due_today:
+        parts += ['', '今日到期明细：'] + [line(r) for r in due_today]
+    if upcoming:
+        parts += ['', '未来7天到期：'] + [line(r) for r in upcoming]
+
+    counts = {'due_today': len(due_today), 'overdue': len(overdue),
+              'upcoming': len(upcoming),
+              'total': len(due_today) + len(overdue) + len(upcoming)}
+    return '收费日报 %s' % today.isoformat(), '\n'.join(parts), counts
+
+
+def run_daily_digest(db: Session = None, today: date = None, force: bool = False) -> str:
+    """执行每日汇总推送。force=True 时忽略时间/去重检查（用于手动触发和测试）。"""
+    owns_session = db is None
+    session = db or SessionLocal()
+    try:
+        settings = get_reminder_settings(session)
+        if not settings.enabled:
+            return '未启用提醒：请先在“提醒设置”页配置推送渠道。'
+        if not settings.daily_digest_enabled and not force:
+            return '每日汇总未启用。'
+
+        current_date = today or date.today()
+        if not force:
+            last_date = get_setting(session, 'reminder.last_digest_date', '')
+            if last_date == current_date.isoformat():
+                return '今日汇总已推送过，不重复发送。'
+            try:
+                hh, mm = settings.daily_digest_time.split(':')
+                if datetime.now().time() < time(int(hh), int(mm)):
+                    return '未到推送时间（设定 %s）。' % settings.daily_digest_time
+            except (ValueError, AttributeError):
+                logger.warning('每日汇总时间配置无效: %s', settings.daily_digest_time)
+
+        title, content, counts = build_daily_digest(session, current_date)
+        if counts['total'] == 0:
+            _mark_digest_done(session, current_date)
+            return '今日无到期/逾期数据，汇总已跳过。'
+
+        ok, failed = [], []
+        for target in settings.targets:
+            desc = mask_target(target.channel, target)
+            try:
+                send_to_target(target, title, content)
+                ok.append(target.channel)
+                _write_log(target.channel, desc, title, content, 'success', '',
+                           ReminderLog.KIND_DIGEST)
+            except Exception as exc:
+                failed.append('%s: %s' % (target.channel, exc))
+                _write_log(target.channel, desc, title, content, 'failed', str(exc),
+                           ReminderLog.KIND_DIGEST)
+
+        _mark_digest_done(session, current_date)
+        if ok and not failed:
+            return '今日汇总已推送（%d 个渠道）：到期 %d 笔、逾期 %d 笔。' % (
+                len(ok), counts['due_today'], counts['overdue'])
+        if ok:
+            return '汇总部分推送成功（%s），失败：%s' % (','.join(ok), '；'.join(failed))
+        return '汇总推送失败：%s' % '；'.join(failed)
+    finally:
+        if owns_session:
+            session.close()
+
+
+def _mark_digest_done(session: Session, today: date) -> None:
+    set_setting(session, 'reminder.last_digest_date', today.isoformat())
+    session.commit()
+
+
+# ---------------- 调度器 ----------------
+
 class FeeReminderScheduler:
     def __init__(self):
-        self._thread: threading.Thread | None = None
+        self._thread = None
         self._stop_event = threading.Event()
 
     def start(self):
         settings = get_reminder_settings()
         if not settings.enabled:
+            logger.info('提醒未启用（未配置推送渠道），调度器不启动。')
             return
         if self._thread and self._thread.is_alive():
             return
@@ -268,6 +549,7 @@ class FeeReminderScheduler:
             daemon=True,
         )
         self._thread.start()
+        logger.info('收费提醒调度器已启动。')
 
     def stop(self):
         self._stop_event.set()
@@ -276,9 +558,23 @@ class FeeReminderScheduler:
 
     def _run_loop(self):
         while not self._stop_event.is_set():
-            settings = get_reminder_settings()
-            run_fee_reminders()
-            self._stop_event.wait(settings.check_interval_seconds)
+            try:
+                run_fee_reminders()
+            except Exception:
+                logger.exception('定时提醒检查异常')
+            try:
+                run_daily_digest()
+            except Exception:
+                logger.exception('每日汇总推送异常')
+            try:
+                interval = get_reminder_settings().check_interval_seconds
+            except Exception:
+                interval = 3600
+            self._stop_event.wait(interval)
+
+    def check_daily_digest_now(self):
+        """供外部手动触发一次汇总时间检查（测试用）。"""
+        run_daily_digest()
 
 
 fee_reminder_scheduler = FeeReminderScheduler()

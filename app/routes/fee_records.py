@@ -9,7 +9,12 @@ from app.database import get_db
 # 引入了 FeeStandard 模型
 from app.models import Company, FeeRecord, PipelineEntry, FeeStandard 
 from app.paths import TEMPLATES_DIR
-from app.services.reminder_service import get_reminder_settings, run_fee_reminders
+from app.services.reminder_service import (
+    get_reminder_settings,
+    get_setting,
+    run_daily_digest,
+    run_fee_reminders,
+)
 
 router = APIRouter(prefix='/fee-records', tags=['fee_records'])
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
@@ -122,7 +127,9 @@ def list_records(
         records = [record for record in records if record.is_overdue_view]
     overdue_count = sum(1 for record in records if record.is_overdue_view)
     companies = db.query(Company).order_by(Company.company_name).all()
-    reminder_settings = get_reminder_settings()
+    reminder_settings = get_reminder_settings(db)
+    last_run_at = get_setting(db, 'reminder.last_run_at', '')
+    last_run_summary = get_setting(db, 'reminder.last_run_summary', '')
 
     return templates.TemplateResponse(
         'fee_records/list.html',
@@ -136,9 +143,18 @@ def list_records(
             'overdue_count': overdue_count,
             'notice': notice,
             'reminder_settings': reminder_settings,
+            'last_run_at': last_run_at,
+            'last_run_summary': last_run_summary,
             'title': '收费记录'
         }
     )
+
+
+@router.post('/reminders/digest')
+def run_digest_now(db: Session = Depends(get_db)):
+    """手动触发一次每日汇总推送（忽略时间与去重检查）。"""
+    message = run_daily_digest(db, force=True)
+    return RedirectResponse(url=f'/fee-records/?notice={quote(message)}', status_code=303)
 
 
 @router.get('/export')
