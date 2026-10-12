@@ -1,6 +1,27 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="toolbar"><a class="button" href="/contracts/new">新增合同备案</a></div>
+<div class="toolbar">
+    <form method="get" class="inline-form">
+        <select name="filing">
+            <option value="">全部合同</option>
+            <option value="pending" {% if selected_filing == 'pending' %}selected{% endif %}>待办（未签订/未备案）</option>
+            <option value="已备案" {% if selected_filing == '已备案' %}selected{% endif %}>已备案</option>
+            <option value="未备案" {% if selected_filing == '未备案' %}selected{% endif %}>未备案</option>
+            <option value="未签订" {% if selected_filing == '未签订' %}selected{% endif %}>未签订</option>
+        </select>
+        <button type="submit">筛选</button>
+    </form>
+    <a class="button" href="/contracts/new">新增合同备案</a>
+</div>
+
+{% if pending_count %}
+<section class="panel" style="border-left:4px solid #dc2626;">
+    <strong style="color:#dc2626;">
+        合同备案待办 {{ pending_count }} 份：未签订 {{ unsigned_count }} 份、未备案 {{ unfiled_count }} 份，已备案 {{ filed_count }} / {{ total_count }} 份。
+    </strong>
+</section>
+{% endif %}
+
 <section class="panel">
     <table>
         <thead><tr><th>单位</th><th>合同名称</th><th>合同类型</th><th>备案部门</th><th>备案状态</th><th>备案时间</th><th>备注</th><th>操作</th></tr></thead>
@@ -11,7 +32,15 @@
                 <td>{{ contract.contract_name }}</td>
                 <td>{{ contract.contract_type or '' }}</td>
                 <td>{{ contract.filing_department or '' }}</td>
-                <td>{{ contract.filing_status or '' }}</td>
+                <td>
+                    {% if contract.filing_status == '已备案' %}
+                    <span class="badge">{{ contract.filing_status }}</span>
+                    {% elif contract.filing_status %}
+                    <span class="badge badge-pending">{{ contract.filing_status }}</span>
+                    {% else %}
+                    <span class="badge badge-pending">未填写</span>
+                    {% endif %}
+                </td>
                 <td>{{ contract.sign_date or '' }}</td>
                 <td>{{ contract.remark or '' }}</td>
                 <td>

@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="toolbar">
+    <form method="get" class="inline-form">
+        <input type="text" name="keyword" placeholder="按费用类型/管线类型/规格搜索" value="{{ keyword or '' }}" style="width:240px;">
+        <select name="active">
+            <option value="">全部状态</option>
+            <option value="1" {% if selected_active == '1' %}selected{% endif %}>启用中</option>
+            <option value="0" {% if selected_active == '0' %}selected{% endif %}>已停用</option>
+        </select>
+        <button type="submit">筛选</button>
+    </form>
+    <a class="button" href="/fee-standards/new">新增收费标准</a>
+</div>
+
+<section class="panel">
+    <p style="margin:0 0 12px 0;">当前启用中的收费标准共 {{ active_count }} 条。新增/编辑收费记录时，系统会按“费用类型”自动取这里配置的税率。</p>
+    <table>
+        <thead>
+            <tr>
+                <th>费用类型</th>
+                <th>管线类型</th>
+                <th>规格型号</th>
+                <th>不含税单价</th>
+                <th>计费单位</th>
+                <th>税率</th>
+                <th>价格有效期</th>
+                <th>生效日期</th>
+                <th>状态</th>
+                <th>备注</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for standard in standards %}
+            <tr>
+                <td>{{ standard.fee_type }}</td>
+                <td>{{ standard.pipeline_type or '' }}</td>
+                <td>{{ standard.specification or '' }}</td>
+                <td>{% if standard.unit_price_excl_tax is not none %}¥{{ '%.2f'|format(standard.unit_price_excl_tax) }}{% endif %}</td>
+                <td>{{ standard.billing_unit or '' }}</td>
+                <td>{% if standard.tax_rate is not none %}{{ '%.2f'|format(standard.tax_rate * 100) }}%{% endif %}</td>
+                <td>{{ standard.price_period or '' }}</td>
+                <td>{{ standard.effective_date or '' }}</td>
+                <td>
+                    {% if standard.is_active %}
+                    <span class="badge">启用中</span>
+                    {% else %}
+                    <span class="badge badge-pending">已停用</span>
+                    {% endif %}
+                </td>
+                <td>{{ standard.remark or '' }}</td>
+                <td>
+                    <a href="/fee-standards/{{ standard.id }}/edit">修改</a>
+                    <form method="post" action="/fee-standards/{{ standard.id }}/delete" style="display:inline; margin-left:8px;">
+                        <button type="submit" onclick="return confirm('确定删除这条收费标准吗？')">删除</button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+{% endblock %}

@@ -27,6 +27,21 @@
                 <span>{% if selected_year %}{{ selected_year }}年度{% else %}全部年度{% endif %}实收总额</span>
                 <strong>¥{{ '%.2f'|format(total_received) }}</strong>
             </div>
+            <div class="stat-card">
+                <span>待收总额</span>
+                <strong>¥{{ '%.2f'|format(total_pending_receivable) }}</strong>
+            </div>
+            <div class="stat-card">
+                <span>未收金额</span>
+                <strong>¥{{ '%.2f'|format(total_pending_unreceived) }}</strong>
+            </div>
+            <div class="stat-card warning">
+                <span>逾期金额</span>
+                <strong>¥{{ '%.2f'|format(total_pending_overdue) }}</strong>
+            </div>
+            <div class="stat-card" style="display:flex; align-items:center; justify-content:center;">
+                <a class="button" href="/fee-summary/export{% if selected_year %}?year={{ selected_year }}{% endif %}">导出Excel</a>
+            </div>
         </div>
 
         <section class="panel">
@@ -61,6 +76,50 @@
                     <tr>
                         <th colspan="4" style="text-align:right;">汇总金额</th>
                         <th>¥{{ '%.2f'|format(total_received) }}</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </section>
+
+        <section class="panel" style="margin-top:16px;">
+            <h3 style="margin-top:0;">待收 / 逾期汇总（按应收年度）</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>年度(应收)</th>
+                        <th>单位名称</th>
+                        <th>单位简称</th>
+                        <th>待收笔数</th>
+                        <th>应收总额(含税)</th>
+                        <th>未收金额</th>
+                        <th>逾期金额</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% if pending_rows %}
+                    {% for row in pending_rows %}
+                    <tr>
+                        <td>{{ row.year|int }}</td>
+                        <td>{{ row.company_name }}</td>
+                        <td>{{ row.short_name or '' }}</td>
+                        <td>{{ row.record_count }}</td>
+                        <td>¥{{ '%.2f'|format(row.total_receivable or 0) }}</td>
+                        <td>¥{{ '%.2f'|format(row.total_unreceived or 0) }}</td>
+                        <td>{% if (row.total_overdue or 0) > 0 %}<strong style="color:#dc2626;">¥{{ '%.2f'|format(row.total_overdue or 0) }}</strong>{% else %}¥0.00{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7" style="text-align:center;">暂无待收数据</td>
+                    </tr>
+                {% endif %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th colspan="4" style="text-align:right;">汇总</th>
+                        <th>¥{{ '%.2f'|format(total_pending_receivable) }}</th>
+                        <th>¥{{ '%.2f'|format(total_pending_unreceived) }}</th>
+                        <th>¥{{ '%.2f'|format(total_pending_overdue) }}</th>
                     </tr>
                 </tfoot>
             </table>

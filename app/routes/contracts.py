@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Company, Contract
 from app.paths import TEMPLATES_DIR
+from sqlalchemy import func
 
 router = APIRouter(prefix='/contracts', tags=['contracts'])
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
@@ -29,9 +30,35 @@ def get_contract_or_404(db: Session, contract_id: int):
 
 
 @router.get('/', response_class=HTMLResponse)
-def list_contracts(request: Request, db: Session = Depends(get_db)):
-    contracts = db.query(Contract).order_by(Contract.id.desc()).all()
-    return templates.TemplateResponse('contracts/list.html', {'request': request, 'contracts': contracts, 'title': '合同备案'})
+def list_contracts(request: Request, db: Session = Depends(get_db), filing: str = ''):
+    query = db.query(Contract)
+    # filing=pending 表示“待办”：未签订、未备案或备案状态为空
+    if filing == 'pending':
+        query = query.filter(func.coalesce(Contract.filing_status, '') != '已备案')
+    elif filing:
+        query = query.filter(Contract.filing_status == filing)
+    contracts = query.order_by(Contract.id.desc()).all()
+
+    total_count = db.query(func.count(Contract.id)).scalar() or 0
+    filed_count = db.query(func.count(Contract.id)).filter(Contract.filing_status == '已备案').scalar() or 0
+    unsigned_count = db.query(func.count(Contract.id)).filter(Contract.filing_status == '未签订').scalar() or 0
+    unfiled_count = db.query(func.count(Contract.id)).filter(Contract.filing_status == '未备案').scalar() or 0
+    pending_count = total_count - filed_count
+
+    return templates.TemplateResponse(
+        'contracts/list.html',
+        {
+            'request': request,
+            'contracts': contracts,
+            'selected_filing': filing,
+            'total_count': total_count,
+            'filed_count': filed_count,
+            'unsigned_count': unsigned_count,
+            'unfiled_count': unfiled_count,
+            'pending_count': pending_count,
+            'title': '合同备案',
+        },
+    )
 
 
 @router.get('/new', response_class=HTMLResponse)

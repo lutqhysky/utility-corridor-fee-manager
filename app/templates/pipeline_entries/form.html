@@ -36,8 +36,8 @@
                 <tr>
                     <th>数量/孔位</th>
                     <td><input type="number" step="0.01" name="quantity_or_hole_count" value="{{ entry.quantity_or_hole_count if entry else 0 }}"></td>
-                    <th>入廊时间</th>
-                    <td><input type="date" name="entry_date" value="{{ entry.entry_date if entry and entry.entry_date else '' }}"></td>
+                    <th>入廊时间 *</th>
+                    <td><input type="date" name="entry_date" required value="{{ entry.entry_date if entry and entry.entry_date else '' }}"></td>
                 </tr>
                 <tr>
                     <th>入廊合同签订时间</th>

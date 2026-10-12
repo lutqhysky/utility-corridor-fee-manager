@@ -42,8 +42,14 @@
                 </td>
                 <td>{{ entry.cabin_type or '' }}</td>
                 <td>{{ entry.pipeline_type or '' }}</td>
-                <td>{{ entry.entry_date or '' }}</td>
-                <td>¥{{ '%.2f'|format(entry.actual_entry_fee or 0) }}</td>
+                <td>
+                    {{ entry.entry_date or '' }}
+                    {% if not entry.entry_date %}<span class="badge badge-pending">缺失</span>{% endif %}
+                </td>
+                <td>
+                    ¥{{ '%.2f'|format(entry.actual_entry_fee or 0) }}
+                    {% if entry.zero_fee_warning %}<span class="badge badge-pending" title="入廊费为 0，请核实收费明细、税率、折扣是否填写正确">为0待核实</span>{% endif %}
+                </td>
                 <td>¥{{ '%.2f'|format(entry.actual_maintenance_fee or 0) }}</td>
                 <td>{{ entry.charge_cycle or '' }}</td>
                 <td>

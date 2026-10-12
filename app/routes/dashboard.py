@@ -40,6 +40,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             'total_received': 0,
             'total_unreceived': 0,
             'overdue_amount': 0,
+            'overdue_count': 0,
+            'pending_contract_count': 0,
         }
         latest_records = []
     context = {'request': request, 'stats': stats, 'latest_records': latest_records, 'title': '首页概览'}

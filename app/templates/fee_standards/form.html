@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<section class="panel">
+    <h3>{% if standard %}编辑收费标准{% else %}新增收费标准{% endif %}</h3>
+
+    <form method="post" action="{% if standard %}/fee-standards/{{ standard.id }}/edit{% else %}/fee-standards/new{% endif %}">
+        <table>
+            <tbody>
+                <tr>
+                    <th>费用类型 *</th>
+                    <td><input type="text" name="fee_type" required value="{{ standard.fee_type if standard else '' }}" placeholder="如：入廊费、运维费"></td>
+                    <th>管线类型</th>
+                    <td><input type="text" name="pipeline_type" value="{{ standard.pipeline_type if standard else '' }}" placeholder="如：电力、给水"></td>
+                </tr>
+                <tr>
+                    <th>规格型号</th>
+                    <td><input type="text" name="specification" value="{{ standard.specification if standard else '' }}"></td>
+                    <th>不含税单价</th>
+                    <td><input type="number" step="0.01" name="unit_price_excl_tax" value="{{ standard.unit_price_excl_tax if standard and standard.unit_price_excl_tax is not none else '' }}"></td>
+                </tr>
+                <tr>
+                    <th>计费单位</th>
+                    <td><input type="text" name="billing_unit" value="{{ standard.billing_unit if standard else '' }}" placeholder="如：元/米·年"></td>
+                    <th>税率</th>
+                    <td><input type="number" step="0.0001" name="tax_rate" value="{{ standard.tax_rate if standard and standard.tax_rate is not none else '' }}" placeholder="小数，如 9% 填 0.09"></td>
+                </tr>
+                <tr>
+                    <th>价格有效期</th>
+                    <td><input type="text" name="price_period" value="{{ standard.price_period if standard else '' }}" placeholder="如：2024-2026"></td>
+                    <th>生效日期</th>
+                    <td><input type="date" name="effective_date" value="{{ standard.effective_date if standard and standard.effective_date else '' }}"></td>
+                </tr>
+                <tr>
+                    <th>启用</th>
+                    <td><input type="checkbox" name="is_active" value="1" {% if not standard or standard.is_active %}checked{% endif %}></td>
+                    <th>备注</th>
+                    <td><input type="text" name="remark" value="{{ standard.remark if standard else '' }}"></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div style="margin-top: 16px;">
+            <button type="submit">保存</button>
+            <a class="button" href="/fee-standards/" style="margin-left:8px;">返回</a>
+        </div>
+    </form>
+</section>
+
+{% endblock %}

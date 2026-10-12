@@ -50,6 +50,8 @@ def list_entries(request: Request, db: Session = Depends(get_db), company_id: in
         entry_fee_tax_amount = entry_fee_excl_tax_total * entry_fee_tax_rate
         entry_fee_incl_tax_total = entry_fee_excl_tax_total + entry_fee_tax_amount
         entry.actual_entry_fee = entry_fee_incl_tax_total * entry_fee_discount
+        # 入廊费为 0 多半是收费明细/税率/折扣没填对，打标提醒核实
+        entry.zero_fee_warning = (entry.actual_entry_fee or 0) == 0
 
         maintenance_fee_tax_amount = maintenance_fee_excl_tax_total * maintenance_fee_tax_rate
         maintenance_fee_incl_tax_total = maintenance_fee_excl_tax_total + maintenance_fee_tax_amount
@@ -106,6 +108,9 @@ def create_entry(
     company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
         raise HTTPException(status_code=404, detail='单位不存在')
+
+    if not entry_date or not entry_date.strip():
+        raise HTTPException(status_code=422, detail='入廊时间不能为空，请填写')
 
     db.add(PipelineEntry(
         company_id=company_id,
@@ -226,6 +231,9 @@ def update_entry(
     company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
         raise HTTPException(status_code=404, detail='单位不存在')
+
+    if not entry_date or not entry_date.strip():
+        raise HTTPException(status_code=422, detail='入廊时间不能为空，请填写')
 
     entry.company_id = company_id
     entry.cabin_type = cabin_type

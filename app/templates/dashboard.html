@@ -35,9 +35,16 @@
     </div>
 
     <div class="stat-card warning">
-        <span>逾期金额</span>
+        <span>逾期金额（{{ stats.overdue_count }} 笔）</span>
         <strong>¥{{ '%.2f'|format(stats.overdue_amount) }}</strong>
     </div>
+
+    <a href="/contracts/?filing=pending" style="text-decoration:none; color:inherit; display:block;">
+        <div class="stat-card warning" style="cursor:pointer; height:100%;">
+            <span>合同待办（未签订/未备案）</span>
+            <strong>{{ stats.pending_contract_count }}</strong>
+        </div>
+    </a>
 </div>
 <details class="panel collapsible-panel">
     <summary class="collapsible-trigger">

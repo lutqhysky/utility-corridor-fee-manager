@@ -19,18 +19,28 @@
                 {{ item }}
             </option>
             {% endfor %}
+            <option value="{{ overdue_filter_value }}" {% if selected_status == overdue_filter_value %}selected{% endif %}>
+                已逾期（动态判定）
+            </option>
         </select>
 
         <button type="submit">筛选</button>
     </form>
 
-    <div style="display:flex; gap:8px;">
+    <div style="display:flex; gap:8px; align-items:center;">
+        <a class="button" href="/fee-records/export?company_id={{ selected_company_id or '' }}&status={{ selected_status or '' }}">导出Excel</a>
         <form method="post" action="/fee-records/reminders/run" style="display:inline;">
             <button type="submit">执行提醒检查</button>
         </form>
         <a class="button" href="/fee-records/new">新增收费记录</a>
     </div>
 </div>
+
+{% if overdue_count %}
+<section class="panel" style="border-left:4px solid #dc2626;">
+    <strong style="color:#dc2626;">当前筛选下有 {{ overdue_count }} 笔已逾期记录（应收时间已过且有未收余额），请及时催缴。</strong>
+</section>
+{% endif %}
 
 {% if notice %}
 <section class="panel">
@@ -41,11 +51,11 @@
 <section class="panel">
     <p style="margin:0;">
         机器人提醒：{% if reminder_settings.enabled %}已启用{% else %}未启用{% endif %}；
-        渠道：{{ reminder_settings.channel or '未配置' }}；
+        渠道：{% if reminder_settings.targets %}{% for t in reminder_settings.targets %}{{ t.channel }}{% if not loop.last %}、{% endif %}{% endfor %}{% else %}未配置{% endif %}；
         提前天数：{{ reminder_settings.days_ahead }} 天。
     </p>
     <p style="margin:8px 0 0 0;">
-        仅对状态为“未开始”且应收时间落在未来 {{ reminder_settings.days_ahead }} 天内的记录发送一次提醒。
+        对状态为“未开始 / 待收缴 / 部分收缴 / 已逾期”、应收时间在未来 {{ reminder_settings.days_ahead }} 天内（含已逾期）的记录发送提醒；已逾期的记录会收到催缴提醒。
     </p>
 </section>
 
@@ -79,9 +89,13 @@
                 <td>¥{{ '%.2f'|format(record.actual_received_amount or 0) }}</td>
                 <td>{{ record.actual_received_date or '' }}</td>
                 <td>
+                    {% if record.is_overdue_view %}
+                    <span class="badge badge-overdue">已逾期</span>
+                    {% else %}
                     <span class="badge {% if record.payment_status == '待收缴' %}badge-pending{% endif %}">
                         {{ record.payment_status }}
                     </span>
+                    {% endif %}
                 </td>
                 <td>
                     {% if record.last_reminder_sent_at %}

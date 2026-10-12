@@ -265,3 +265,11 @@ code {
   .summary-filter-head { align-items: flex-start; }
   .summary-year-tabs a { width: fit-content; }
 }
+
+/* 动态逾期徽标：应收时间已过且有未收余额的记录 */
+.badge.badge-overdue {
+  background: #fee2e2;
+  color: #b91c1c;
+  font-weight: bold;
+  border: 1px solid #fca5a5;
+}

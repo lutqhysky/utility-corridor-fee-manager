@@ -191,13 +191,16 @@ def run_fee_reminders(db: Session | None = None, today: date | None = None) -> R
     deadline = current_date + timedelta(days=settings.days_ahead)
     sent_count = 0
     skipped_count = 0
+    overdue_sent_count = 0
 
     try:
+        # 提醒范围：应收时间落在 [今天 - ∞, 今天 + days_ahead] 区间内的未结清记录。
+        # 注意不要加 planned_receivable_date >= today 的下限过滤，否则已逾期的记录
+        # 会被排除在外、永远收不到催缴提醒（历史 bug）。
         records = (
             session.query(FeeRecord)
             .filter(FeeRecord.payment_status.in_(list(ACTIVE_PAYMENT_STATUSES)))
             .filter(FeeRecord.planned_receivable_date.isnot(None))
-            .filter(FeeRecord.planned_receivable_date >= current_date)
             .filter(FeeRecord.planned_receivable_date <= deadline)
             .order_by(FeeRecord.planned_receivable_date.asc())
             .all()
@@ -220,11 +223,17 @@ def run_fee_reminders(db: Session | None = None, today: date | None = None) -> R
             record.last_reminder_channel = ','.join(successful_channels)
             session.commit()
             sent_count += 1
+            if record.planned_receivable_date < current_date:
+                overdue_sent_count += 1
 
         if sent_count == 0 and skipped_count == 0:
-            message = f'没有待提醒数据：未来 {settings.days_ahead} 天内没有符合条件的收费记录。'
+            message = f'没有待提醒数据：未来 {settings.days_ahead} 天内（含已逾期）没有符合条件的收费记录。'
         else:
-            message = f'提醒检查完成：已发送 {sent_count} 条，跳过 {skipped_count} 条。'
+            message = (
+                f'提醒检查完成：已发送 {sent_count} 条'
+                f'（其中逾期催缴 {overdue_sent_count} 条），'
+                f'跳过 {skipped_count} 条。'
+            )
         return ReminderRunResult(True, sent_count, skipped_count, message)
 
     except (urllib.error.URLError, ValueError) as exc:
