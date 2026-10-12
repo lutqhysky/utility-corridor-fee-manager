@@ -75,7 +75,6 @@
         {% for _ in blank_rows %}
         <tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
         {% endfor %}
-        {% if show_discount %}
         <tr>
           <td class="note-cell" colspan="7">{{ note_text }}</td>
         </tr>
@@ -91,7 +90,6 @@
           <td class="label">含税合计</td><td></td><td></td><td></td><td></td>
           <td class="num">{{ actual_total }}</td><td></td>
         </tr>
-        {% endif %}
       </tbody>
     </table>
   </div>

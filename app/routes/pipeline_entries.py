@@ -447,7 +447,7 @@ def print_fee_sheet(entry_id: int, fee_kind: str, request: Request, db: Session 
     tax_amount = subtotal * tax_rate
     total_incl_tax = subtotal + tax_amount
 
-    show_discount = abs(float(discount) - 1) > 1e-9
+    # 折扣段始终显示：正式费用单据需注明合同约定折扣后的实际应收金额
     actual_subtotal = subtotal * discount
     actual_tax = actual_subtotal * tax_rate
     actual_total = actual_subtotal + actual_tax
@@ -458,7 +458,7 @@ def print_fee_sheet(entry_id: int, fee_kind: str, request: Request, db: Session 
         '实际综合管廊有偿使用费如下：'
     )
 
-    fixed_rows = 1 + len(rows) + 3 + (4 if show_discount else 0)
+    fixed_rows = 1 + len(rows) + 3 + 4
     blank_rows = list(range(max(0, PRINT_TARGET_ROWS - fixed_rows)))
 
     return templates.TemplateResponse(
@@ -475,7 +475,6 @@ def print_fee_sheet(entry_id: int, fee_kind: str, request: Request, db: Session 
             'tax_rate_text': _fmt_pct(tax_rate),
             'tax_amount': _fmt_money(tax_amount),
             'total_incl_tax': _fmt_money(total_incl_tax),
-            'show_discount': show_discount,
             'note_text': note_text,
             'actual_subtotal': _fmt_money(actual_subtotal),
             'actual_tax': _fmt_money(actual_tax),
