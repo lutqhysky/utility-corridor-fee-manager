@@ -412,13 +412,13 @@ def print_fee_sheet(entry_id: int, fee_kind: str, request: Request, db: Session 
         tax_rate = entry.entry_fee_tax_rate or 0
         discount = get_discount_or_default(entry.entry_fee_discount)
         qty_header = '入廊工程量'
-        price_header = '不含税单价（元/米·孔）'
+        price_header = '不含税入廊费（元/米·孔）'
         amount_header = '不含税入廊费合计'
     else:
         tax_rate = entry.maintenance_fee_tax_rate or 0
         discount = get_discount_or_default(entry.maintenance_fee_discount)
         qty_header = '运维工程量'
-        price_header = '不含税单价（元/米·年）'
+        price_header = '不含税运维费（元/米·年）'
         amount_header = '不含税运维费合计'
 
     rows = []
