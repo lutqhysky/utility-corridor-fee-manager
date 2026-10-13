@@ -73,6 +73,9 @@
           <td class="label">含税合计</td><td></td><td></td><td></td><td></td>
           <td class="num">{{ total_incl_tax }}</td><td></td>
         </tr>
+        {% for _ in blank_rows %}
+        <tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        {% endfor %}
         <tr>
           <td class="note-cell" colspan="7">{{ note_text }}</td>
         </tr>
@@ -88,9 +91,6 @@
           <td class="label">含税合计</td><td></td><td></td><td></td><td></td>
           <td class="num">{{ actual_total }}</td><td></td>
         </tr>
-        {% for _ in blank_rows %}
-        <tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-        {% endfor %}
       </tbody>
     </table>
   </div>
