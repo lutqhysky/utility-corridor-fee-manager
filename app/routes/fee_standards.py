@@ -44,7 +44,14 @@ def get_standard_or_404(db: Session, standard_id: int) -> FeeStandard:
 
 
 @router.get('/', response_class=HTMLResponse)
-def list_standards(request: Request, db: Session = Depends(get_db), keyword: str = '', active: str = ''):
+def list_standards(
+    request: Request,
+    db: Session = Depends(get_db),
+    keyword: str = '',
+    active: str = '',
+    fee_type: str = '',
+    pipeline_type: str = '',
+):
     query = db.query(FeeStandard)
     if keyword:
         like = f'%{keyword}%'
@@ -53,12 +60,22 @@ def list_standards(request: Request, db: Session = Depends(get_db), keyword: str
             | FeeStandard.pipeline_type.like(like)
             | FeeStandard.specification.like(like)
         )
+    if fee_type:
+        query = query.filter(FeeStandard.fee_type == fee_type)
+    if pipeline_type:
+        query = query.filter(FeeStandard.pipeline_type == pipeline_type)
     if active == '1':
         query = query.filter(FeeStandard.is_active.is_(True))
     elif active == '0':
         query = query.filter(FeeStandard.is_active.is_not(True))
     standards = query.order_by(FeeStandard.id.desc()).all()
     active_count = db.query(func.count(FeeStandard.id)).filter(FeeStandard.is_active.is_(True)).scalar() or 0
+    fee_type_options = [
+        row[0] for row in db.query(FeeStandard.fee_type).distinct().order_by(FeeStandard.fee_type).all() if row[0]
+    ]
+    pipeline_type_options = [
+        row[0] for row in db.query(FeeStandard.pipeline_type).distinct().order_by(FeeStandard.pipeline_type).all() if row[0]
+    ]
     return templates.TemplateResponse(
         'fee_standards/list.html',
         {
@@ -66,6 +83,10 @@ def list_standards(request: Request, db: Session = Depends(get_db), keyword: str
             'standards': standards,
             'keyword': keyword,
             'selected_active': active,
+            'selected_fee_type': fee_type,
+            'selected_pipeline_type': pipeline_type,
+            'fee_type_options': fee_type_options,
+            'pipeline_type_options': pipeline_type_options,
             'active_count': active_count,
             'title': '收费标准',
         },

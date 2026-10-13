@@ -3,6 +3,18 @@
 <div class="toolbar">
     <form method="get" class="inline-form">
         <input type="text" name="keyword" placeholder="按费用类型/管线类型/规格搜索" value="{{ keyword or '' }}" style="width:240px;">
+        <select name="fee_type">
+            <option value="">全部费用类型</option>
+            {% for opt in fee_type_options %}
+            <option value="{{ opt }}" {% if selected_fee_type == opt %}selected{% endif %}>{{ opt }}</option>
+            {% endfor %}
+        </select>
+        <select name="pipeline_type">
+            <option value="">全部管线类型</option>
+            {% for opt in pipeline_type_options %}
+            <option value="{{ opt }}" {% if selected_pipeline_type == opt %}selected{% endif %}>{{ opt }}</option>
+            {% endfor %}
+        </select>
         <select name="active">
             <option value="">全部状态</option>
             <option value="1" {% if selected_active == '1' %}selected{% endif %}>启用中</option>
