@@ -88,4 +88,32 @@
         </table>
     </div>
 </details>
+
+<section class="panel" style="border-left: 5px solid #ef4444; margin-top: 16px;">
+    <h3 style="margin-top:0;">⏰ 待收费用提醒 <span style="font-size:14px; font-weight:normal; color:#64748b;">（共 {{ pending_summary|length }} 家，待收 ¥{{ '%.2f'|format(pending_total) }}）</span></h3>
+    {% if pending_summary %}
+    <table>
+        <thead>
+            <tr>
+                <th>单位</th>
+                <th>待收笔数</th>
+                <th>待收金额</th>
+                <th>最近应收时间</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for item in pending_summary %}
+            <tr>
+                <td>{{ item.company_name }}</td>
+                <td>{{ item.record_count }} 笔</td>
+                <td>¥{{ '%.2f'|format(item.total_amount) }}</td>
+                <td>{{ item.nearest_date or '未定' }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color:#64748b; margin:0;">当前没有待收费用。</p>
+    {% endif %}
+</section>
 {% endblock %}

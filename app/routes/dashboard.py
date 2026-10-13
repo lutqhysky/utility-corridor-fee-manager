@@ -3,10 +3,11 @@ import logging
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
 from app.services.statistics_service import StatisticsService
-from app.models import FeeRecord
+from app.models import Company, FeeRecord
 from app.paths import TEMPLATES_DIR
 
 router = APIRouter()
@@ -30,6 +31,31 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 record.project_name
                 or (record.pipeline_entry.project_name if record.pipeline_entry else '')
             )
+        # 待收费用提醒：按单位汇总未收缴的收费记录
+        pending_rows = (
+            db.query(
+                Company.short_name,
+                Company.company_name,
+                func.count(FeeRecord.id).label('record_count'),
+                func.sum(FeeRecord.amount_incl_tax).label('total_amount'),
+                func.min(FeeRecord.planned_receivable_date).label('nearest_date'),
+            )
+            .join(FeeRecord, FeeRecord.company_id == Company.id)
+            .filter(FeeRecord.payment_status.in_(['未开始', '待收缴', '部分收缴', '已逾期']))
+            .group_by(Company.id, Company.short_name, Company.company_name)
+            .all()
+        )
+        pending_summary = [
+            {
+                'company_name': (row.short_name or row.company_name or ''),
+                'record_count': row.record_count or 0,
+                'total_amount': float(row.total_amount or 0),
+                'nearest_date': row.nearest_date,
+            }
+            for row in pending_rows
+        ]
+        pending_summary.sort(key=lambda r: (r['nearest_date'] is None, r['nearest_date'] or ''))
+        pending_total = sum(r['total_amount'] for r in pending_summary)
     except Exception:
         logger.exception('Dashboard data query failed, fallback to empty values.')
         stats = {
@@ -44,7 +70,16 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             'pending_contract_count': 0,
         }
         latest_records = []
-    context = {'request': request, 'stats': stats, 'latest_records': latest_records, 'title': '首页概览'}
+        pending_summary = []
+        pending_total = 0
+    context = {
+        'request': request,
+        'stats': stats,
+        'latest_records': latest_records,
+        'pending_summary': pending_summary,
+        'pending_total': pending_total,
+        'title': '首页概览',
+    }
 
     try:
         return templates.TemplateResponse('dashboard.html', context)
