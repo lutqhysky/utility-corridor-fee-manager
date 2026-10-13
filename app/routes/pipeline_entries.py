@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -5,7 +6,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import Company, PipelineEntry, PipelineEntryDetail
+from app.models import Company, FeeStandard, PipelineEntry, PipelineEntryDetail
 from app.paths import TEMPLATES_DIR
 
 router = APIRouter(prefix='/pipeline-entries', tags=['pipeline_entries'])
@@ -27,6 +28,27 @@ def get_discount_or_default(value: float | None):
 
 def calc_detail_amount(quantity: float | None, unit_price: float | None) -> float:
     return round(float(quantity or 0) * float(unit_price or 0), 2)
+
+
+def get_fee_standards_json(db: Session) -> str:
+    """按(管线类型, 规格)聚合启用的收费标准，供明细表单引用自动填价。"""
+    standards = db.query(FeeStandard).filter(FeeStandard.is_active.is_(True)).all()
+    grouped: dict[str, dict] = {}
+    for std in standards:
+        key = f"{std.pipeline_type or ''}|{std.specification or ''}"
+        item = grouped.setdefault(key, {
+            'pipeline_type': std.pipeline_type or '',
+            'specification': std.specification or '',
+            'entry_price': None,
+            'maintenance_price': None,
+        })
+        fee_type = std.fee_type or ''
+        if '入廊' in fee_type:
+            item['entry_price'] = std.unit_price_excl_tax
+        elif '维护' in fee_type or '运维' in fee_type:
+            item['maintenance_price'] = std.unit_price_excl_tax
+    result = {k: v for k, v in grouped.items() if v['entry_price'] is not None or v['maintenance_price'] is not None}
+    return json.dumps(result, ensure_ascii=False)
 
 
 @router.get('/', response_class=HTMLResponse)
@@ -282,6 +304,7 @@ def new_detail(entry_id: int, request: Request, db: Session = Depends(get_db)):
             'request': request,
             'entry': entry,
             'detail': None,
+            'fee_standards_json': get_fee_standards_json(db),
             'title': f'新增收费明细 - {entry.project_name or ""}'
         }
     )
@@ -336,6 +359,7 @@ def edit_detail(detail_id: int, request: Request, db: Session = Depends(get_db))
             'request': request,
             'entry': entry,
             'detail': detail,
+            'fee_standards_json': get_fee_standards_json(db),
             'title': f'编辑收费明细 - {entry.project_name or ""}'
         }
     )

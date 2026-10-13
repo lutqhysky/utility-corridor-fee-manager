@@ -12,10 +12,19 @@
         <table>
             <tbody>
                 <tr>
+                    <th>引用收费标准</th>
+                    <td colspan="3">
+                        <select id="fee_standard_select" style="width:100%; max-width:520px;">
+                            <option value="">-- 手动填写 --</option>
+                        </select>
+                        <span style="color:#64748b; font-size:13px; margin-left:8px;">选择后自动填入管线类型、规格及单价</span>
+                    </td>
+                </tr>
+                <tr>
                     <th>管线类型</th>
-                    <td><input type="text" name="pipeline_type" value="{{ detail.pipeline_type if detail else '' }}"></td>
+                    <td><input id="pipeline_type" type="text" name="pipeline_type" value="{{ detail.pipeline_type if detail else '' }}"></td>
                     <th>规格</th>
-                    <td><input type="text" name="specification" value="{{ detail.specification if detail else '' }}"></td>
+                    <td><input id="specification" type="text" name="specification" value="{{ detail.specification if detail else '' }}"></td>
                 </tr>
                 <tr>
                     <th>入廊管线工程量</th>
@@ -45,6 +54,7 @@
 </section>
 
 <script>
+const FEE_STANDARDS = {{ fee_standards_json | safe }};
 (function () {
     const quantityInput = document.getElementById('engineering_quantity');
     const entryUnitPriceInput = document.getElementById('entry_unit_price_excl_tax');
@@ -77,6 +87,32 @@
     maintenanceUnitPriceInput.addEventListener('input', recalculate);
 
     recalculate();
+
+    const pipelineTypeInput = document.getElementById('pipeline_type');
+    const specificationInput = document.getElementById('specification');
+    const standardSelect = document.getElementById('fee_standard_select');
+    if (standardSelect && pipelineTypeInput && specificationInput) {
+        Object.keys(FEE_STANDARDS).sort().forEach((key) => {
+            const item = FEE_STANDARDS[key];
+            const opt = document.createElement('option');
+            opt.value = key;
+            opt.textContent = item.pipeline_type + ' | ' + item.specification;
+            standardSelect.appendChild(opt);
+        });
+        standardSelect.addEventListener('change', () => {
+            const item = FEE_STANDARDS[standardSelect.value];
+            if (!item) return;
+            pipelineTypeInput.value = item.pipeline_type;
+            specificationInput.value = item.specification;
+            if (item.entry_price !== null && item.entry_price !== undefined) {
+                entryUnitPriceInput.value = item.entry_price;
+            }
+            if (item.maintenance_price !== null && item.maintenance_price !== undefined) {
+                maintenanceUnitPriceInput.value = item.maintenance_price;
+            }
+            recalculate();
+        });
+    }
 })();
 </script>
 
