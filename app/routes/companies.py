@@ -21,11 +21,15 @@ def get_company_or_404(db: Session, company_id: int):
 
 
 @router.get('/', response_class=HTMLResponse)
-def list_companies(request: Request, db: Session = Depends(get_db), keyword: str = ''):
+def list_companies(request: Request, db: Session = Depends(get_db), keyword: str = '', sort: str = ''):
     query = db.query(Company)
     if keyword:
         query = query.filter(Company.company_name.contains(keyword) | Company.short_name.contains(keyword))
-    companies = query.order_by(Company.id.desc()).all()
+    sort_order = sort if sort in ('id_asc', 'id_desc') else 'id_desc'
+    if sort_order == 'id_asc':
+        companies = query.order_by(Company.id.asc()).all()
+    else:
+        companies = query.order_by(Company.id.desc()).all()
 
     received_amount_rows = (
         db.query(
@@ -39,7 +43,7 @@ def list_companies(request: Request, db: Session = Depends(get_db), keyword: str
     for company in companies:
         company.total_received_amount = received_amount_map.get(company.id, 0)
 
-    return templates.TemplateResponse('companies/list.html', {'request': request, 'companies': companies, 'keyword': keyword, 'title': '单位管理'})
+    return templates.TemplateResponse('companies/list.html', {'request': request, 'companies': companies, 'keyword': keyword, 'sort_order': sort_order, 'title': '单位管理'})
 
 
 @router.get('/new', response_class=HTMLResponse)
