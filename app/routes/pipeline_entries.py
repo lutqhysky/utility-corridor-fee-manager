@@ -307,6 +307,14 @@ def delete_entry(entry_id: int, db: Session = Depends(get_db)):
     if not entry:
         return RedirectResponse(url='/pipeline-entries/', status_code=303)
 
+    # 有关联收费记录时阻断删除，避免静默断开关联
+    related_count = len(entry.fee_records or [])
+    if related_count:
+        raise HTTPException(
+            status_code=422,
+            detail=f'该项目有关联的收费记录 {related_count} 条，不能直接删除。请先处理这些收费记录（删除或取消关联）后再试。',
+        )
+
     db.delete(entry)
     db.commit()
     return RedirectResponse(url='/pipeline-entries/', status_code=303)

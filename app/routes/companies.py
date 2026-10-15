@@ -1,4 +1,7 @@
+import json
+from datetime import datetime
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from urllib.parse import quote
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import IntegrityError
@@ -137,9 +140,50 @@ def company_detail(company_id: int, request: Request, db: Session = Depends(get_
     return templates.TemplateResponse('companies/detail.html', {'request': request, 'company': company, 'title': '单位详情'})
 
 
+def _model_to_dict(obj) -> dict:
+    """SQLAlchemy 对象转可 JSON 序列化的 dict。"""
+    result = {}
+    for column in obj.__table__.columns:
+        value = getattr(obj, column.name)
+        if hasattr(value, 'isoformat'):
+            value = value.isoformat()
+        elif value is not None and not isinstance(value, (str, int, float, bool)):
+            value = str(value)
+        result[column.name] = value
+    return result
+
+
+def backup_company_data(db: Session, company) -> str:
+    """删除单位前自动备份其全部关联数据为 JSON，返回备份文件路径。"""
+    from app.database import DATABASE_PATH
+    backup_dir = DATABASE_PATH.parent / 'backups'
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    data = {
+        'backup_at': timestamp,
+        'company': _model_to_dict(company),
+        'pipeline_entries': [],
+        'fee_records': [_model_to_dict(r) for r in company.fee_records],
+        'contracts': [_model_to_dict(c) for c in company.contracts],
+    }
+    for entry in company.pipeline_entries:
+        entry_dict = _model_to_dict(entry)
+        entry_dict['details'] = [_model_to_dict(d) for d in entry.details]
+        data['pipeline_entries'].append(entry_dict)
+    backup_path = backup_dir / f"company_{company.id}_{timestamp}.json"
+    backup_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
+    return str(backup_path)
+
+
 @router.post('/{company_id}/delete')
-def delete_company(company_id: int, db: Session = Depends(get_db)):
+def delete_company(company_id: int, confirm_name: str = Form(''), db: Session = Depends(get_db)):
     company = get_company_or_404(db, company_id)
+    # 二次确认：必须输入单位简称（或全称）才能删除
+    expected = (company.short_name or company.company_name or '').strip()
+    if not expected or (confirm_name or '').strip() != expected:
+        raise HTTPException(status_code=422, detail='单位名称确认不匹配，删除已取消')
+    # 先自动备份，再删除
+    backup_path = backup_company_data(db, company)
     db.delete(company)
     db.commit()
-    return RedirectResponse(url='/companies/', status_code=303)
+    return RedirectResponse(url='/companies/?notice=' + quote(f'单位已删除，数据已备份至 {backup_path}'), status_code=303)

@@ -23,7 +23,8 @@
                 <td>
                     <a href="/companies/{{ company.id }}">查看详情</a>
                     <a href="/companies/{{ company.id }}/edit">编辑</a>
-                    <form method="post" action="/companies/{{ company.id }}/delete" style="display:inline;" onsubmit="return confirm('确认删除该单位及其关联数据吗？');">
+                    <form method="post" action="/companies/{{ company.id }}/delete" style="display:inline;" onsubmit="return confirmDeleteCompany(this, '{{ company.short_name or company.company_name }}');">
+                        <input type="hidden" name="confirm_name" value="">
                         <button type="submit" class="link-button">删除</button>
                     </form>
                 </td>
@@ -32,4 +33,17 @@
         </tbody>
     </table>
 </section>
+<script>
+function confirmDeleteCompany(form, name) {
+    const tip = '警告：删除单位将清空其全部入廊记录、收费记录、合同（不可恢复，删除前已自动备份）。\n请输入单位名称“' + name + '”确认删除：';
+    const input = prompt(tip);
+    if (input === null) return false;
+    if (input.trim() !== name) {
+        alert('名称不匹配，已取消删除。');
+        return false;
+    }
+    form.confirm_name.value = input.trim();
+    return true;
+}
+</script>
 {% endblock %}
