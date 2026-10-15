@@ -119,31 +119,42 @@
 
 <div id="pending-modal" style="display:none; position:fixed; inset:0; z-index:1000;">
     <div id="pending-modal-backdrop" style="position:absolute; inset:0; background:rgba(15,23,42,0.45);"></div>
-    <div id="pending-modal-card" style="position:absolute; left:0; right:0; bottom:0; background:#fff; border-radius:16px 16px 0 0; padding:20px 24px 28px; max-height:75vh; overflow-y:auto; box-shadow:0 -8px 30px rgba(15,23,42,0.18); animation:pending-slide-up 0.25s ease-out;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-            <h3 id="pending-modal-title" style="margin:0;"></h3>
+    <div id="pending-modal-card" style="position:absolute; left:0; right:0; bottom:0; background:#f4f5f7; border-radius:18px 18px 0 0; padding:12px 24px 32px; max-height:78vh; overflow-y:auto; box-shadow:0 -12px 40px rgba(15,23,42,0.22); animation:pending-slide-up 0.28s ease-out;">
+        <div style="width:44px; height:5px; border-radius:3px; background:#d1d5db; margin:0 auto 14px;"></div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px;">
+            <div>
+                <div id="pending-modal-title" style="font-size:17px; font-weight:600; color:#1f2937;"></div>
+                <div id="pending-modal-sub" style="font-size:13px; margin-top:6px; color:#6b7280;"></div>
+            </div>
             <button id="pending-modal-close" class="button">关闭</button>
         </div>
-        <table>
-            <thead>
-                <tr>
-                    <th>项目名称</th>
-                    <th>收费类型</th>
-                    <th>收费期间</th>
-                    <th>含税金额</th>
-                    <th>应收时间</th>
-                    <th>收缴状态</th>
-                    <th>操作</th>
-                </tr>
-            </thead>
-            <tbody id="pending-modal-body"></tbody>
-        </table>
+        <div id="pending-modal-list" style="display:flex; flex-direction:column; gap:12px; margin-top:14px;"></div>
     </div>
 </div>
 <style>
 @keyframes pending-slide-up {
-    from { transform: translateY(40px); opacity: 0; }
+    from { transform: translateY(60px); opacity: 0; }
     to { transform: translateY(0); opacity: 1; }
+}
+.pending-doc-icon {
+    width:30px; height:34px; border-radius:4px; background:#14b8a6;
+    position:relative; flex:none;
+    box-shadow:0 2px 6px rgba(20,184,166,0.35);
+}
+.pending-doc-icon::after {
+    content:''; position:absolute; top:0; right:0; width:0; height:0;
+    border-top:9px solid #f4f5f7; border-left:9px solid rgba(0,0,0,0.18);
+    border-top-right-radius:4px;
+}
+.pending-card {
+    background:#fff; border-radius:12px; padding:16px 18px;
+    box-shadow:0 2px 12px rgba(15,23,42,0.07);
+    display:flex; align-items:center; gap:14px;
+    transition:box-shadow 0.2s ease, transform 0.2s ease;
+}
+.pending-card:hover {
+    box-shadow:0 6px 20px rgba(15,23,42,0.12);
+    transform:translateY(-1px);
 }
 </style>
 <script>
@@ -151,40 +162,59 @@ const PENDING_DETAILS = {{ pending_details_json | safe }};
 (function () {
     const modal = document.getElementById('pending-modal');
     const modalTitle = document.getElementById('pending-modal-title');
-    const modalBody = document.getElementById('pending-modal-body');
-    if (!modal || !modalBody) return;
+    const modalSub = document.getElementById('pending-modal-sub');
+    const modalList = document.getElementById('pending-modal-list');
+    if (!modal || !modalList) return;
 
     const closePendingModal = () => { modal.style.display = 'none'; };
+    const fmtMoney = (n) => '¥' + Number(n || 0).toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
     document.querySelectorAll('.pending-company-link').forEach((link) => {
         link.addEventListener('click', () => {
             const companyId = link.getAttribute('data-company-id');
             const companyName = link.getAttribute('data-company-name');
             const records = PENDING_DETAILS[companyId] || PENDING_DETAILS[String(companyId)] || [];
-            modalTitle.textContent = companyName + ' — 待收明细（' + records.length + ' 笔）';
-            modalBody.innerHTML = '';
+            const total = records.reduce((sum, r) => sum + Number(r.amount_incl_tax || 0), 0);
+            modalTitle.textContent = companyName;
+            modalSub.innerHTML = '待收 <span style="color:#0d9488; font-weight:600;">' + records.length + '</span> 笔'
+                + '　合计 <span style="color:#0d9488; font-weight:600;">' + fmtMoney(total) + '</span>';
+            modalList.innerHTML = '';
             records.forEach((r) => {
-                const tr = document.createElement('tr');
-                const cells = [
-                    r.project_name || '',
-                    r.fee_type || '',
-                    r.charge_period || '',
-                    '¥' + Number(r.amount_incl_tax || 0).toFixed(2),
-                    r.planned_receivable_date || '未定',
-                    r.payment_status || '',
-                ];
-                cells.forEach((text) => {
-                    const td = document.createElement('td');
-                    td.textContent = text;
-                    tr.appendChild(td);
-                });
-                const opTd = document.createElement('td');
-                const a = document.createElement('a');
-                a.href = '/fee-records/' + r.record_id + '/edit';
-                a.textContent = '查看';
-                opTd.appendChild(a);
-                tr.appendChild(opTd);
-                modalBody.appendChild(tr);
+                const card = document.createElement('div');
+                card.className = 'pending-card';
+
+                const icon = document.createElement('div');
+                icon.className = 'pending-doc-icon';
+                card.appendChild(icon);
+
+                const main = document.createElement('div');
+                main.style.cssText = 'flex:1; min-width:0;';
+                const title = document.createElement('div');
+                title.style.cssText = 'font-size:15px; color:#1f2937; font-weight:500;';
+                title.textContent = (r.project_name || '未命名项目') + ' — ' + (r.fee_type || '');
+                const meta = document.createElement('div');
+                meta.style.cssText = 'font-size:13px; color:#9ca3af; margin-top:6px;';
+                meta.textContent = '收费期间：' + (r.charge_period || '—')
+                    + '　应收时间：' + (r.planned_receivable_date || '未定')
+                    + '　状态：' + (r.payment_status || '');
+                main.appendChild(title);
+                main.appendChild(meta);
+                card.appendChild(main);
+
+                const side = document.createElement('div');
+                side.style.cssText = 'text-align:right; flex:none;';
+                const amount = document.createElement('div');
+                amount.style.cssText = 'font-size:17px; font-weight:700; color:#1f2937;';
+                amount.textContent = fmtMoney(r.amount_incl_tax);
+                const linkA = document.createElement('a');
+                linkA.href = '/fee-records/' + r.record_id + '/edit';
+                linkA.textContent = '查看明细';
+                linkA.style.cssText = 'font-size:13px; color:#14b8a6; text-decoration:none;';
+                side.appendChild(amount);
+                side.appendChild(linkA);
+                card.appendChild(side);
+
+                modalList.appendChild(card);
             });
             modal.style.display = 'block';
         });
