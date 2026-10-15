@@ -535,10 +535,8 @@ class FeeReminderScheduler:
         self._stop_event = threading.Event()
 
     def start(self):
-        settings = get_reminder_settings()
-        if not settings.enabled:
-            logger.info('提醒未启用（未配置推送渠道），调度器不启动。')
-            return
+        # 无条件启动：run_fee_reminders / run_daily_digest 内部已有 enabled 短路检查，
+        # 用户后续在设置页补配渠道无需重启进程即可生效。
         if self._thread and self._thread.is_alive():
             return
 
