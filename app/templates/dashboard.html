@@ -119,43 +119,58 @@
 
 <div id="pending-modal" style="display:none; position:fixed; inset:0; z-index:1000;">
     <div id="pending-modal-backdrop" style="position:absolute; inset:0; background:rgba(15,23,42,0.45);"></div>
-    <div id="pending-modal-card" style="position:absolute; left:0; right:0; bottom:0; background:#f4f5f7; border-radius:18px 18px 0 0; padding:12px 24px 32px; max-height:78vh; overflow-y:auto; box-shadow:0 -12px 40px rgba(15,23,42,0.22); animation:pending-slide-up 0.28s ease-out;">
-        <div style="width:44px; height:5px; border-radius:3px; background:#d1d5db; margin:0 auto 14px;"></div>
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px;">
+    <div id="pending-modal-card" style="position:absolute; left:0; right:0; bottom:0; background:#f4f5f7; border-radius:20px 20px 0 0; padding:12px 28px 36px; max-height:80vh; overflow-y:auto; box-shadow:0 -12px 44px rgba(15,23,42,0.22); animation:pending-slide-up 0.38s cubic-bezier(0.22,1,0.36,1);">
+        <div style="width:46px; height:5px; border-radius:3px; background:#d4d7dc; margin:0 auto 16px;"></div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
             <div>
-                <div id="pending-modal-title" style="font-size:17px; font-weight:600; color:#1f2937;"></div>
-                <div id="pending-modal-sub" style="font-size:13px; margin-top:6px; color:#6b7280;"></div>
+                <div id="pending-modal-title" style="font-size:19px; font-weight:700; color:#111827; letter-spacing:0.5px;"></div>
+                <div id="pending-modal-sub" style="font-size:13px; color:#6b7280; margin-top:8px;"></div>
             </div>
-            <button id="pending-modal-close" class="button">关闭</button>
+            <button id="pending-modal-close" class="button" style="flex:none;">关闭</button>
         </div>
-        <div id="pending-modal-list" style="display:flex; flex-direction:column; gap:12px; margin-top:14px;"></div>
+        <div id="pending-modal-list" style="display:flex; flex-direction:column; gap:12px; margin-top:16px;"></div>
     </div>
 </div>
 <style>
 @keyframes pending-slide-up {
-    from { transform: translateY(60px); opacity: 0; }
+    from { transform: translateY(70px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+@keyframes pending-card-in {
+    from { transform: translateY(14px); opacity: 0; }
     to { transform: translateY(0); opacity: 1; }
 }
 .pending-doc-icon {
-    width:30px; height:34px; border-radius:4px; background:#14b8a6;
-    position:relative; flex:none;
-    box-shadow:0 2px 6px rgba(20,184,166,0.35);
+    width:32px; height:36px; border-radius:5px; position:relative; flex:none;
 }
+.pending-doc-icon.teal { background:#14b8a6; box-shadow:0 2px 8px rgba(20,184,166,0.4); }
+.pending-doc-icon.blue { background:#3b82f6; box-shadow:0 2px 8px rgba(59,130,246,0.4); }
 .pending-doc-icon::after {
     content:''; position:absolute; top:0; right:0; width:0; height:0;
-    border-top:9px solid #f4f5f7; border-left:9px solid rgba(0,0,0,0.18);
-    border-top-right-radius:4px;
+    border-top:10px solid #fff; border-left:10px solid rgba(0,0,0,0.16);
+    border-top-right-radius:5px;
 }
 .pending-card {
-    background:#fff; border-radius:12px; padding:16px 18px;
+    background:#fff; border-radius:14px; padding:16px 20px;
     box-shadow:0 2px 12px rgba(15,23,42,0.07);
-    display:flex; align-items:center; gap:14px;
+    display:flex; align-items:center; gap:16px;
+    border-left:4px solid transparent;
+    animation:pending-card-in 0.4s cubic-bezier(0.22,1,0.36,1) backwards;
     transition:box-shadow 0.2s ease, transform 0.2s ease;
 }
-.pending-card:hover {
-    box-shadow:0 6px 20px rgba(15,23,42,0.12);
-    transform:translateY(-1px);
+.pending-card:hover { box-shadow:0 8px 24px rgba(15,23,42,0.13); transform:translateY(-2px); }
+.pending-card.urgency-0 { border-left-color:#ef4444; }
+.pending-card.urgency-1 { border-left-color:#f59e0b; }
+.pending-card.urgency-2, .pending-card.urgency-3 { border-left-color:#14b8a6; }
+.pending-badge {
+    display:inline-block; font-size:11.5px; padding:2px 9px; border-radius:20px; font-weight:600;
 }
+.pending-badge.red { background:#fef2f2; color:#dc2626; }
+.pending-badge.amber { background:#fffbeb; color:#d97706; }
+.pending-badge.teal { background:#f0fdfa; color:#0d9488; }
+.pending-badge.gray { background:#f3f4f6; color:#6b7280; }
+.pending-progress { height:5px; border-radius:3px; background:#f1f2f4; margin-top:9px; overflow:hidden; max-width:260px; }
+.pending-progress > div { height:100%; border-radius:3px; background:linear-gradient(90deg,#14b8a6,#0d9488); }
 </style>
 <script>
 const PENDING_DETAILS = {{ pending_details_json | safe }};
@@ -175,43 +190,81 @@ const PENDING_DETAILS = {{ pending_details_json | safe }};
             const companyName = link.getAttribute('data-company-name');
             const records = PENDING_DETAILS[companyId] || PENDING_DETAILS[String(companyId)] || [];
             const total = records.reduce((sum, r) => sum + Number(r.amount_incl_tax || 0), 0);
+            const overdueCount = records.filter((r) => r.is_overdue).length;
             modalTitle.textContent = companyName;
-            modalSub.innerHTML = '待收 <span style="color:#0d9488; font-weight:600;">' + records.length + '</span> 笔'
-                + '　合计 <span style="color:#0d9488; font-weight:600;">' + fmtMoney(total) + '</span>';
+            let subHtml = '待收 <b style="color:#0d9488;">' + records.length + '</b> 笔'
+                + '　合计 <b style="color:#0d9488;">' + fmtMoney(total) + '</b>';
+            if (overdueCount > 0) {
+                subHtml += '　<span style="color:#dc2626;">⚠ ' + overdueCount + ' 笔逾期</span>';
+            }
+            modalSub.innerHTML = subHtml;
             modalList.innerHTML = '';
-            records.forEach((r) => {
+            records.forEach((r, idx) => {
                 const card = document.createElement('div');
-                card.className = 'pending-card';
+                card.className = 'pending-card urgency-' + r.urgency;
+                card.style.animationDelay = (0.05 + idx * 0.07).toFixed(2) + 's';
 
                 const icon = document.createElement('div');
-                icon.className = 'pending-doc-icon';
+                icon.className = 'pending-doc-icon ' + ((r.fee_type || '').indexOf('入廊') !== -1 ? 'teal' : 'blue');
                 card.appendChild(icon);
 
                 const main = document.createElement('div');
                 main.style.cssText = 'flex:1; min-width:0;';
                 const title = document.createElement('div');
-                title.style.cssText = 'font-size:15px; color:#1f2937; font-weight:500;';
+                title.style.cssText = 'font-size:15px; font-weight:600; color:#1f2937; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;';
                 title.textContent = (r.project_name || '未命名项目') + ' — ' + (r.fee_type || '');
-                const meta = document.createElement('div');
-                meta.style.cssText = 'font-size:13px; color:#9ca3af; margin-top:6px;';
-                meta.textContent = '收费期间：' + (r.charge_period || '—')
-                    + '　应收时间：' + (r.planned_receivable_date || '未定')
-                    + '　状态：' + (r.payment_status || '');
                 main.appendChild(title);
+
+                const meta = document.createElement('div');
+                meta.style.cssText = 'font-size:12.5px; color:#9ca3af; margin-top:7px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;';
+                const span1 = document.createElement('span');
+                span1.textContent = '收费期间：' + (r.charge_period || '—');
+                const span2 = document.createElement('span');
+                span2.textContent = '应收：' + (r.planned_receivable_date || '未定');
+                meta.appendChild(span1);
+                meta.appendChild(span2);
+                const badge = document.createElement('span');
+                if (r.is_overdue) {
+                    badge.className = 'pending-badge red';
+                    badge.textContent = '逾期 ' + r.overdue_days + ' 天';
+                } else if (r.is_due_soon) {
+                    badge.className = 'pending-badge amber';
+                    badge.textContent = r.due_in_days === 0 ? '今天到期' : r.due_in_days + ' 天后到期';
+                } else if ((r.payment_status || '') === '部分收缴') {
+                    badge.className = 'pending-badge teal';
+                    badge.textContent = '部分收缴';
+                } else {
+                    badge.className = 'pending-badge gray';
+                    badge.textContent = r.payment_status || '待收缴';
+                }
+                meta.appendChild(badge);
                 main.appendChild(meta);
+
+                if ((r.payment_status || '') === '部分收缴' && Number(r.amount_incl_tax) > 0) {
+                    const bar = document.createElement('div');
+                    bar.className = 'pending-progress';
+                    const fill = document.createElement('div');
+                    fill.style.width = Math.min(100, Math.round(Number(r.actual_received_amount || 0) / Number(r.amount_incl_tax) * 100)) + '%';
+                    bar.appendChild(fill);
+                    main.appendChild(bar);
+                    const plabel = document.createElement('div');
+                    plabel.style.cssText = 'font-size:11.5px; color:#9ca3af; margin-top:4px;';
+                    plabel.textContent = '已收 ' + fmtMoney(r.actual_received_amount) + ' / 应收 ' + fmtMoney(r.amount_incl_tax);
+                    main.appendChild(plabel);
+                }
                 card.appendChild(main);
 
                 const side = document.createElement('div');
                 side.style.cssText = 'text-align:right; flex:none;';
                 const amount = document.createElement('div');
-                amount.style.cssText = 'font-size:17px; font-weight:700; color:#1f2937;';
+                amount.style.cssText = 'font-size:18px; font-weight:800; letter-spacing:0.3px; font-variant-numeric:tabular-nums; color:' + (r.is_overdue ? '#dc2626' : '#111827') + ';';
                 amount.textContent = fmtMoney(r.amount_incl_tax);
-                const linkA = document.createElement('a');
-                linkA.href = '/fee-records/' + r.record_id + '/edit';
-                linkA.textContent = '查看明细';
-                linkA.style.cssText = 'font-size:13px; color:#14b8a6; text-decoration:none;';
+                const viewLink = document.createElement('a');
+                viewLink.href = '/fee-records/' + r.record_id + '/edit';
+                viewLink.textContent = '查看明细 →';
+                viewLink.style.cssText = 'font-size:12.5px; color:#14b8a6; text-decoration:none; display:inline-block; margin-top:6px;';
                 side.appendChild(amount);
-                side.appendChild(linkA);
+                side.appendChild(viewLink);
                 card.appendChild(side);
 
                 modalList.appendChild(card);

@@ -1,5 +1,6 @@
 import json
 import logging
+from datetime import date
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
@@ -59,16 +60,29 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         ]
         pending_summary.sort(key=lambda r: (r['nearest_date'] is None, r['nearest_date'] or ''))
         pending_total = sum(r['total_amount'] for r in pending_summary)
-        # 待收明细：点击单位名弹窗展示
+        # 待收明细：点击单位名弹窗展示，按紧急程度排序（逾期 > 临期7天内 > 正常 > 无日期）
+        today = date.today()
         pending_detail_rows = (
             db.query(FeeRecord)
             .options(joinedload(FeeRecord.pipeline_entry))
             .filter(FeeRecord.payment_status.in_(['未开始', '待收缴', '部分收缴', '已逾期']))
-            .order_by(FeeRecord.planned_receivable_date.asc())
             .all()
         )
         pending_details: dict[int, list] = {}
         for record in pending_detail_rows:
+            due = record.planned_receivable_date
+            overdue_days = (today - due).days if due and due < today else 0
+            due_in_days = (due - today).days if due and due >= today else -1
+            is_overdue = overdue_days > 0
+            is_due_soon = 0 <= due_in_days <= 7
+            if is_overdue:
+                urgency = 0
+            elif is_due_soon:
+                urgency = 1
+            elif due:
+                urgency = 2
+            else:
+                urgency = 3
             pending_details.setdefault(record.company_id, []).append(
                 {
                     'record_id': record.id,
@@ -77,12 +91,18 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                     'fee_type': record.fee_type or '',
                     'charge_period': record.charge_period or '',
                     'amount_incl_tax': float(record.amount_incl_tax or 0),
-                    'planned_receivable_date': str(record.planned_receivable_date)
-                    if record.planned_receivable_date
-                    else '',
+                    'actual_received_amount': float(record.actual_received_amount or 0),
+                    'planned_receivable_date': str(due) if due else '',
                     'payment_status': record.payment_status or '',
+                    'urgency': urgency,
+                    'is_overdue': is_overdue,
+                    'overdue_days': overdue_days,
+                    'is_due_soon': is_due_soon,
+                    'due_in_days': due_in_days,
                 }
             )
+        for records in pending_details.values():
+            records.sort(key=lambda r: (r['urgency'], r['planned_receivable_date'] or '9999'))
         pending_details_json = json.dumps(pending_details, ensure_ascii=False)
     except Exception:
         logger.exception('Dashboard data query failed, fallback to empty values.')
