@@ -131,13 +131,15 @@ def calculate_entry_actual_fees(entry: PipelineEntry) -> tuple[float, float]:
 
 
 def calc_excl_tax_from_incl_tax(amount_incl_tax: float, tax_rate: float) -> tuple[float, float]:
-    rate = float(tax_rate or 0)
-    total = float(amount_incl_tax or 0)
+    """含税反算不含税/税金：Decimal + 四舍五入，与 fee_calc_service 保持一致。"""
+    from decimal import Decimal, ROUND_HALF_UP
+    rate = Decimal(str(tax_rate or 0))
+    total = Decimal(str(amount_incl_tax or 0))
     if rate <= 0:
-        return round(total, 2), 0
-    amount_excl_tax = round(total / (1 + rate), 2)
-    tax_amount = round(total - amount_excl_tax, 2)
-    return amount_excl_tax, tax_amount
+        return float(total.quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)), 0.0
+    amount_excl_tax = (total / (1 + rate)).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)
+    tax_amount = (total - amount_excl_tax).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)
+    return float(amount_excl_tax), float(tax_amount)
 
 
 FEE_TYPE_WHITELIST = {'入廊费', '日常维护费', '运维费', '维护费'}

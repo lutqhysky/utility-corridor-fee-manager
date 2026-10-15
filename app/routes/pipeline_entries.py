@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -27,7 +28,12 @@ def get_discount_or_default(value: float | None):
 
 
 def calc_detail_amount(quantity: float | None, unit_price: float | None) -> float:
-    return round(float(quantity or 0) * float(unit_price or 0), 2)
+    return q2(Decimal(str(quantity or 0)) * Decimal(str(unit_price or 0)))
+
+
+def q2(value) -> float:
+    """四舍五入到分（Decimal），避免浮点 0.015 舍入错误。"""
+    return float(Decimal(str(value or 0)).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP))
 
 
 def parse_float_or(value: str | None, default: float = 0.0) -> float:
@@ -82,15 +88,15 @@ def list_entries(request: Request, db: Session = Depends(get_db), company_id: in
         entry_fee_discount = get_discount_or_default(entry.entry_fee_discount)
         maintenance_fee_discount = get_discount_or_default(entry.maintenance_fee_discount)
 
-        entry_fee_tax_amount = entry_fee_excl_tax_total * entry_fee_tax_rate
-        entry_fee_incl_tax_total = entry_fee_excl_tax_total + entry_fee_tax_amount
-        entry.actual_entry_fee = entry_fee_incl_tax_total * entry_fee_discount
+        entry_fee_tax_amount = q2(Decimal(str(entry_fee_excl_tax_total)) * Decimal(str(entry_fee_tax_rate)))
+        entry_fee_incl_tax_total = q2(Decimal(str(entry_fee_excl_tax_total)) + Decimal(str(entry_fee_tax_amount)))
+        entry.actual_entry_fee = q2(Decimal(str(entry_fee_incl_tax_total)) * Decimal(str(entry_fee_discount)))
         # 入廊费为 0 多半是收费明细/税率/折扣没填对，打标提醒核实
         entry.zero_fee_warning = (entry.actual_entry_fee or 0) == 0
 
-        maintenance_fee_tax_amount = maintenance_fee_excl_tax_total * maintenance_fee_tax_rate
-        maintenance_fee_incl_tax_total = maintenance_fee_excl_tax_total + maintenance_fee_tax_amount
-        entry.actual_maintenance_fee = maintenance_fee_incl_tax_total * maintenance_fee_discount
+        maintenance_fee_tax_amount = q2(Decimal(str(maintenance_fee_excl_tax_total)) * Decimal(str(maintenance_fee_tax_rate)))
+        maintenance_fee_incl_tax_total = q2(Decimal(str(maintenance_fee_excl_tax_total)) + Decimal(str(maintenance_fee_tax_amount)))
+        entry.actual_maintenance_fee = q2(Decimal(str(maintenance_fee_incl_tax_total)) * Decimal(str(maintenance_fee_discount)))
 
     companies = db.query(Company).order_by(Company.company_name).all()
     return templates.TemplateResponse(
@@ -189,13 +195,13 @@ def entry_detail(entry_id: int, request: Request, db: Session = Depends(get_db))
     entry_fee_discount = get_discount_or_default(entry.entry_fee_discount)
     maintenance_fee_discount = get_discount_or_default(entry.maintenance_fee_discount)
 
-    entry_fee_tax_amount = entry_fee_excl_tax_total * entry_fee_tax_rate
-    entry_fee_incl_tax_total = entry_fee_excl_tax_total + entry_fee_tax_amount
-    entry_fee_actual_total = entry_fee_incl_tax_total * entry_fee_discount
+    entry_fee_tax_amount = q2(Decimal(str(entry_fee_excl_tax_total)) * Decimal(str(entry_fee_tax_rate)))
+    entry_fee_incl_tax_total = q2(Decimal(str(entry_fee_excl_tax_total)) + Decimal(str(entry_fee_tax_amount)))
+    entry_fee_actual_total = q2(Decimal(str(entry_fee_incl_tax_total)) * Decimal(str(entry_fee_discount)))
 
-    maintenance_fee_tax_amount = maintenance_fee_excl_tax_total * maintenance_fee_tax_rate
-    maintenance_fee_incl_tax_total = maintenance_fee_excl_tax_total + maintenance_fee_tax_amount
-    maintenance_fee_actual_total = maintenance_fee_incl_tax_total * maintenance_fee_discount
+    maintenance_fee_tax_amount = q2(Decimal(str(maintenance_fee_excl_tax_total)) * Decimal(str(maintenance_fee_tax_rate)))
+    maintenance_fee_incl_tax_total = q2(Decimal(str(maintenance_fee_excl_tax_total)) + Decimal(str(maintenance_fee_tax_amount)))
+    maintenance_fee_actual_total = q2(Decimal(str(maintenance_fee_incl_tax_total)) * Decimal(str(maintenance_fee_discount)))
 
     return templates.TemplateResponse(
         'pipeline_entries/detail.html',
@@ -487,13 +493,14 @@ def print_fee_sheet(entry_id: int, fee_kind: str, request: Request, db: Session 
         })
 
     subtotal = sum(row['_amount_value'] for row in rows)
-    tax_amount = subtotal * tax_rate
-    total_incl_tax = subtotal + tax_amount
+    # 税金先舍到分再参与汇总，避免单据分项加总差 1 分
+    tax_amount = q2(Decimal(str(subtotal)) * Decimal(str(tax_rate)))
+    total_incl_tax = q2(Decimal(str(subtotal)) + Decimal(str(tax_amount)))
 
     # 折扣段始终显示：正式费用单据需注明合同约定折扣后的实际应收金额
-    actual_subtotal = subtotal * discount
-    actual_tax = actual_subtotal * tax_rate
-    actual_total = actual_subtotal + actual_tax
+    actual_subtotal = q2(Decimal(str(subtotal)) * Decimal(str(discount)))
+    actual_tax = q2(Decimal(str(actual_subtotal)) * Decimal(str(tax_rate)))
+    actual_total = q2(Decimal(str(actual_subtotal)) + Decimal(str(actual_tax)))
 
     cabin = entry.cabin_type or ''
     note_text = (
