@@ -33,18 +33,20 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 record.project_name
                 or (record.pipeline_entry.project_name if record.pipeline_entry else '')
             )
-        # 待收费用提醒：按单位汇总未收缴的收费记录
+        # 待收费用提醒：按实际未收余额统计（与收费汇总/提醒服务口径一致）
+        # 不再按状态过滤：已全额收清但状态未改的不计入，部分收缴只计剩余
+        outstanding = FeeRecord.amount_incl_tax - func.coalesce(FeeRecord.actual_received_amount, 0)
         pending_rows = (
             db.query(
                 Company.id.label('company_id'),
                 Company.short_name,
                 Company.company_name,
                 func.count(FeeRecord.id).label('record_count'),
-                func.sum(FeeRecord.amount_incl_tax).label('total_amount'),
+                func.sum(outstanding).label('total_amount'),
                 func.min(FeeRecord.planned_receivable_date).label('nearest_date'),
             )
             .join(FeeRecord, FeeRecord.company_id == Company.id)
-            .filter(FeeRecord.payment_status.in_(['未开始', '待收缴', '部分收缴', '已逾期']))
+            .filter(outstanding > 0)
             .group_by(Company.id, Company.short_name, Company.company_name)
             .all()
         )
@@ -65,7 +67,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         pending_detail_rows = (
             db.query(FeeRecord)
             .options(joinedload(FeeRecord.pipeline_entry))
-            .filter(FeeRecord.payment_status.in_(['未开始', '待收缴', '部分收缴', '已逾期']))
+            .filter(outstanding > 0)
             .all()
         )
         pending_details: dict[int, list] = {}

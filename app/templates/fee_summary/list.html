@@ -148,7 +148,7 @@
                 {% if pending_rows %}
                     {% for row in pending_rows %}
                     <tr>
-                        <td>{{ row.year|int }}</td>
+                        <td>{% if row.year %}{{ row.year|int }}{% else %}未定{% endif %}</td>
                         <td>{{ row.company_name }}</td>
                         <td>{{ row.short_name or '' }}</td>
                         <td>{{ row.record_count }}</td>

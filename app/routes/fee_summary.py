@@ -101,7 +101,8 @@ def build_project_received_query(db: Session, selected_year: int | None):
 
 
 def build_pending_query(db: Session, selected_year: int | None, today: date):
-    """待收/逾期汇总：按应收年度 + 单位分组，只统计仍有未收余额的记录。"""
+    """待收/逾期汇总：按应收年度 + 单位分组，只统计仍有未收余额的记录。
+    无应收日期但有欠款的归入"未定"年度组，与首页待收口径保持一致。"""
     outstanding = outstanding_expr()
     overdue_amount = case(
         (and_(FeeRecord.planned_receivable_date < today, outstanding > 0), outstanding),
@@ -119,7 +120,6 @@ def build_pending_query(db: Session, selected_year: int | None, today: date):
             func.coalesce(func.sum(overdue_amount), 0).label('total_overdue'),
         )
         .join(Company, Company.id == FeeRecord.company_id)
-        .filter(FeeRecord.planned_receivable_date.isnot(None))
         .filter(outstanding > 0)
         .filter(extract('year', FeeRecord.planned_receivable_date) == selected_year if selected_year else True)
     )
@@ -285,7 +285,7 @@ def export_summary(request: Request, db: Session = Depends(get_db), year: int | 
         ['年度(应收)', '单位名称', '单位简称', '待收笔数', '应收总额(含税)', '未收金额', '逾期金额'],
         [12, 28, 14, 12, 16, 14, 14],
         [
-            [int(row.year), row.company_name, row.short_name or '',
+            [int(row.year) if row.year else '未定', row.company_name, row.short_name or '',
              row.record_count, float(row.total_receivable or 0),
              float(row.total_unreceived or 0), float(row.total_overdue or 0)]
             for row in pending_rows
