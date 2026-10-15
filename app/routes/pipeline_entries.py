@@ -31,6 +31,14 @@ def calc_detail_amount(quantity: float | None, unit_price: float | None) -> floa
     return q2(Decimal(str(quantity or 0)) * Decimal(str(unit_price or 0)))
 
 
+def infer_detail_unit(pipeline_type: str | None) -> str:
+    """按管线类型推断计费单位：电力/通信按孔，其余按米。"""
+    pt = (pipeline_type or '')
+    if '电力' in pt or '通信' in pt or '通讯' in pt:
+        return '孔'
+    return '米'
+
+
 def q2(value) -> float:
     """四舍五入到分（Decimal），避免浮点 0.015 舍入错误。"""
     return float(Decimal(str(value or 0)).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP))
@@ -492,7 +500,7 @@ def print_fee_sheet(entry_id: int, fee_kind: str, request: Request, db: Session 
         rows.append({
             'pipeline_type': item.pipeline_type or '',
             'specification': item.specification or '',
-            'unit': '米',
+            'unit': infer_detail_unit(item.pipeline_type),
             'quantity': _fmt_qty(qty),
             'unit_price': _fmt_money(unit_price),
             'amount': _fmt_money(amount),
