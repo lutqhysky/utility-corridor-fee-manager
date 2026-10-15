@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="panel" style="text-align:center; padding:48px 24px;">
+    <div style="font-size:56px; font-weight:800; color:#e5e7eb;">{{ status_code }}</div>
+    <h3 style="margin:12px 0 8px;">{{ title }}</h3>
+    <p style="color:#6b7280; margin:0 0 20px;">{{ message }}</p>
+    <a class="button" href="javascript:history.back();">返回上一页</a>
+    <a class="button" href="/" style="margin-left:8px;">回首页</a>
+</section>
+{% endblock %}

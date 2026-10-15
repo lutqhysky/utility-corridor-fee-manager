@@ -1,8 +1,13 @@
 from contextlib import asynccontextmanager
 
+import logging
+from urllib.parse import parse_qsl
+
 from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -16,7 +21,8 @@ from app.auth import (
     get_session_https_only,
     get_session_secret,
 )
-from app.paths import STATIC_DIR
+from app.csrf import CSRF_FIELD, CSRF_HEADER, EXEMPT_PATHS, get_csrf_token, validate_csrf_token
+from app.paths import STATIC_DIR, TEMPLATES_DIR
 from app.routes import (
     auth_router,
     companies_router,
@@ -70,6 +76,49 @@ def register_routers(app: FastAPI):
     app.include_router(maintenance_contracts.router)
 
 
+logger = logging.getLogger(__name__)
+error_templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+
+
+class CsrfMiddleware(BaseHTTPMiddleware):
+    """CSRF 防护：可变请求必须携带与会话绑定的 token。"""
+
+    async def dispatch(self, request: Request, call_next):
+        # 模板用 request.state.csrf_token 渲染隐藏字段
+        try:
+            request.state.csrf_token = get_csrf_token(request)
+        except Exception:
+            request.state.csrf_token = ''
+
+        if request.method in ('POST', 'PUT', 'PATCH', 'DELETE'):
+            path = request.url.path
+            if path not in EXEMPT_PATHS:
+                submitted = request.headers.get(CSRF_HEADER)
+                if not submitted:
+                    content_type = request.headers.get('content-type', '')
+                    # 注意：不能在这里调 request.form()（Starlette 0.45 下游会读到空表单），
+                    # 用 request.body()（带缓存，下游可重读）+ 手动解析 urlencoded。
+                    if 'application/x-www-form-urlencoded' in content_type:
+                        try:
+                            body = await request.body()
+                            fields = dict(parse_qsl(body.decode('utf-8', errors='ignore')))
+                            submitted = fields.get(CSRF_FIELD)
+                        except Exception:
+                            submitted = None
+                if not validate_csrf_token(request, submitted):
+                    return error_templates.TemplateResponse(
+                        'error.html',
+                        {
+                            'request': request,
+                            'status_code': 403,
+                            'title': '请求被拒绝',
+                            'message': '安全校验未通过（CSRF token 缺失或已过期），请刷新页面后重试。',
+                        },
+                        status_code=403,
+                    )
+        return await call_next(request)
+
+
 class RequireLoginMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
@@ -105,6 +154,9 @@ def create_app():
     # 先加登录校验中间件
     app.add_middleware(RequireLoginMiddleware)
 
+    # CSRF 中间件（需要 session，必须在 SessionMiddleware 内层）
+    app.add_middleware(CsrfMiddleware)
+
     # 再加 SessionMiddleware
     # 这样 SessionMiddleware 会在更外层先执行，request.scope['session'] 就可用了
     app.add_middleware(
@@ -117,6 +169,43 @@ def create_app():
     )
 
     register_routers(app)
+
+    from fastapi.exceptions import RequestValidationError
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(request: Request, exc: RequestValidationError):
+        return error_templates.TemplateResponse(
+            'error.html',
+            {'request': request, 'status_code': 422, 'title': '出错了',
+             'message': '提交的数据有误，请检查必填项后重试。'},
+            status_code=422,
+        )
+
+    @app.exception_handler(StarletteHTTPException)
+    async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+        if exc.status_code == 404:
+            message = '页面不存在或已被删除。'
+        elif exc.status_code == 403:
+            message = exc.detail if isinstance(exc.detail, str) else '无权访问。'
+        elif exc.status_code == 422:
+            message = exc.detail if isinstance(exc.detail, str) else '提交的数据有误，请检查后重试。'
+        else:
+            message = exc.detail if isinstance(exc.detail, str) else f'请求出错（{exc.status_code}）。'
+        return error_templates.TemplateResponse(
+            'error.html',
+            {'request': request, 'status_code': exc.status_code, 'title': '出错了', 'message': message},
+            status_code=exc.status_code,
+        )
+
+    @app.exception_handler(Exception)
+    async def unhandled_exception_handler(request: Request, exc: Exception):
+        logger.exception('Unhandled exception')
+        return error_templates.TemplateResponse(
+            'error.html',
+            {'request': request, 'status_code': 500, 'title': '出错了', 'message': '服务器内部错误，请稍后重试或联系管理员。'},
+            status_code=500,
+        )
+
     return app
 
 
