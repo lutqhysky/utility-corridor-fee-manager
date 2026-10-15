@@ -71,6 +71,34 @@ def is_record_overdue(record: FeeRecord, today: date) -> bool:
     return outstanding > 0
 
 
+def build_filtered_summary(records: list[FeeRecord]) -> tuple[list[dict], dict]:
+    """按（单位, 项目）分组汇总实收：入廊费 / 日常维护费（含别名）/ 合计。"""
+    groups: dict[tuple[str, str], dict] = {}
+    for record in records:
+        company = record.company
+        company_label = (company.short_name or company.company_name) if company else ''
+        project = (record.project_name or '').strip()
+        key = (company_label, project)
+        group = groups.setdefault(key, {'company': company_label, 'project': project,
+                                        'entry': 0.0, 'maint': 0.0, 'total': 0.0, 'count': 0})
+        amount = float(record.actual_received_amount or 0)
+        group['total'] += amount
+        group['count'] += 1
+        fee_type = (record.fee_type or '').strip()
+        if fee_type == '入廊费':
+            group['entry'] += amount
+        elif fee_type in MAINTENANCE_FEE_TYPES:
+            group['maint'] += amount
+    group_list = sorted(groups.values(), key=lambda g: g['total'], reverse=True)
+    total = {
+        'entry': sum(g['entry'] for g in group_list),
+        'maint': sum(g['maint'] for g in group_list),
+        'total': sum(g['total'] for g in group_list),
+        'count': sum(g['count'] for g in group_list),
+    }
+    return group_list, total
+
+
 def annotate_overdue(records: list[FeeRecord], today: date) -> int:
     """给记录打上 is_overdue_view 动态逾期标记，返回逾期笔数。"""
     count = 0
@@ -200,6 +228,7 @@ def list_records(
     if status == OVERDUE_FILTER_VALUE:
         records = [record for record in records if record.is_overdue_view]
     overdue_count = sum(1 for record in records if record.is_overdue_view)
+    summary_groups, summary_total = build_filtered_summary(records)
     companies = db.query(Company).order_by(Company.company_name).all()
     project_query = db.query(FeeRecord.project_name).filter(
         FeeRecord.project_name.isnot(None), FeeRecord.project_name != '')
@@ -222,6 +251,8 @@ def list_records(
             'selected_project': selected_project,
             'overdue_filter_value': OVERDUE_FILTER_VALUE,
             'overdue_count': overdue_count,
+            'summary_groups': summary_groups,
+            'summary_total': summary_total,
             'notice': notice,
             'reminder_settings': reminder_settings,
             'last_run_at': last_run_at,

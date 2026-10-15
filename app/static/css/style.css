@@ -305,3 +305,54 @@ code {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* 收费记录筛选汇总卡 */
+.filter-summary {
+  background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);
+  border: 1px solid #dbeafe;
+  border-radius: 16px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+  padding: 18px 20px;
+  margin-bottom: 18px;
+}
+.filter-summary-title {
+  font-weight: 700;
+  font-size: 15px;
+  color: #1e40af;
+  margin-bottom: 10px;
+}
+.filter-summary-line {
+  font-size: 15px;
+  color: #334155;
+  line-height: 2;
+}
+.filter-summary-line strong { color: #1e293b; }
+.filter-summary-line .hl {
+  font-size: 20px;
+  font-weight: 800;
+  color: #1d4ed8;
+  margin: 0 2px;
+}
+.filter-summary-line .hl-green { color: #15803d; }
+.filter-summary-line .hl-amber { color: #b45309; }
+.filter-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.filter-summary-card {
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 12px;
+  padding: 12px 14px;
+  border: 1px solid #e0e7ff;
+}
+.filter-summary-card span { display: block; font-size: 13px; color: #64748b; margin-bottom: 6px; }
+.filter-summary-card strong { font-size: 20px; color: #1e293b; }
+.filter-summary-card.entry strong { color: #15803d; }
+.filter-summary-card.maint strong { color: #b45309; }
+.filter-summary-card.total strong { color: #1d4ed8; }
+.filter-summary-table { width: 100%; border-collapse: collapse; margin-top: 8px; background: rgba(255,255,255,0.7); border-radius: 8px; overflow: hidden; }
+.filter-summary-table th, .filter-summary-table td { padding: 8px 10px; text-align: left; font-size: 14px; border-bottom: 1px solid #e2e8f0; }
+.filter-summary-table th { background: rgba(219, 234, 254, 0.5); color: #1e40af; font-weight: 600; }
+.filter-summary-table tfoot td { font-weight: 700; border-bottom: none; background: rgba(219, 234, 254, 0.3); }

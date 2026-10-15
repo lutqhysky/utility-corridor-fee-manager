@@ -131,4 +131,52 @@
     </table>
 </section>
 
+{% if summary_groups %}
+<section class="filter-summary">
+    <div class="filter-summary-title">📊 筛选汇总</div>
+    {% if summary_groups|length == 1 %}
+        {% set g = summary_groups[0] %}
+        <div class="filter-summary-line">
+            <strong>{{ g.company }}</strong>{% if g.project %}【{{ g.project }}】{% endif %}项目，
+            收到管廊有偿使用费 <span class="hl">¥{{ '%.2f'|format(g.total) }}</span> 元，
+            其中入廊费 <span class="hl hl-green">¥{{ '%.2f'|format(g.entry) }}</span> 元，
+            日常维护费 <span class="hl hl-amber">¥{{ '%.2f'|format(g.maint) }}</span> 元。
+        </div>
+        <div class="filter-summary-grid">
+            <div class="filter-summary-card total"><span>实收合计</span><strong>¥{{ '%.2f'|format(g.total) }}</strong></div>
+            <div class="filter-summary-card entry"><span>入廊费</span><strong>¥{{ '%.2f'|format(g.entry) }}</strong></div>
+            <div class="filter-summary-card maint"><span>日常维护费</span><strong>¥{{ '%.2f'|format(g.maint) }}</strong></div>
+            <div class="filter-summary-card"><span>收费记录笔数</span><strong>{{ g.count }}</strong></div>
+        </div>
+    {% else %}
+        <table class="filter-summary-table">
+            <thead>
+                <tr><th>单位</th><th>项目</th><th>入廊费实收</th><th>日常维护费实收</th><th>实收合计</th><th>笔数</th></tr>
+            </thead>
+            <tbody>
+                {% for g in summary_groups %}
+                <tr>
+                    <td>{{ g.company }}</td>
+                    <td>{{ g.project or '—' }}</td>
+                    <td>¥{{ '%.2f'|format(g.entry) }}</td>
+                    <td>¥{{ '%.2f'|format(g.maint) }}</td>
+                    <td><strong>¥{{ '%.2f'|format(g.total) }}</strong></td>
+                    <td>{{ g.count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="2">合计（{{ summary_groups|length }} 个项目）</td>
+                    <td>¥{{ '%.2f'|format(summary_total.entry) }}</td>
+                    <td>¥{{ '%.2f'|format(summary_total.maint) }}</td>
+                    <td>¥{{ '%.2f'|format(summary_total.total) }}</td>
+                    <td>{{ summary_total.count }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    {% endif %}
+</section>
+{% endif %}
+
 {% endblock %}
