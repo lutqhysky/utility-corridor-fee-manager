@@ -30,6 +30,19 @@ def calc_detail_amount(quantity: float | None, unit_price: float | None) -> floa
     return round(float(quantity or 0) * float(unit_price or 0), 2)
 
 
+def parse_float_or(value: str | None, default: float = 0.0) -> float:
+    """数字框留空（""）时用默认值，避免 422。"""
+    if value is None:
+        return default
+    stripped = value.strip()
+    if not stripped:
+        return default
+    try:
+        return float(stripped)
+    except (ValueError, TypeError):
+        return default
+
+
 def get_fee_standards_json(db: Session) -> str:
     """按(管线类型, 规格)聚合启用的收费标准，供明细表单引用自动填价。"""
     standards = db.query(FeeStandard).filter(FeeStandard.is_active.is_(True)).all()
@@ -315,12 +328,15 @@ def create_detail(
     entry_id: int,
     pipeline_type: str = Form(''),
     specification: str = Form(''),
-    engineering_quantity: float = Form(0),
-    entry_unit_price_excl_tax: float = Form(0),
-    maintenance_unit_price_excl_tax: float = Form(0),
+    engineering_quantity: str | None = Form(None),
+    entry_unit_price_excl_tax: str | None = Form(None),
+    maintenance_unit_price_excl_tax: str | None = Form(None),
     remark: str = Form(''),
     db: Session = Depends(get_db),
 ):
+    engineering_quantity = parse_float_or(engineering_quantity, 0.0)
+    entry_unit_price_excl_tax = parse_float_or(entry_unit_price_excl_tax, 0.0)
+    maintenance_unit_price_excl_tax = parse_float_or(maintenance_unit_price_excl_tax, 0.0)
     entry = db.query(PipelineEntry).filter(PipelineEntry.id == entry_id).first()
     if not entry:
         return RedirectResponse(url='/pipeline-entries/', status_code=303)
@@ -370,12 +386,15 @@ def update_detail(
     detail_id: int,
     pipeline_type: str = Form(''),
     specification: str = Form(''),
-    engineering_quantity: float = Form(0),
-    entry_unit_price_excl_tax: float = Form(0),
-    maintenance_unit_price_excl_tax: float = Form(0),
+    engineering_quantity: str | None = Form(None),
+    entry_unit_price_excl_tax: str | None = Form(None),
+    maintenance_unit_price_excl_tax: str | None = Form(None),
     remark: str = Form(''),
     db: Session = Depends(get_db),
 ):
+    engineering_quantity = parse_float_or(engineering_quantity, 0.0)
+    entry_unit_price_excl_tax = parse_float_or(entry_unit_price_excl_tax, 0.0)
+    maintenance_unit_price_excl_tax = parse_float_or(maintenance_unit_price_excl_tax, 0.0)
     detail = db.query(PipelineEntryDetail).filter(PipelineEntryDetail.id == detail_id).first()
     if not detail:
         return RedirectResponse(url='/pipeline-entries/', status_code=303)

@@ -40,7 +40,7 @@
         <label>收费类型
             <select id="fee_type" name="fee_type">
                 <option value="入廊费" {% if record and record.fee_type == '入廊费' %}selected{% endif %}>入廊费</option>
-                <option value="运维费" {% if record and record.fee_type == '运维费' %}selected{% endif %}>运维费</option>
+                <option value="日常维护费" {% if record and record.fee_type in ['日常维护费', '运维费', '维护费'] %}selected{% endif %}>日常维护费</option>
             </select>
         </label>
 
@@ -102,6 +102,7 @@
     </form>
 </section>
 <script>
+    const STANDARD_TAX_RATES = {{ standard_tax_rates_json | safe }};
     (function () {
         const isEditMode = {{ 'true' if record else 'false' }};
         const feeTypeSelect = document.getElementById('fee_type');
@@ -120,10 +121,9 @@
         }
 
         function syncTaxRate() {
-            if (feeTypeSelect.value === '入廊费') {
-                taxRateInput.value = '0.09';
-            } else {
-                taxRateInput.value = '0.06';
+            const rate = STANDARD_TAX_RATES[feeTypeSelect.value];
+            if (rate !== null && rate !== undefined) {
+                taxRateInput.value = rate;
             }
         }
 
@@ -167,8 +167,8 @@
             syncAmountByPipelineEntry();
             syncProjectNameByPipelineEntry(true);
         });
-        syncTaxRate();
         if (!isEditMode) {
+            syncTaxRate();
             syncAmountByPipelineEntry();
             syncProjectNameByPipelineEntry(true);
         }

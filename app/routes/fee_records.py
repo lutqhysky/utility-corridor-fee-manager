@@ -1,3 +1,4 @@
+import json
 from datetime import date, datetime
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
@@ -21,6 +22,43 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 # 动态逾期筛选的特殊取值（非数据库状态，而是按“应收时间<今天且有未收余额”实时判定）
 OVERDUE_FILTER_VALUE = '__overdue__'
+
+
+# 维护类费用类型的别名归一化（表单/历史数据用"运维费"，收费标准用"日常维护费"）
+MAINTENANCE_FEE_TYPES = {'运维费', '日常维护费', '维护费'}
+
+
+def normalize_fee_type(fee_type: str | None) -> str:
+    return (fee_type or '').strip()
+
+
+def get_standard_tax_rate(db: Session, fee_type: str | None) -> float | None:
+    """按费用类型取启用中收费标准的税率：取最新生效的一条，找不到返回 None。"""
+    fee_type = normalize_fee_type(fee_type)
+    candidates = {fee_type}
+    if fee_type in MAINTENANCE_FEE_TYPES:
+        candidates |= MAINTENANCE_FEE_TYPES
+    row = (
+        db.query(FeeStandard)
+        .filter(FeeStandard.is_active.is_(True), FeeStandard.fee_type.in_(candidates))
+        .order_by(
+            FeeStandard.effective_date.isnot(None).desc(),
+            FeeStandard.effective_date.desc(),
+            FeeStandard.id.desc(),
+        )
+        .first()
+    )
+    if row is not None and row.tax_rate is not None:
+        return float(row.tax_rate)
+    return None
+
+
+def get_all_standard_tax_rates(db: Session) -> dict:
+    """供表单回显：各费用类型的当前标准税率。"""
+    return {
+        '入廊费': get_standard_tax_rate(db, '入廊费'),
+        '日常维护费': get_standard_tax_rate(db, '日常维护费'),
+    }
 
 
 def is_record_overdue(record: FeeRecord, today: date) -> bool:
@@ -50,6 +88,19 @@ def parse_date(value: str):
         return datetime.strptime(value, '%Y-%m-%d').date()
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=f'日期格式错误: {value}，正确格式应为 YYYY-MM-DD') from exc
+
+
+def parse_float_or(value: str | None, default: float = 0.0) -> float:
+    """数字框留空（""）时用默认值，避免 422。"""
+    if value is None:
+        return default
+    stripped = value.strip()
+    if not stripped:
+        return default
+    try:
+        return float(stripped)
+    except (ValueError, TypeError):
+        return default
 
 
 def parse_optional_int(value: str) -> int | None:
@@ -87,6 +138,23 @@ def calc_excl_tax_from_incl_tax(amount_incl_tax: float, tax_rate: float) -> tupl
     amount_excl_tax = round(total / (1 + rate), 2)
     tax_amount = round(total - amount_excl_tax, 2)
     return amount_excl_tax, tax_amount
+
+
+FEE_TYPE_WHITELIST = {'入廊费', '日常维护费', '运维费', '维护费'}
+PAYMENT_STATUS_WHITELIST = {'未开始', '待收缴', '部分收缴', '已收缴', '已逾期'}
+
+
+def validate_record_values(fee_type: str, payment_status: str, amount_incl_tax: float,
+                           tax_rate: float, actual_received_amount: float):
+    """表单值白名单与范围校验，非法时抛 422 中文提示。"""
+    if normalize_fee_type(fee_type) not in FEE_TYPE_WHITELIST:
+        raise HTTPException(status_code=422, detail=f'费用类型非法：{fee_type}')
+    if (payment_status or '').strip() not in PAYMENT_STATUS_WHITELIST:
+        raise HTTPException(status_code=422, detail=f'收缴状态非法：{payment_status}')
+    if amount_incl_tax < 0 or actual_received_amount < 0:
+        raise HTTPException(status_code=422, detail='金额不能为负数')
+    if not 0 <= tax_rate < 1:
+        raise HTTPException(status_code=422, detail='税率应在 0~1 之间（如 9% 填 0.09）')
 
 
 def validate_record_relations(db: Session, company_id: int, pipeline_entry_id: int | None):
@@ -271,6 +339,7 @@ def new_record(request: Request, db: Session = Depends(get_db)):
             'pipeline_entries': pipeline_entries,
             'entry_fee_map': entry_fee_map,
             'statuses': statuses,
+            'standard_tax_rates_json': json.dumps(get_all_standard_tax_rates(db)),
             'title': '新增收费记录'
         }
     )
@@ -279,34 +348,38 @@ def new_record(request: Request, db: Session = Depends(get_db)):
 @router.post('/new')
 def create_record(
     company_id: int = Form(...),
-    pipeline_entry_id: int | None = Form(None),
+    pipeline_entry_id: str | None = Form(None),
     project_name: str = Form(''),
     fee_type: str = Form(...),
     charge_period: str = Form(''),
-    period_year: int | None = Form(None),
-    period_quarter: int | None = Form(None),
-    amount_incl_tax: float = Form(0),
-    tax_rate: float = Form(0),
+    period_year: str | None = Form(None),
+    period_quarter: str | None = Form(None),
+    amount_incl_tax: str | None = Form(None),
+    tax_rate: str | None = Form(None),
     planned_receivable_date: str = Form(''),
     remind_date: str = Form(''),
     latest_payment_date: str = Form(''),
-    actual_received_amount: float = Form(0),
+    actual_received_amount: str | None = Form(None),
     actual_received_date: str = Form(''),
     payment_status: str = Form('待收缴'),
     is_invoiced: str = Form('否'),
     remark: str = Form(''),
     db: Session = Depends(get_db),
 ):
+    # 空字符串归一化（浏览器提交空数字框/空下拉为 ""）
+    pipeline_entry_id = parse_optional_int(pipeline_entry_id)
+    period_year = parse_optional_int(period_year)
+    period_quarter = parse_optional_int(period_quarter)
+    amount_incl_tax = parse_float_or(amount_incl_tax, 0.0)
+    tax_rate = parse_float_or(tax_rate, 0.0)
+    actual_received_amount = parse_float_or(actual_received_amount, 0.0)
     validate_record_relations(db, company_id, pipeline_entry_id)
+    validate_record_values(fee_type, payment_status, amount_incl_tax, tax_rate, actual_received_amount)
     
-    # --- 核心修改部分开始：动态获取税率 ---
-    standard = db.query(FeeStandard).filter(FeeStandard.fee_type == fee_type).first()
-    if standard and standard.tax_rate is not None:
-        actual_tax_rate = float(standard.tax_rate)
-    else:
-        # 如果数据库没有配置该费用类型的税率，则使用前端传入的值（兜底逻辑）
+    # 动态获取税率：启用中的收费标准（最新生效），找不到则用前端传入值兜底
+    actual_tax_rate = get_standard_tax_rate(db, fee_type)
+    if actual_tax_rate is None:
         actual_tax_rate = float(tax_rate)
-    # --- 核心修改部分结束 ---
 
     amount_excl_tax, tax_amount = calc_excl_tax_from_incl_tax(amount_incl_tax, actual_tax_rate)
 
@@ -367,6 +440,7 @@ def edit_record(record_id: int, request: Request, db: Session = Depends(get_db))
             'pipeline_entries': pipeline_entries,
             'entry_fee_map': entry_fee_map,
             'statuses': statuses,
+            'standard_tax_rates_json': json.dumps(get_all_standard_tax_rates(db)),
             'title': '编辑收费记录'
         }
     )
@@ -399,14 +473,12 @@ def update_record(
         return RedirectResponse(url='/fee-records/', status_code=303)
 
     validate_record_relations(db, company_id, pipeline_entry_id)
+    validate_record_values(fee_type, payment_status, amount_incl_tax, tax_rate, actual_received_amount)
     
-    # --- 核心修改部分开始：更新操作同样动态获取税率 ---
-    standard = db.query(FeeStandard).filter(FeeStandard.fee_type == fee_type).first()
-    if standard and standard.tax_rate is not None:
-        actual_tax_rate = float(standard.tax_rate)
-    else:
+    # 更新操作同样动态获取税率
+    actual_tax_rate = get_standard_tax_rate(db, fee_type)
+    if actual_tax_rate is None:
         actual_tax_rate = float(tax_rate)
-    # --- 核心修改部分结束 ---
 
     amount_excl_tax, tax_amount = calc_excl_tax_from_incl_tax(amount_incl_tax, actual_tax_rate)
 
