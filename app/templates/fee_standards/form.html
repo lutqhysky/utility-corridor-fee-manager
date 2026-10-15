@@ -5,6 +5,7 @@
     <h3>{% if standard %}编辑收费标准{% else %}新增收费标准{% endif %}</h3>
 
     <form method="post" action="{% if standard %}/fee-standards/{{ standard.id }}/edit{% else %}/fee-standards/new{% endif %}">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
         <table>
             <tbody>
                 <tr>

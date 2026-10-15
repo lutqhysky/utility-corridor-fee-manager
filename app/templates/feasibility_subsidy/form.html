@@ -3,6 +3,7 @@
 
 <section class="panel" style="max-width:860px;">
     <form method="post" action="/feasibility-subsidy/{{ period.id }}/edit" class="form-grid">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
         <label>
             运营期
             <input name="operating_period" value="{{ period.operating_period }}" required>

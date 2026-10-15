@@ -44,6 +44,7 @@
                 <td>
                     <a href="/maintenance-contracts/{{ contract.id }}/edit">修改</a>
                     <form method="post" action="/maintenance-contracts/{{ contract.id }}/delete" style="display:inline; margin-left:8px;" onsubmit="return confirm('确定要删除这条运维合同备案吗？');">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                         <button type="submit" class="link-button">删除</button>
                     </form>
                 </td>

@@ -4,6 +4,7 @@
 <section class="panel" style="max-width:860px;">
     <p style="margin-top:0;">运营期：<strong>{{ period.operating_period }}</strong></p>
     <form method="post" action="/feasibility-subsidy/{{ period.id }}/details/{{ detail.id }}/edit" class="form-grid">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
         <label>
             收款时间
             <input type="date" name="received_date" value="{{ detail.received_date or '' }}" placeholder="YYYY-MM-DD">

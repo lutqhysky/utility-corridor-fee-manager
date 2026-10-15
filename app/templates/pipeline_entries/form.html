@@ -5,6 +5,7 @@
     <h3>{% if entry %}编辑项目{% else %}新增入廊记录{% endif %}</h3>
 
     <form method="post" action="{% if entry %}/pipeline-entries/{{ entry.id }}/edit{% else %}/pipeline-entries/new{% endif %}">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
         <table>
             <tbody>
                 <tr>

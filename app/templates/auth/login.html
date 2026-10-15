@@ -26,6 +26,7 @@
         {% endif %}
 
         <form method="post" action="/login" class="auth-form">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
             <input type="hidden" name="next_url" value="{{ next_url }}">
 
             <label>

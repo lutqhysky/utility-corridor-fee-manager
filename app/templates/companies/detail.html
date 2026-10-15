@@ -7,6 +7,7 @@
     <div class="toolbar">
         <a class="button" href="/companies/{{ company.id }}/edit">编辑单位</a>
         <form method="post" action="/companies/{{ company.id }}/delete" onsubmit="return confirm('确认删除该单位及其关联数据吗？');">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
             <button type="submit">删除单位</button>
         </form>
     </div>

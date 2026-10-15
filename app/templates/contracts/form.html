@@ -2,6 +2,7 @@
 {% block content %}
 <section class="panel form-panel">
     <form method="post" action="{% if contract %}/contracts/{{ contract.id }}/edit{% else %}/contracts/new{% endif %}" class="form-grid">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
         <label>所属单位
             <select name="company_id" required>
                 {% for company in companies %}

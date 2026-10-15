@@ -12,6 +12,7 @@
     </p>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
         <form method="post" action="/settings/reminders/test" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
             <button type="submit">发送测试推送</button>
         </form>
         <a class="button" href="/settings/reminders/logs">查看发送日志</a>
@@ -22,6 +23,7 @@
 <section class="panel">
     <h3 style="margin-top:0;">推送策略</h3>
     <form method="post" action="/settings/reminders/save">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
         <table>
             <tbody>
                 <tr>

@@ -2,6 +2,7 @@
 {% block content %}
 <section class="panel form-panel">
     <form method="post" action="{% if contract %}/maintenance-contracts/{{ contract.id }}/edit{% else %}/maintenance-contracts/new{% endif %}" class="form-grid">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
         
         <label class="full">
             合同名称 <span style="color: #dc2626;">*</span>

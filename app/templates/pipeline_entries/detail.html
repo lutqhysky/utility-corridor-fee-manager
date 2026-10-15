@@ -131,6 +131,7 @@
                 <td>
                     <a href="/pipeline-entries/details/{{ item.id }}/edit">编辑</a>
                     <form method="post" action="/pipeline-entries/details/{{ item.id }}/delete" style="display:inline; margin-left:8px;">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                         <button type="submit" onclick="return confirm('确定删除这条明细吗？')">删除</button>
                     </form>
                 </td>
