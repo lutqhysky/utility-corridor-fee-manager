@@ -104,7 +104,7 @@
         <tbody>
         {% for item in pending_summary %}
             <tr>
-                <td>{{ item.company_name }}</td>
+                <td><a href="javascript:void(0);" class="pending-company-link" data-company-id="{{ item.company_id }}" data-company-name="{{ item.company_name }}" title="点击查看待收明细">{{ item.company_name }}</a></td>
                 <td>{{ item.record_count }} 笔</td>
                 <td>¥{{ '%.2f'|format(item.total_amount) }}</td>
                 <td>{{ item.nearest_date or '未定' }}</td>
@@ -116,4 +116,82 @@
     <p style="color:#64748b; margin:0;">当前没有待收费用。</p>
     {% endif %}
 </section>
+
+<div id="pending-modal" style="display:none; position:fixed; inset:0; z-index:1000;">
+    <div id="pending-modal-backdrop" style="position:absolute; inset:0; background:rgba(15,23,42,0.45);"></div>
+    <div id="pending-modal-card" style="position:absolute; left:0; right:0; bottom:0; background:#fff; border-radius:16px 16px 0 0; padding:20px 24px 28px; max-height:75vh; overflow-y:auto; box-shadow:0 -8px 30px rgba(15,23,42,0.18); animation:pending-slide-up 0.25s ease-out;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h3 id="pending-modal-title" style="margin:0;"></h3>
+            <button id="pending-modal-close" class="button">关闭</button>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>项目名称</th>
+                    <th>收费类型</th>
+                    <th>收费期间</th>
+                    <th>含税金额</th>
+                    <th>应收时间</th>
+                    <th>收缴状态</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="pending-modal-body"></tbody>
+        </table>
+    </div>
+</div>
+<style>
+@keyframes pending-slide-up {
+    from { transform: translateY(40px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+</style>
+<script>
+const PENDING_DETAILS = {{ pending_details_json | safe }};
+(function () {
+    const modal = document.getElementById('pending-modal');
+    const modalTitle = document.getElementById('pending-modal-title');
+    const modalBody = document.getElementById('pending-modal-body');
+    if (!modal || !modalBody) return;
+
+    const closePendingModal = () => { modal.style.display = 'none'; };
+
+    document.querySelectorAll('.pending-company-link').forEach((link) => {
+        link.addEventListener('click', () => {
+            const companyId = link.getAttribute('data-company-id');
+            const companyName = link.getAttribute('data-company-name');
+            const records = PENDING_DETAILS[companyId] || PENDING_DETAILS[String(companyId)] || [];
+            modalTitle.textContent = companyName + ' — 待收明细（' + records.length + ' 笔）';
+            modalBody.innerHTML = '';
+            records.forEach((r) => {
+                const tr = document.createElement('tr');
+                const cells = [
+                    r.project_name || '',
+                    r.fee_type || '',
+                    r.charge_period || '',
+                    '¥' + Number(r.amount_incl_tax || 0).toFixed(2),
+                    r.planned_receivable_date || '未定',
+                    r.payment_status || '',
+                ];
+                cells.forEach((text) => {
+                    const td = document.createElement('td');
+                    td.textContent = text;
+                    tr.appendChild(td);
+                });
+                const opTd = document.createElement('td');
+                const a = document.createElement('a');
+                a.href = '/fee-records/' + r.record_id + '/edit';
+                a.textContent = '查看';
+                opTd.appendChild(a);
+                tr.appendChild(opTd);
+                modalBody.appendChild(tr);
+            });
+            modal.style.display = 'block';
+        });
+    });
+
+    document.getElementById('pending-modal-backdrop').addEventListener('click', closePendingModal);
+    document.getElementById('pending-modal-close').addEventListener('click', closePendingModal);
+})();
+</script>
 {% endblock %}

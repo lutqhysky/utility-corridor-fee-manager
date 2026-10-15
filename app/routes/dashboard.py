@@ -1,3 +1,4 @@
+import json
 import logging
 
 from fastapi import APIRouter, Depends, Request
@@ -34,6 +35,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         # 待收费用提醒：按单位汇总未收缴的收费记录
         pending_rows = (
             db.query(
+                Company.id.label('company_id'),
                 Company.short_name,
                 Company.company_name,
                 func.count(FeeRecord.id).label('record_count'),
@@ -47,6 +49,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         )
         pending_summary = [
             {
+                'company_id': row.company_id,
                 'company_name': (row.short_name or row.company_name or ''),
                 'record_count': row.record_count or 0,
                 'total_amount': float(row.total_amount or 0),
@@ -56,6 +59,31 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         ]
         pending_summary.sort(key=lambda r: (r['nearest_date'] is None, r['nearest_date'] or ''))
         pending_total = sum(r['total_amount'] for r in pending_summary)
+        # 待收明细：点击单位名弹窗展示
+        pending_detail_rows = (
+            db.query(FeeRecord)
+            .options(joinedload(FeeRecord.pipeline_entry))
+            .filter(FeeRecord.payment_status.in_(['未开始', '待收缴', '部分收缴', '已逾期']))
+            .order_by(FeeRecord.planned_receivable_date.asc())
+            .all()
+        )
+        pending_details: dict[int, list] = {}
+        for record in pending_detail_rows:
+            pending_details.setdefault(record.company_id, []).append(
+                {
+                    'record_id': record.id,
+                    'project_name': record.project_name
+                    or (record.pipeline_entry.project_name if record.pipeline_entry else ''),
+                    'fee_type': record.fee_type or '',
+                    'charge_period': record.charge_period or '',
+                    'amount_incl_tax': float(record.amount_incl_tax or 0),
+                    'planned_receivable_date': str(record.planned_receivable_date)
+                    if record.planned_receivable_date
+                    else '',
+                    'payment_status': record.payment_status or '',
+                }
+            )
+        pending_details_json = json.dumps(pending_details, ensure_ascii=False)
     except Exception:
         logger.exception('Dashboard data query failed, fallback to empty values.')
         stats = {
@@ -72,12 +100,14 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         latest_records = []
         pending_summary = []
         pending_total = 0
+        pending_details_json = '{}'
     context = {
         'request': request,
         'stats': stats,
         'latest_records': latest_records,
         'pending_summary': pending_summary,
         'pending_total': pending_total,
+        'pending_details_json': pending_details_json,
         'title': '首页概览',
     }
 
