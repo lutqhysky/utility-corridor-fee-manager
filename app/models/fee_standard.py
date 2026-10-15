@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Date, DateTime, Float, Integer, String, Text, func
+from sqlalchemy import Boolean, Column, Date, DateTime, Float, Integer, String, Text, UniqueConstraint, func
 from app.database import Base
 
 
@@ -18,3 +18,7 @@ class FeeStandard(Base):
     remark = Column(Text, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint('fee_type', 'pipeline_type', 'specification', name='uq_fee_standard_type_spec'),
+    )

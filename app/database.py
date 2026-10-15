@@ -66,7 +66,26 @@ def get_expected_sqlite_columns():
 
 
 def ensure_sqlite_schema():
+    import logging
+    logger = logging.getLogger(__name__)
     with sqlite3.connect(DATABASE_PATH) as connection:
+        # 收费标准唯一索引（费用类型+管线类型+规格）：有存量重复时跳过并记日志
+        try:
+            dupes = connection.execute(
+                """SELECT COUNT(*) FROM (
+                    SELECT fee_type, pipeline_type, specification, COUNT(*) AS c
+                    FROM fee_standards GROUP BY fee_type, pipeline_type, specification HAVING c > 1
+                )"""
+            ).fetchone()[0]
+            if dupes:
+                logger.warning('fee_standards 表存在 %d 组重复行，未创建唯一索引，请先去重', dupes)
+            else:
+                connection.execute(
+                    'CREATE UNIQUE INDEX IF NOT EXISTS uq_fee_standard_type_spec '
+                    'ON fee_standards (fee_type, pipeline_type, specification)'
+                )
+        except Exception:
+            logger.exception('创建 fee_standards 唯一索引失败')
         for table_name, columns in get_expected_sqlite_columns().items():
             existing_columns = {
                 row[1]

@@ -132,7 +132,7 @@ def create_standard(
         db.commit()
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=422, detail='收费标准保存失败') from exc
+        raise HTTPException(status_code=422, detail='已存在相同的收费标准（费用类型+管线类型+规格重复）') from exc
     return RedirectResponse(url='/fee-standards/', status_code=303)
 
 
@@ -177,7 +177,7 @@ def update_standard(
         db.commit()
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=422, detail='收费标准更新失败') from exc
+        raise HTTPException(status_code=422, detail='已存在相同的收费标准（费用类型+管线类型+规格重复）') from exc
     return RedirectResponse(url='/fee-standards/', status_code=303)
 
 
