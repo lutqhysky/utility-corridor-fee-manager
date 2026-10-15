@@ -9,7 +9,7 @@ from sqlalchemy import and_, case, extract, func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Company, FeeRecord
+from app.models import Company, FeeRecord, PipelineEntry
 from app.paths import TEMPLATES_DIR
 
 router = APIRouter(prefix='/fee-summary', tags=['fee_summary'])
@@ -54,6 +54,49 @@ def build_received_query(db: Session, selected_year: int | None):
         .filter(FeeRecord.actual_received_amount.isnot(None))
         .filter(FeeRecord.actual_received_amount > 0)
         .filter(extract('year', FeeRecord.actual_received_date) == selected_year if selected_year else True)
+    )
+
+
+MAINTENANCE_FEE_TYPES = ['日常维护费', '运维费', '维护费']
+
+
+def build_project_received_query(db: Session, selected_year: int | None):
+    """项目汇总：按项目 + 年度分组，拆分入廊费 / 日常维护费实收。"""
+    project_name = func.coalesce(FeeRecord.project_name, PipelineEntry.project_name).label('project_name')
+    entry_received = func.coalesce(
+        func.sum(case((FeeRecord.fee_type == '入廊费', FeeRecord.actual_received_amount), else_=0)), 0
+    ).label('entry_received')
+    maint_received = func.coalesce(
+        func.sum(case((FeeRecord.fee_type.in_(MAINTENANCE_FEE_TYPES), FeeRecord.actual_received_amount), else_=0)), 0
+    ).label('maint_received')
+    return (
+        db.query(
+            extract('year', FeeRecord.actual_received_date).label('year'),
+            project_name,
+            Company.company_name.label('company_name'),
+            Company.short_name.label('short_name'),
+            func.count(FeeRecord.id).label('record_count'),
+            entry_received,
+            maint_received,
+            func.coalesce(func.sum(FeeRecord.actual_received_amount), 0).label('total_received'),
+        )
+        .join(Company, Company.id == FeeRecord.company_id)
+        .outerjoin(PipelineEntry, PipelineEntry.id == FeeRecord.pipeline_entry_id)
+        .filter(FeeRecord.actual_received_date.isnot(None))
+        .filter(FeeRecord.actual_received_amount.isnot(None))
+        .filter(FeeRecord.actual_received_amount > 0)
+        .filter(extract('year', FeeRecord.actual_received_date) == selected_year if selected_year else True)
+        .group_by(
+            extract('year', FeeRecord.actual_received_date),
+            project_name,
+            Company.id,
+            Company.company_name,
+            Company.short_name,
+        )
+        .order_by(
+            extract('year', FeeRecord.actual_received_date).desc(),
+            func.sum(FeeRecord.actual_received_amount).desc(),
+        )
     )
 
 
@@ -118,6 +161,12 @@ def fee_summary(request: Request, db: Session = Depends(get_db), year: int | Non
         .all()
     )
 
+    project_rows = build_project_received_query(db, selected_year).all()
+
+    project_entry_total = sum(float(row.entry_received or 0) for row in project_rows)
+    project_maint_total = sum(float(row.maint_received or 0) for row in project_rows)
+    project_total = sum(float(row.total_received or 0) for row in project_rows)
+
     total_received = sum(float(row.total_received or 0) for row in summary_rows)
     total_pending_receivable = sum(float(row.total_receivable or 0) for row in pending_rows)
     total_pending_unreceived = sum(float(row.total_unreceived or 0) for row in pending_rows)
@@ -130,6 +179,10 @@ def fee_summary(request: Request, db: Session = Depends(get_db), year: int | Non
             'request': request,
             'summary_rows': summary_rows,
             'pending_rows': pending_rows,
+            'project_rows': project_rows,
+            'project_entry_total': project_entry_total,
+            'project_maint_total': project_maint_total,
+            'project_total': project_total,
             'years': years,
             'selected_year': selected_year,
             'total_received': total_received,
@@ -144,7 +197,7 @@ def fee_summary(request: Request, db: Session = Depends(get_db), year: int | Non
 
 @router.get('/export')
 def export_summary(request: Request, db: Session = Depends(get_db), year: int | None = None):
-    """导出收费汇总为 Excel（含实收汇总、待收/逾期汇总两个工作表）。"""
+    """导出收费汇总为 Excel（含实收汇总、项目汇总、待收/逾期汇总三个工作表）。"""
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment
     from openpyxl.utils import get_column_letter
@@ -208,6 +261,21 @@ def export_summary(request: Request, db: Session = Depends(get_db), year: int | 
             [int(row.year), row.company_name, row.short_name or '',
              row.record_count, float(row.total_received or 0)]
             for row in summary_rows
+        ],
+    )
+
+    project_rows = build_project_received_query(db, selected_year).all()
+
+    ws3 = wb.create_sheet('项目汇总')
+    write_sheet(
+        ws3,
+        ['年度', '项目名称', '单位名称', '单位简称', '入廊费实收', '日常维护费实收', '实收合计', '笔数'],
+        [10, 30, 28, 14, 16, 16, 16, 10],
+        [
+            [int(row.year), row.project_name or '', row.company_name, row.short_name or '',
+             float(row.entry_received or 0), float(row.maint_received or 0),
+             float(row.total_received or 0), row.record_count]
+            for row in project_rows
         ],
     )
 

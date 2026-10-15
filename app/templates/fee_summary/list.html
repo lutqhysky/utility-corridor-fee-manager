@@ -86,6 +86,51 @@
         </section>
 
         <section class="panel" style="margin-top:16px;">
+            <h3 style="margin-top:0;">项目汇总（按实收年度）</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>年度</th>
+                        <th>项目名称</th>
+                        <th>单位简称</th>
+                        <th>入廊费实收</th>
+                        <th>日常维护费实收</th>
+                        <th>实收合计</th>
+                        <th>笔数</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% if project_rows %}
+                    {% for row in project_rows %}
+                    <tr>
+                        <td>{{ row.year|int }}</td>
+                        <td>{{ row.project_name or '' }}</td>
+                        <td>{{ row.short_name or '' }}</td>
+                        <td>¥{{ '%.2f'|format(row.entry_received or 0) }}</td>
+                        <td>¥{{ '%.2f'|format(row.maint_received or 0) }}</td>
+                        <td>¥{{ '%.2f'|format(row.total_received or 0) }}</td>
+                        <td>{{ row.record_count }}</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7" style="text-align:center;">暂无项目实收数据</td>
+                    </tr>
+                {% endif %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th colspan="3" style="text-align:right;">汇总</th>
+                        <th>¥{{ '%.2f'|format(project_entry_total) }}</th>
+                        <th>¥{{ '%.2f'|format(project_maint_total) }}</th>
+                        <th>¥{{ '%.2f'|format(project_total) }}</th>
+                        <th></th>
+                    </tr>
+                </tfoot>
+            </table>
+        </section>
+
+        <section class="panel" style="margin-top:16px;">
             <h3 style="margin-top:0;">待收 / 逾期汇总（按应收年度）</h3>
             <table>
                 <thead>
@@ -124,6 +169,51 @@
                         <th>¥{{ '%.2f'|format(total_pending_receivable) }}</th>
                         <th>¥{{ '%.2f'|format(total_pending_unreceived) }}</th>
                         <th>¥{{ '%.2f'|format(total_pending_overdue) }}</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </section>
+
+        <section class="panel" style="margin-top:16px;">
+            <h3 style="margin-top:0;">项目汇总（按实收年度）</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>年度</th>
+                        <th>项目名称</th>
+                        <th>单位简称</th>
+                        <th>入廊费实收</th>
+                        <th>日常维护费实收</th>
+                        <th>实收合计</th>
+                        <th>笔数</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% if project_rows %}
+                    {% for row in project_rows %}
+                    <tr>
+                        <td>{{ row.year|int }}</td>
+                        <td>{{ row.project_name or '' }}</td>
+                        <td>{{ row.short_name or '' }}</td>
+                        <td>¥{{ '%.2f'|format(row.entry_received or 0) }}</td>
+                        <td>¥{{ '%.2f'|format(row.maint_received or 0) }}</td>
+                        <td>¥{{ '%.2f'|format(row.total_received or 0) }}</td>
+                        <td>{{ row.record_count }}</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7" style="text-align:center;">暂无项目实收数据</td>
+                    </tr>
+                {% endif %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th colspan="3" style="text-align:right;">汇总</th>
+                        <th>¥{{ '%.2f'|format(project_entry_total) }}</th>
+                        <th>¥{{ '%.2f'|format(project_maint_total) }}</th>
+                        <th>¥{{ '%.2f'|format(project_total) }}</th>
+                        <th></th>
                     </tr>
                 </tfoot>
             </table>
