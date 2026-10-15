@@ -24,11 +24,14 @@
                     <a href="/companies/{{ company.id }}">查看详情</a>
                     <a href="/companies/{{ company.id }}/edit">编辑</a>
                     <form method="post" action="/companies/{{ company.id }}/delete" style="display:inline;" onsubmit="return confirmDeleteCompany(this, '{{ company.short_name or company.company_name }}');">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                         <input type="hidden" name="confirm_name" value="">
                         <button type="submit" class="link-button">删除</button>
                     </form>
                 </td>
             </tr>
+{% else %}
+            <tr><td colspan="8" style="text-align:center; color:#9ca3af; padding:24px;">暂无数据</td></tr>
         {% endfor %}
         </tbody>
     </table>

@@ -13,6 +13,8 @@
             <a href="/fee-summary/?year={{ y }}" class="{% if selected_year == y %}active{% endif %}">
                 {{ y }}年度
             </a>
+{% else %}
+            <tr><td colspan="8" style="text-align:center; color:#9ca3af; padding:24px;">暂无数据</td></tr>
             {% endfor %}
         </div>
     </section>
@@ -65,6 +67,8 @@
                         <td>{{ row.record_count }}</td>
                         <td>¥{{ '%.2f'|format(row.total_received or 0) }}</td>
                     </tr>
+{% else %}
+            <tr><td colspan="5" style="text-align:center; color:#9ca3af; padding:24px;">暂无数据</td></tr>
                     {% endfor %}
                 {% else %}
                     <tr>

@@ -65,10 +65,13 @@
                 <td>
                     <a href="/fee-standards/{{ standard.id }}/edit">修改</a>
                     <form method="post" action="/fee-standards/{{ standard.id }}/delete" style="display:inline; margin-left:8px;">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                         <button type="submit" onclick="return confirm('确定删除这条收费标准吗？')">删除</button>
                     </form>
                 </td>
             </tr>
+        {% else %}
+            <tr><td colspan="11" style="text-align:center; color:#9ca3af; padding:24px;">暂无数据</td></tr>
         {% endfor %}
         </tbody>
     </table>

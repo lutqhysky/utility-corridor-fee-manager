@@ -39,9 +39,11 @@
     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
         <a class="button" href="/fee-records/export?company_id={{ selected_company_id or '' }}&status={{ selected_status or '' }}&project={{ selected_project or '' }}">导出Excel</a>
         <form method="post" action="/fee-records/reminders/run" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
             <button type="submit">执行提醒检查</button>
         </form>
         <form method="post" action="/fee-records/reminders/digest" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
             <button type="submit">发送今日汇总</button>
         </form>
         <a class="button" href="/settings/reminders">提醒设置</a>
@@ -117,10 +119,13 @@
                 <td>
                     <a href="/fee-records/{{ record.id }}/edit">修改</a>
                     <form method="post" action="/fee-records/{{ record.id }}/delete" style="display:inline; margin-left:8px;">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                         <button type="submit" onclick="return confirm('确定删除这条收费记录吗？')">删除</button>
                     </form>
                 </td>
             </tr>
+        {% else %}
+            <tr><td colspan="12" style="text-align:center; color:#9ca3af; padding:24px;">暂无数据</td></tr>
         {% endfor %}
         </tbody>
     </table>

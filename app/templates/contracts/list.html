@@ -46,10 +46,13 @@
                 <td>
                     <a href="/contracts/{{ contract.id }}/edit">编辑</a>
                     <form method="post" action="/contracts/{{ contract.id }}/delete" style="display:inline; margin-left:8px;">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                         <button type="submit" onclick="return confirm('确定删除这条合同备案吗？')">删除</button>
                     </form>
                 </td>
             </tr>
+        {% else %}
+            <tr><td colspan="7" style="text-align:center; color:#9ca3af; padding:24px;">暂无数据</td></tr>
         {% endfor %}
         </tbody>
     </table>

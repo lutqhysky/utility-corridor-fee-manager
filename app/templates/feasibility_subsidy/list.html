@@ -4,6 +4,7 @@
 <section class="panel" style="margin-bottom:16px;">
     <h3 style="margin-top:0;">新增运营期</h3>
     <form method="post" action="/feasibility-subsidy/new" class="inline-form" style="flex-wrap:wrap;">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
         <input name="operating_period" placeholder="运营期（如：2026年第一季度）" required>
         <label>起始时间 <input type="date" name="start_date" placeholder="YYYY-MM-DD"></label>
         <label>截止时间 <input type="date" name="end_date" placeholder="YYYY-MM-DD"></label>
@@ -43,10 +44,13 @@
                         <a href="/feasibility-subsidy/{{ period.id }}/edit">修改</a>
                         <span style="color:#cbd5e1; margin:0 6px;">|</span>
                         <form method="post" action="/feasibility-subsidy/{{ period.id }}/delete" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                             <button type="submit" onclick="return confirm('确定删除该运营期及其明细吗？')">删除</button>
                         </form>
                     </td>
                 </tr>
+{% else %}
+            <tr><td colspan="9" style="text-align:center; color:#9ca3af; padding:24px;">暂无数据</td></tr>
                 {% endfor %}
             {% else %}
                 <tr>

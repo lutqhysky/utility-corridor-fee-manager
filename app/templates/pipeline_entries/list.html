@@ -57,10 +57,13 @@
                     <a href="/pipeline-entries/{{ entry.id }}/print/maintenance" target="_blank" style="margin-left:8px;">打印运维费</a>
                     <a href="/pipeline-entries/{{ entry.id }}/edit" style="margin-left:8px;">修改</a>
                     <form method="post" action="/pipeline-entries/{{ entry.id }}/delete" style="display:inline; margin-left:8px;">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                         <button type="submit" onclick="return confirm('确定删除这个项目及其收费明细吗？（有关联收费记录时将禁止删除）')">删除</button>
                     </form>
                 </td>
             </tr>
+{% else %}
+            <tr><td colspan="9" style="text-align:center; color:#9ca3af; padding:24px;">暂无数据</td></tr>
         {% endfor %}
         </tbody>
     </table>
