@@ -532,7 +532,7 @@ def print_fee_sheet(entry_id: int, fee_kind: str, request: Request, db: Session 
         {
             'request': request,
             'region_title': PRINT_REGION_TITLE,
-            'sheet_title': f'{entry.project_name or ""}管廊{cabin}有偿使用费（{fee_label}）',
+            'sheet_title': f'管廊{cabin}有偿使用费（{entry.project_name or ""}-{fee_label}）',
             'qty_header': qty_header,
             'price_header': price_header,
             'amount_header': amount_header,
