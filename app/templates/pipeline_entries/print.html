@@ -24,11 +24,17 @@
   table.fee td.label { text-align: center; font-weight: 700; }
   table.fee td.note-cell { text-align: left; padding: 9px 16px; }
   table.fee td.spec { white-space: normal; }
-  @page { size: A4 portrait; margin: 14mm 15mm; }
+  @page { size: A4 portrait; margin: 12mm 14mm; }
   @media print {
     body { background: #fff; padding: 0; }
     .toolbar { display: none; }
     .sheet { box-shadow: none; width: auto; min-height: auto; padding: 0; }
+    /* 打印时压缩行高，确保一页放下 */
+    .sheet h2 { font-size: 20px; margin: 1mm 0 3mm; }
+    .unit { font-size: 13px; margin-bottom: 4mm; }
+    table.fee { page-break-inside: avoid; }
+    table.fee thead th { height: 52px; padding: 6px 8px; font-size: 14px; }
+    table.fee tbody td { height: 36px; padding: 6px 8px; font-size: 14px; }
   }
 </style>
 </head>
