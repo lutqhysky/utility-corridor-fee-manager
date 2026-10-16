@@ -9,18 +9,45 @@
 <body>
 <div class="layout" id="app-layout">
     <aside class="sidebar" id="sidebar">
-        <h1 id="sidebar-toggle" title="连续点击可收起/展开侧边栏">管廊收费系统</h1>
+        <div class="sidebar-logo" id="sidebar-toggle" title="点击可收起/展开侧边栏"><span class="logo-mark">管</span>管廊收费系统</div>
         <nav>
-            <a href="/data-dashboard/" class="{% if request.url.path.startswith('/data-dashboard') %}active{% endif %}">数据看板</a>
-            <a href="/" class="{% if request.url.path == '/' %}active{% endif %}">首页概览</a>
-            <a href="/companies/" class="{% if request.url.path.startswith('/companies') %}active{% endif %}">单位管理</a>
-            <a href="/pipeline-entries/" class="{% if request.url.path.startswith('/pipeline-entries') %}active{% endif %}">入廊管线清单</a>
-            <a href="/fee-records/" class="{% if request.url.path.startswith('/fee-records') %}active{% endif %}">收费记录</a>
-            <a href="/fee-standards/" class="{% if request.url.path.startswith('/fee-standards') %}active{% endif %}">收费标准</a>
-            <a href="/contracts/" class="{% if request.url.path.startswith('/contracts') %}active{% endif %}">合同备案</a>
-            <a href="/fee-summary/" class="{% if request.url.path.startswith('/fee-summary') %}active{% endif %}">收费汇总</a>
-            <a href="/feasibility-subsidy/" class="{% if request.url.path.startswith('/feasibility-subsidy') %}active{% endif %}">可行性缺口补助</a>
-            <a href="/settings/reminders" class="{% if request.url.path.startswith('/settings') %}active{% endif %}">提醒设置</a>
+            {% set p = request.url.path %}
+            <a href="/data-dashboard/" class="{% if p.startswith('/data-dashboard') %}active{% endif %}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+                数据看板</a>
+            <a href="/" class="{% if p == '/' %}active{% endif %}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+                首页概览</a>
+            <div class="nav-group open">
+                <div class="nav-group-head" onclick="this.parentElement.classList.toggle('open')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
+                    基础信息
+                    <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+                </div>
+                <div class="nav-sub">
+                    <a href="/companies/" class="{% if p.startswith('/companies') %}active{% endif %}">单位管理</a>
+                    <a href="/pipeline-entries/" class="{% if p.startswith('/pipeline-entries') %}active{% endif %}">入廊管线清单</a>
+                    <a href="/fee-standards/" class="{% if p.startswith('/fee-standards') %}active{% endif %}">收费标准</a>
+                </div>
+            </div>
+            <div class="nav-group open">
+                <div class="nav-group-head" onclick="this.parentElement.classList.toggle('open')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M2 10h20"/></svg>
+                    收费管理
+                    <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+                </div>
+                <div class="nav-sub">
+                    <a href="/fee-records/" class="{% if p.startswith('/fee-records') %}active{% endif %}">收费记录</a>
+                    <a href="/fee-summary/" class="{% if p.startswith('/fee-summary') %}active{% endif %}">收费汇总</a>
+                    <a href="/feasibility-subsidy/" class="{% if p.startswith('/feasibility-subsidy') %}active{% endif %}">可行性缺口补助</a>
+                </div>
+            </div>
+            <a href="/contracts/" class="{% if p.startswith('/contracts') %}active{% endif %}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                合同备案</a>
+            <a href="/settings/reminders" class="{% if p.startswith('/settings') %}active{% endif %}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+                提醒设置</a>
         </nav>
     </aside>
     <main class="content">
