@@ -30,14 +30,28 @@ def get_contract_or_404(db: Session, contract_id: int):
 
 
 @router.get('/', response_class=HTMLResponse)
-def list_contracts(request: Request, db: Session = Depends(get_db), filing: str = ''):
+def list_contracts(request: Request, db: Session = Depends(get_db), filing: str = '',
+                   company_id: str = '', contract_type: str = ''):
     query = db.query(Contract)
     # filing=pending 表示“待办”：未签订、未备案或备案状态为空
     if filing == 'pending':
         query = query.filter(func.coalesce(Contract.filing_status, '') != '已备案')
     elif filing:
         query = query.filter(Contract.filing_status == filing)
+    if company_id:
+        try:
+            query = query.filter(Contract.company_id == int(company_id))
+        except ValueError:
+            pass
+    if contract_type:
+        query = query.filter(Contract.contract_type == contract_type)
     contracts = query.order_by(Contract.id.desc()).all()
+
+    companies = db.query(Company).order_by(Company.company_name).all()
+    contract_types = [r[0] for r in db.query(Contract.contract_type)
+                      .filter(Contract.contract_type.isnot(None))
+                      .filter(Contract.contract_type != '')
+                      .distinct().order_by(Contract.contract_type).all()]
 
     total_count = db.query(func.count(Contract.id)).scalar() or 0
     filed_count = db.query(func.count(Contract.id)).filter(Contract.filing_status == '已备案').scalar() or 0
@@ -51,6 +65,10 @@ def list_contracts(request: Request, db: Session = Depends(get_db), filing: str 
             'request': request,
             'contracts': contracts,
             'selected_filing': filing,
+            'companies': companies,
+            'selected_company_id': company_id,
+            'contract_type_options': contract_types,
+            'selected_contract_type': contract_type,
             'total_count': total_count,
             'filed_count': filed_count,
             'unsigned_count': unsigned_count,

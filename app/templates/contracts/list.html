@@ -2,6 +2,18 @@
 {% block content %}
 <div class="toolbar">
     <form method="get" class="inline-form">
+        <select name="company_id">
+            <option value="">全部单位</option>
+            {% for c in companies %}
+            <option value="{{ c.id }}" {% if selected_company_id == c.id|string %}selected{% endif %}>{{ c.short_name or c.company_name }}</option>
+            {% endfor %}
+        </select>
+        <select name="contract_type">
+            <option value="">全部合同类型</option>
+            {% for opt in contract_type_options %}
+            <option value="{{ opt }}" {% if selected_contract_type == opt %}selected{% endif %}>{{ opt }}</option>
+            {% endfor %}
+        </select>
         <select name="filing">
             <option value="">全部合同</option>
             <option value="pending" {% if selected_filing == 'pending' %}selected{% endif %}>待办（未签订/未备案）</option>
