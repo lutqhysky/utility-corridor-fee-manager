@@ -228,9 +228,15 @@ def build_fee_reminder_title(record: FeeRecord, today: date) -> str:
 
 def build_fee_reminder_message(record: FeeRecord, today: date, days_ahead: int) -> str:
     company_name = record.company.short_name or record.company.company_name
-    project_name = record.pipeline_entry.project_name if record.pipeline_entry else '未关联入廊项目'
+    if record.project_name:
+        project_name = record.project_name
+    elif record.pipeline_entry and record.pipeline_entry.project_name:
+        project_name = record.pipeline_entry.project_name
+    else:
+        project_name = '未关联入廊项目'
     due_date = record.planned_receivable_date.isoformat() if record.planned_receivable_date else '未设置'
     amount = '%.2f' % float(record.amount_incl_tax or 0)
+    unreceived = float(record.amount_incl_tax or 0) - float(record.actual_received_amount or 0)
     remaining_days = (record.planned_receivable_date - today).days if record.planned_receivable_date else None
 
     if remaining_days is None:
@@ -251,11 +257,12 @@ def build_fee_reminder_message(record: FeeRecord, today: date, days_ahead: int) 
         '状态：%s\n'
         '应收时间：%s\n'
         '含税金额：%s 元\n'
+        '未收金额：%s 元\n'
         '%s（提醒窗口：提前 %d 天）\n'
         '备注：%s' % (
             company_name, project_name, record.fee_type,
             record.charge_period or '未填写', record.payment_status,
-            due_date, amount, remaining_text, days_ahead,
+            due_date, amount, '%.2f' % unreceived, remaining_text, days_ahead,
             record.remark or '无',
         )
     )
@@ -273,7 +280,7 @@ def send_robot_message(channel: str, webhook_url: str, content: str) -> None:
     try:
         parsed = json.loads(body)
     except json.JSONDecodeError:
-        return
+        raise ValueError('%s 返回非 JSON 响应（可能是错误页）：%s' % (channel, body[:200]))
     if parsed.get('errcode') not in (None, 0):
         raise ValueError('机器人返回错误：%s' % parsed.get('errmsg', body))
 
@@ -296,7 +303,7 @@ def send_bark_message(key_or_url: str, title: str, content: str) -> None:
     try:
         parsed = json.loads(body)
     except json.JSONDecodeError:
-        return
+        raise ValueError('Bark 返回非 JSON 响应（可能是错误页）：%s' % body[:200])
     if parsed.get('code') != 200:
         raise ValueError('Bark 返回错误：%s' % parsed.get('message', body))
 
@@ -340,7 +347,17 @@ def should_send_reminder(record: FeeRecord, current_date: date, repeat_days: int
     return (current_date - last_sent_date).days >= repeat_days
 
 
+def get_retry_targets(record, targets):
+    """上次发送失败、本轮需要补发的渠道（不含已成功的，也不含已移除的）。"""
+    if not record.last_reminder_sent_at:
+        return []
+    last_success = set((record.last_reminder_channel or '').split(',')) - {''}
+    return [t for t in targets if t.channel not in last_success]
+
+
 def run_fee_reminders(db: Session = None, today: date = None):
+    if not _reminder_lock.acquire(blocking=False):
+        return ReminderRunResult(False, 0, 0, '已有提醒任务在执行，本次跳过。')
     owns_session = db is None
     session = db or SessionLocal()
     try:
@@ -358,17 +375,26 @@ def run_fee_reminders(db: Session = None, today: date = None):
 
         # 提醒范围：应收时间落在 (-∞, 今天 + days_ahead] 的未结清记录。
         # 不要加 planned_receivable_date >= today 的下限，否则已逾期记录会被排除、收不到催缴。
+        # 只提醒仍有未收余额的：已全额收清但状态未改的不再推送
+        outstanding = FeeRecord.amount_incl_tax - func.coalesce(FeeRecord.actual_received_amount, 0)
         records = (
             session.query(FeeRecord)
             .filter(FeeRecord.payment_status.in_(list(ACTIVE_PAYMENT_STATUSES)))
             .filter(FeeRecord.planned_receivable_date.isnot(None))
             .filter(FeeRecord.planned_receivable_date <= deadline)
+            .filter(outstanding > 0)
             .order_by(FeeRecord.planned_receivable_date.asc())
             .all()
         )
 
         for record in records:
-            if not should_send_reminder(record, current_date, settings.repeat_days):
+            normal_due = should_send_reminder(record, current_date, settings.repeat_days)
+            retry_targets = [] if normal_due else get_retry_targets(record, settings.targets)
+            if normal_due:
+                targets_to_send = settings.targets
+            elif retry_targets:
+                targets_to_send = retry_targets
+            else:
                 skipped_count += 1
                 continue
 
@@ -376,7 +402,7 @@ def run_fee_reminders(db: Session = None, today: date = None):
             content = build_fee_reminder_message(record, current_date, settings.days_ahead)
 
             successful_channels: list = []
-            for target in settings.targets:
+            for target in targets_to_send:
                 desc = mask_target(target.channel, target)
                 try:
                     send_to_target(target, title, content)
@@ -389,13 +415,19 @@ def run_fee_reminders(db: Session = None, today: date = None):
                                ReminderLog.KIND_SINGLE)
 
             if successful_channels:
-                record.last_reminder_sent_at = datetime.now()
-                record.last_reminder_for_date = record.planned_receivable_date
-                record.last_reminder_channel = ','.join(successful_channels)
+                if normal_due:
+                    record.last_reminder_sent_at = datetime.now()
+                    record.last_reminder_for_date = record.planned_receivable_date
+                    record.last_reminder_channel = ','.join(successful_channels)
+                    sent_count += 1
+                    if record.planned_receivable_date < current_date:
+                        overdue_sent_count += 1
+                else:
+                    # 补发：合并成功渠道，不推进时间戳，下轮继续补发剩余失败渠道
+                    prev = set((record.last_reminder_channel or '').split(',')) - {''}
+                    record.last_reminder_channel = ','.join(sorted(prev | set(successful_channels)))
+                    sent_count += 1
                 session.commit()
-                sent_count += 1
-                if record.planned_receivable_date < current_date:
-                    overdue_sent_count += 1
 
         if sent_count == 0 and skipped_count == 0:
             message = '没有待提醒数据：未来 %d 天内（含已逾期）没有符合条件的收费记录。' % settings.days_ahead
@@ -416,6 +448,7 @@ def run_fee_reminders(db: Session = None, today: date = None):
             pass
         return result
     finally:
+        _reminder_lock.release()
         if owns_session:
             session.close()
 
@@ -471,6 +504,8 @@ def build_daily_digest(db: Session, today: date):
 
 def run_daily_digest(db: Session = None, today: date = None, force: bool = False) -> str:
     """执行每日汇总推送。force=True 时忽略时间/去重检查（用于手动触发和测试）。"""
+    if not _reminder_lock.acquire(blocking=False):
+        return '已有提醒任务在执行，本次跳过。'
     owns_session = db is None
     session = db or SessionLocal()
     try:
@@ -494,7 +529,7 @@ def run_daily_digest(db: Session = None, today: date = None, force: bool = False
 
         title, content, counts = build_daily_digest(session, current_date)
         if counts['total'] == 0:
-            _mark_digest_done(session, current_date)
+            # 无数据不写去重标记：当天稍后有数据时仍可推送
             return '今日无到期/逾期数据，汇总已跳过。'
 
         ok, failed = [], []
@@ -510,7 +545,9 @@ def run_daily_digest(db: Session = None, today: date = None, force: bool = False
                 _write_log(target.channel, desc, title, content, 'failed', str(exc),
                            ReminderLog.KIND_DIGEST)
 
-        _mark_digest_done(session, current_date)
+        # 手动 force 触发不占用正常日报的去重标记
+        if not force:
+            _mark_digest_done(session, current_date)
         if ok and not failed:
             return '今日汇总已推送（%d 个渠道）：到期 %d 笔、逾期 %d 笔。' % (
                 len(ok), counts['due_today'], counts['overdue'])
@@ -518,6 +555,7 @@ def run_daily_digest(db: Session = None, today: date = None, force: bool = False
             return '汇总部分推送成功（%s），失败：%s' % (','.join(ok), '；'.join(failed))
         return '汇总推送失败：%s' % '；'.join(failed)
     finally:
+        _reminder_lock.release()
         if owns_session:
             session.close()
 
@@ -528,6 +566,10 @@ def _mark_digest_done(session: Session, today: date) -> None:
 
 
 # ---------------- 调度器 ----------------
+
+# 提醒互斥锁：手动触发与定时线程互斥，避免并发重复发送
+_reminder_lock = threading.Lock()
+
 
 class FeeReminderScheduler:
     def __init__(self):
