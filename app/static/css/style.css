@@ -63,9 +63,18 @@ a { color: #2563eb; text-decoration: none; }
 .sidebar nav .nav-group.open .nav-sub { display: flex; }
 .sidebar nav .nav-sub a { font-size: 14px; padding: 8px 12px; }
 
-.layout.sidebar-collapsed .sidebar { width: 18px; padding-left: 12px; padding-right: 12px; cursor: pointer; }
-.layout.sidebar-collapsed .sidebar .sidebar-logo,
-.layout.sidebar-collapsed .sidebar nav { opacity: 0; pointer-events: none; }
+.layout.sidebar-collapsed .sidebar { width: 68px; padding: 18px 10px; }
+.layout.sidebar-collapsed .sidebar-logo { justify-content: center; margin-bottom: 16px; }
+.layout.sidebar-collapsed .sidebar-logo .logo-text { display: none; }
+.layout.sidebar-collapsed .sidebar nav a,
+.layout.sidebar-collapsed .sidebar nav .nav-group-head {
+  justify-content: center;
+  padding: 10px 0;
+}
+.layout.sidebar-collapsed .sidebar nav .nav-label,
+.layout.sidebar-collapsed .sidebar nav .nav-group-head .chev { display: none; }
+.layout.sidebar-collapsed .sidebar nav .nav-sub { display: none; }
+.layout.sidebar-collapsed .sidebar nav a.active { box-shadow: none; outline: 2px solid #2563eb; }
 
 .content { flex: 1; padding: 24px; }
 
@@ -315,6 +324,14 @@ code {
   .layout.sidebar-collapsed .sidebar { width: 100%; padding: 24px 18px; cursor: default; }
   .layout.sidebar-collapsed .sidebar .sidebar-logo,
   .layout.sidebar-collapsed .sidebar nav { opacity: 1; pointer-events: auto; }
+  .layout.sidebar-collapsed .sidebar-logo { justify-content: flex-start; }
+  .layout.sidebar-collapsed .sidebar-logo .logo-text,
+  .layout.sidebar-collapsed .sidebar nav .nav-label,
+  .layout.sidebar-collapsed .sidebar nav .nav-group-head .chev { display: inline; }
+  .layout.sidebar-collapsed .sidebar nav a,
+  .layout.sidebar-collapsed .sidebar nav .nav-group-head { justify-content: flex-start; padding: 10px 12px; }
+  .layout.sidebar-collapsed .sidebar nav .nav-group.open .nav-sub { display: flex; }
+  .layout.sidebar-collapsed .sidebar nav a.active { outline: none; box-shadow: inset 3px 0 0 #2563eb; }
   .form-grid { grid-template-columns: 1fr; }
   .summary-filter-head { align-items: flex-start; }
   .summary-year-tabs a { width: fit-content; }

@@ -9,45 +9,45 @@
 <body>
 <div class="layout" id="app-layout">
     <aside class="sidebar" id="sidebar">
-        <div class="sidebar-logo" id="sidebar-toggle" title="点击可收起/展开侧边栏"><span class="logo-mark">管</span>管廊收费系统</div>
+        <div class="sidebar-logo" id="sidebar-toggle" title="点击可收起/展开侧边栏"><span class="logo-mark">管</span><span class="logo-text">管廊收费系统</span></div>
         <nav>
             {% set p = request.url.path %}
-            <a href="/data-dashboard/" class="{% if p.startswith('/data-dashboard') %}active{% endif %}">
+            <a href="/data-dashboard/" class="{% if p.startswith('/data-dashboard') %}active{% endif %}" title="数据看板">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
-                数据看板</a>
-            <a href="/" class="{% if p == '/' %}active{% endif %}">
+                <span class="nav-label">数据看板</span></a>
+            <a href="/" class="{% if p == '/' %}active{% endif %}" title="首页概览">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
-                首页概览</a>
+                <span class="nav-label">首页概览</span></a>
             <div class="nav-group open">
-                <div class="nav-group-head" onclick="this.parentElement.classList.toggle('open')">
+                <div class="nav-group-head" title="点击展开/收起" onclick="this.parentElement.classList.toggle('open')">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
-                    基础信息
+                    <span class="nav-label">基础信息</span>
                     <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
                 </div>
                 <div class="nav-sub">
-                    <a href="/companies/" class="{% if p.startswith('/companies') %}active{% endif %}">单位管理</a>
-                    <a href="/pipeline-entries/" class="{% if p.startswith('/pipeline-entries') %}active{% endif %}">入廊管线清单</a>
-                    <a href="/fee-standards/" class="{% if p.startswith('/fee-standards') %}active{% endif %}">收费标准</a>
+                    <a href="/companies/" class="{% if p.startswith('/companies') %}active{% endif %}" title="单位管理">单位管理</a>
+                    <a href="/pipeline-entries/" class="{% if p.startswith('/pipeline-entries') %}active{% endif %}" title="入廊管线清单">入廊管线清单</a>
+                    <a href="/fee-standards/" class="{% if p.startswith('/fee-standards') %}active{% endif %}" title="收费标准">收费标准</a>
                 </div>
             </div>
             <div class="nav-group open">
-                <div class="nav-group-head" onclick="this.parentElement.classList.toggle('open')">
+                <div class="nav-group-head" title="点击展开/收起" onclick="this.parentElement.classList.toggle('open')">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M2 10h20"/></svg>
-                    收费管理
+                    <span class="nav-label">收费管理</span>
                     <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
                 </div>
                 <div class="nav-sub">
-                    <a href="/fee-records/" class="{% if p.startswith('/fee-records') %}active{% endif %}">收费记录</a>
-                    <a href="/fee-summary/" class="{% if p.startswith('/fee-summary') %}active{% endif %}">收费汇总</a>
-                    <a href="/feasibility-subsidy/" class="{% if p.startswith('/feasibility-subsidy') %}active{% endif %}">可行性缺口补助</a>
+                    <a href="/fee-records/" class="{% if p.startswith('/fee-records') %}active{% endif %}" title="收费记录">收费记录</a>
+                    <a href="/fee-summary/" class="{% if p.startswith('/fee-summary') %}active{% endif %}" title="收费汇总">收费汇总</a>
+                    <a href="/feasibility-subsidy/" class="{% if p.startswith('/feasibility-subsidy') %}active{% endif %}" title="可行性缺口补助">可行性缺口补助</a>
                 </div>
             </div>
-            <a href="/contracts/" class="{% if p.startswith('/contracts') %}active{% endif %}">
+            <a href="/contracts/" class="{% if p.startswith('/contracts') %}active{% endif %}" title="合同备案">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
-                合同备案</a>
-            <a href="/settings/reminders" class="{% if p.startswith('/settings') %}active{% endif %}">
+                <span class="nav-label">合同备案</span></a>
+            <a href="/settings/reminders" class="{% if p.startswith('/settings') %}active{% endif %}" title="提醒设置">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
-                提醒设置</a>
+                <span class="nav-label">提醒设置</span></a>
         </nav>
     </aside>
     <main class="content">
@@ -93,10 +93,15 @@
         toggleSidebar();
     });
 
-    sidebar.addEventListener('click', () => {
-        if (layout.classList.contains('sidebar-collapsed')) {
-            toggleSidebar();
+    sidebar.addEventListener('click', (event) => {
+        if (!layout.classList.contains('sidebar-collapsed')) {
+            return;
         }
+        // 收起状态下点图标直接跳转，不展开；点其他空白处展开
+        if (event.target.closest('a')) {
+            return;
+        }
+        toggleSidebar();
     });
 })();
 </script>
