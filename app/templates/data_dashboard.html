@@ -54,8 +54,8 @@
         <button onclick="dbTrend('quarter',this)">季度</button>
       </div>
     </div>
-    {% set ymax = data.trend_year|map(attribute='planned')|max(default=1) %}
-    {% set qmax = data.trend_quarter|map(attribute='planned')|max(default=1) %}
+    {% set ymax = (data.trend_year|map(attribute='planned')|max) if data.trend_year else 1 %}
+    {% set qmax = (data.trend_quarter|map(attribute='planned')|max) if data.trend_quarter else 1 %}
     <div class="db-bars" id="db-trend-year">
       {% for t in data.trend_year %}
       <div class="db-barg">
@@ -99,7 +99,7 @@
       </div>
     </div>
     <h2 style="margin-top:16px">单位待收排行</h2>
-    {% set pmax = data.pending_rank|map(attribute='amount')|max(default=1) %}
+    {% set pmax = (data.pending_rank|map(attribute='amount')|max) if data.pending_rank else 1 %}
     {% for r in data.pending_rank[:8] %}
     <div class="db-hbar"><span class="nm">{{ r.name }}</span>
       <div class="db-track"><div style="width:{{ (r.amount/pmax*100)|round(1) }}%;background:linear-gradient(90deg,#f59e0b,#ef4444)"></div></div>
@@ -111,7 +111,7 @@
 <div class="db-card">
   <h2>各单位已收管廊有偿使用费情况</h2>
   <div class="db-legend" style="margin:0 0 12px 0"><span><i style="background:#3b82f6"></i>入廊费</span><span><i style="background:#22c55e"></i>日常维护费</span></div>
-  {% set cmax = data.company_received|map(attribute='total')|max(default=1) %}
+  {% set cmax = (data.company_received|map(attribute='total')|max) if data.company_received else 1 %}
   {% for c in data.company_received %}
   <div class="db-hbar"><span class="nm">{{ c.name }}</span>
     <div class="db-track">
