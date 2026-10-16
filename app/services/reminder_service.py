@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.database import SessionLocal
 from app.models import AppSetting, FeeRecord, ReminderLog
@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 SUPPORTED_CHANNELS = {'dingtalk', 'wecom', 'bark', 'gotify'}
 ACTIVE_PAYMENT_STATUSES = {'未开始', '待收缴', '部分收缴', '已逾期'}
+MAINTENANCE_FEE_TYPES = {'运维费', '日常维护费', '维护费'}
 
 
 # ---------------- 配置读写（数据库优先，环境变量兜底） ----------------
@@ -456,10 +457,11 @@ def run_fee_reminders(db: Session = None, today: date = None):
 # ---------------- 每日汇总 ----------------
 
 def build_daily_digest(db: Session, today: date):
-    """构造每日汇总：今日到期 / 已逾期 / 未来7天到期。返回 (标题, 正文, 统计)。"""
+    """构造每日汇总：已收情况 + 今日到期 / 已逾期 / 未来7天到期。返回 (标题, 正文, 统计)。"""
     outstanding = FeeRecord.amount_incl_tax - func.coalesce(FeeRecord.actual_received_amount, 0)
     base = (
         db.query(FeeRecord)
+        .options(joinedload(FeeRecord.company), joinedload(FeeRecord.pipeline_entry))
         .filter(FeeRecord.payment_status.in_(list(ACTIVE_PAYMENT_STATUSES)))
         .filter(FeeRecord.planned_receivable_date.isnot(None))
         .filter(outstanding > 0)
@@ -473,12 +475,29 @@ def build_daily_digest(db: Session, today: date):
         FeeRecord.planned_receivable_date <= today + timedelta(days=7),
     ).order_by(FeeRecord.planned_receivable_date.asc()).all()
 
+    # 到目前为止的实收：按入廊费 / 日常维护费（含别名）拆分
+    received_rows = (
+        db.query(FeeRecord.fee_type,
+                 func.coalesce(func.sum(FeeRecord.actual_received_amount), 0).label('total'))
+        .filter(FeeRecord.actual_received_amount.isnot(None))
+        .filter(FeeRecord.actual_received_amount > 0)
+        .group_by(FeeRecord.fee_type)
+        .all()
+    )
+    entry_received = sum(float(r.total) for r in received_rows
+                         if (r.fee_type or '').strip() == '入廊费')
+    maint_received = sum(float(r.total) for r in received_rows
+                         if (r.fee_type or '').strip() in MAINTENANCE_FEE_TYPES)
+    total_received = sum(float(r.total) for r in received_rows)
+
     def amount_sum(rows) -> float:
         return float(sum(float(r.amount_incl_tax or 0) - float(r.actual_received_amount or 0)
                          for r in rows))
 
     def line(r: FeeRecord) -> str:
-        name = r.company.short_name or r.company.company_name if r.company else ''
+        company_name = r.company.short_name or r.company.company_name if r.company else ''
+        project_name = r.project_name or (r.pipeline_entry.project_name if r.pipeline_entry else '')
+        name = '%s-%s' % (company_name, project_name) if project_name else company_name
         remain = float(r.amount_incl_tax or 0) - float(r.actual_received_amount or 0)
         due = r.planned_receivable_date.isoformat()
         overdue_days = (today - r.planned_receivable_date).days if r.planned_receivable_date < today else 0
@@ -486,6 +505,10 @@ def build_daily_digest(db: Session, today: date):
         return '- %s｜%s｜应收%s｜未收¥%s%s' % (name, r.fee_type, due, '%.2f' % remain, suffix)
 
     parts = ['【收费日报 %s】' % today.isoformat(),
+             '到目前为止，已收到管廊有偿使用费 ¥%.2f，其中入廊费 ¥%.2f，日常维护费 ¥%.2f。'
+             % (total_received, entry_received, maint_received),
+             '',
+             '预期：',
              '今日到期 %d 笔，未收 ¥%.2f' % (len(due_today), amount_sum(due_today)),
              '已逾期 %d 笔，未收 ¥%.2f' % (len(overdue), amount_sum(overdue)),
              '未来7天到期 %d 笔' % len(upcoming)]
@@ -499,7 +522,7 @@ def build_daily_digest(db: Session, today: date):
     counts = {'due_today': len(due_today), 'overdue': len(overdue),
               'upcoming': len(upcoming),
               'total': len(due_today) + len(overdue) + len(upcoming)}
-    return '收费日报 %s' % today.isoformat(), '\n'.join(parts), counts
+    return '小牛管廊项目公司管廊有偿使用费收缴情况', '\n'.join(parts), counts
 
 
 def run_daily_digest(db: Session = None, today: date = None, force: bool = False) -> str:
