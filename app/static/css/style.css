@@ -403,3 +403,11 @@ code {
 .filter-summary-table th, .filter-summary-table td { padding: 8px 10px; text-align: left; font-size: 14px; border-bottom: 1px solid #e2e8f0; }
 .filter-summary-table th { background: rgba(219, 234, 254, 0.5); color: #1e40af; font-weight: 600; }
 .filter-summary-table tfoot td { font-weight: 700; border-bottom: none; background: rgba(219, 234, 254, 0.3); }
+
+/* 右下角浅色背景图 */
+.bg-corner { position: fixed; right: 0; bottom: 0; width: 520px; max-width: 55vw;
+  pointer-events: none; z-index: 0;
+  -webkit-mask-image: linear-gradient(to top left, #000 30%, transparent 85%);
+  mask-image: linear-gradient(to top left, #000 30%, transparent 85%); }
+.bg-corner img { width: 100%; display: block; opacity: 0.14; }
+.content { position: relative; z-index: 1; }
