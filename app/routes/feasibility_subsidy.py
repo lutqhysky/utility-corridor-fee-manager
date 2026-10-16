@@ -96,12 +96,33 @@ def list_periods(request: Request, db: Session = Depends(get_db)):
         'cumulative_arrears': running_receivable - running_received,
     }
 
+    # 收款时间线：全部明细按收款日期排序，带累计
+    all_details = (
+        db.query(FeasibilitySubsidyDetail)
+        .filter(FeasibilitySubsidyDetail.amount.isnot(None),
+                FeasibilitySubsidyDetail.amount > 0)
+        .order_by(FeasibilitySubsidyDetail.received_date.isnot(None).desc(),
+                  FeasibilitySubsidyDetail.received_date.asc(),
+                  FeasibilitySubsidyDetail.id.asc())
+        .all()
+    )
+    timeline = []
+    running = 0.0
+    for d in all_details:
+        running += float(d.amount or 0)
+        timeline.append({
+            'date': d.received_date.strftime('%Y-%m-%d') if d.received_date else '未设置',
+            'amount': float(d.amount or 0),
+            'cumulative': running,
+        })
+
     return templates.TemplateResponse(
         'feasibility_subsidy/list.html',
         {
             'request': request,
             'periods': periods,
             'totals': totals,
+            'timeline': timeline,
             'title': '可行性缺口补助',
         },
     )

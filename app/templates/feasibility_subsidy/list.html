@@ -75,6 +75,78 @@
     </table>
 </section>
 
+<style>
+.sub-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+.sub-kpi{background:#fff;border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(15,23,42,.06);border-top:4px solid #3b82f6}
+.sub-kpi.ok{border-top-color:#22c55e}.sub-kpi.warn{border-top-color:#ef4444}.sub-kpi.info{border-top-color:#8b5cf6}
+.sub-kpi .lbl{font-size:13px;color:#64748b;margin-bottom:6px}
+.sub-kpi .val{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.sub-kpi .sub{font-size:12px;color:#64748b;margin-top:4px}
+.sub-kpi .val.red{color:#dc2626}.sub-kpi .val.green{color:#16a34a}
+.sub-card{background:#fff;border-radius:12px;padding:18px;box-shadow:0 2px 8px rgba(15,23,42,.06);margin-bottom:16px}
+.sub-card h3{font-size:15px;margin:0 0 12px 0}
+.sub-bars{display:flex;align-items:flex-end;min-height:170px;gap:16px;padding-top:8px;max-width:600px}
+.sub-barg{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;justify-content:flex-end}
+.sub-pair{display:flex;gap:6px;align-items:flex-end;height:130px}
+.sub-bar{width:30px;border-radius:4px 4px 0 0;display:flex;align-items:flex-start;justify-content:center;padding-top:6px;font-size:10px;font-weight:600}
+.sub-bar.plan{background:#bfdbfe;color:#1d4ed8}.sub-bar.actual{background:#3b82f6;color:#fff}
+.sub-x{font-size:12px;color:#64748b;text-align:center;line-height:1.5}
+.sub-legend{display:flex;gap:16px;font-size:12px;color:#64748b;margin-top:10px}
+.sub-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px}
+.sub-timeline-scroll{max-height:300px;overflow-y:auto;padding-right:12px}
+.sub-timeline-scroll::-webkit-scrollbar{width:6px}
+.sub-timeline-scroll::-webkit-scrollbar-track{background:#f1f5f9;border-radius:3px}
+.sub-timeline-scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+.sub-timeline{position:relative;padding-left:22px}
+.sub-timeline::before{content:'';position:absolute;left:7px;top:6px;bottom:6px;width:2px;background:#e2e8f0}
+.sub-t-item{position:relative;padding:8px 0}
+.sub-t-item::before{content:'';position:absolute;left:-19px;top:15px;width:10px;height:10px;border-radius:50%;background:#3b82f6;border:2px solid #fff;box-shadow:0 0 0 2px #bfdbfe}
+.sub-t-item .d{font-size:13px;font-weight:600}
+.sub-t-item .a{font-size:13px;color:#16a34a;font-weight:700}
+.sub-t-item .c{font-size:12px;color:#94a3b8}
+@media(max-width:800px){.sub-kpis{grid-template-columns:repeat(2,1fr)}}
+</style>
+
+<section style="margin-top:8px">
+<div class="sub-kpis">
+  <div class="sub-kpi"><div class="lbl">累计应收</div><div class="val">¥{{ '%.2f'|format(totals.receivable) }}</div><div class="sub">{{ periods|length }} 个运营期</div></div>
+  <div class="sub-kpi ok"><div class="lbl">累计实收</div><div class="val green">¥{{ '%.2f'|format(totals.cumulative_received) }}</div><div class="sub">收缴率 {{ '%.1f'|format((totals.cumulative_received/totals.receivable*100) if totals.receivable else 0) }}%</div></div>
+  <div class="sub-kpi warn"><div class="lbl">累计欠收</div><div class="val red">¥{{ '%.2f'|format(totals.cumulative_arrears) }}</div><div class="sub">欠收率 {{ '%.1f'|format((totals.cumulative_arrears/totals.receivable*100) if totals.receivable else 0) }}%</div></div>
+  <div class="sub-kpi info"><div class="lbl">收款笔数</div><div class="val">{{ timeline|length }} 笔</div><div class="sub">全部收款明细</div></div>
+</div>
+
+<div class="sub-card">
+  <h3>各运营期应收 vs 实收（万元）</h3>
+  {% set bmax = (periods|map(attribute='current_receivable')|select|list|max) if periods else 1 %}
+  {% if not bmax %}{% set bmax = 1 %}{% endif %}
+  <div class="sub-bars">
+  {% for period in periods %}
+    <div class="sub-barg">
+      <div class="sub-pair">
+        <div class="sub-bar plan" style="height:{{ ((period.current_receivable or 0)/bmax*120)|round(1) }}px">{{ '%.0f'|format((period.current_receivable or 0)/10000) }}</div>
+        <div class="sub-bar actual" style="height:{{ ((period.actual_received or 0)/bmax*120)|round(1) }}px">{% if period.actual_received %}{{ '%.0f'|format(period.actual_received/10000) }}{% endif %}</div>
+      </div>
+      <span class="sub-x">{{ period.operating_period }}</span>
+    </div>
+  {% endfor %}
+  </div>
+  <div class="sub-legend"><span><i style="background:#bfdbfe"></i>当期应收</span><span><i style="background:#3b82f6"></i>本期实收</span></div>
+</div>
+
+<div class="sub-card">
+  <h3>收款时间线 <span style="font-size:12px;color:#94a3b8;font-weight:normal">（共 {{ timeline|length }} 笔 · 右侧滚动查看更多）</span></h3>
+  <div class="sub-timeline-scroll">
+    <div class="sub-timeline">
+    {% for t in timeline %}
+      <div class="sub-t-item"><div class="d">{{ t.date }}</div><div class="a">{{ '%.2f'|format(t.amount/10000) }}万</div><div class="c">累计 {{ '%.2f'|format(t.cumulative/10000) }}万</div></div>
+    {% else %}
+      <div style="color:#94a3b8;font-size:13px">暂无收款记录</div>
+    {% endfor %}
+    </div>
+  </div>
+</div>
+</section>
+
 <script>
 function confirmDeletePeriod(form, name) {
     const input = prompt('警告：删除运营期将清空其全部收款明细（不可恢复，删除前已自动备份）。\n请输入运营期名称“' + name + '”确认删除：');
