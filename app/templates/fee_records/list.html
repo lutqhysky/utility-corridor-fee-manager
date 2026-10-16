@@ -12,6 +12,15 @@
             {% endfor %}
         </select>
 
+        <select name="project">
+            <option value="">全部项目</option>
+            {% for name in project_names %}
+            <option value="{{ name }}" {% if selected_project == name %}selected{% endif %}>
+                {{ name }}
+            </option>
+            {% endfor %}
+        </select>
+
         <select name="status">
             <option value="">全部状态</option>
             {% for item in ['未开始','待收缴','部分收缴','已收缴','已逾期'] %}
@@ -22,15 +31,6 @@
             <option value="{{ overdue_filter_value }}" {% if selected_status == overdue_filter_value %}selected{% endif %}>
                 已逾期（动态判定）
             </option>
-        </select>
-
-        <select name="project">
-            <option value="">全部项目</option>
-            {% for name in project_names %}
-            <option value="{{ name }}" {% if selected_project == name %}selected{% endif %}>
-                {{ name }}
-            </option>
-            {% endfor %}
         </select>
 
         <button type="submit">筛选</button>
