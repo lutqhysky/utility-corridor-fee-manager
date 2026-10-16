@@ -161,12 +161,15 @@ def create_app():
 
     # 再加 SessionMiddleware
     # 这样 SessionMiddleware 会在更外层先执行，request.scope['session'] 就可用了
+    https_only = get_session_https_only()
+    if not https_only:
+        logger.warning('生产部署请设置 APP_SESSION_HTTPS_ONLY=true，否则会话 Cookie 不带 Secure 标志')
     app.add_middleware(
         SessionMiddleware,
         secret_key=get_session_secret(),
         session_cookie='corridor_fee_session',
         same_site='lax',
-        https_only=get_session_https_only(),
+        https_only=https_only,
         max_age=60 * 60 * 12,
     )
 

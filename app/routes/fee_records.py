@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from urllib.parse import quote
 from app.database import get_db
+from app.utils import safe_excel_cell, safe_json_dumps
 # 引入了 FeeStandard 模型
 from app.models import Company, FeeRecord, PipelineEntry, FeeStandard 
 from app.paths import TEMPLATES_DIR
@@ -185,6 +186,17 @@ def validate_record_values(fee_type: str, payment_status: str, amount_incl_tax: 
         raise HTTPException(status_code=422, detail='金额不能为负数')
     if not 0 <= tax_rate < 1:
         raise HTTPException(status_code=422, detail='税率应在 0~1 之间（如 9% 填 0.09）')
+    # 状态与金额交叉校验
+    status = (payment_status or '').strip()
+    if status == '已收缴' and actual_received_amount < amount_incl_tax - 0.005:
+        raise HTTPException(status_code=422, detail='状态为"已收缴"时，实收金额不能小于应收金额')
+    if status == '部分收缴':
+        if actual_received_amount <= 0:
+            raise HTTPException(status_code=422, detail='状态为"部分收缴"时，实收金额必须大于 0')
+        if actual_received_amount >= amount_incl_tax - 0.005:
+            raise HTTPException(status_code=422, detail='状态为"部分收缴"时，实收金额应小于应收金额（已收清请改"已收缴"）')
+    if status == '待收缴' and actual_received_amount > 0:
+        raise HTTPException(status_code=422, detail='状态为"待收缴"时实收金额应为 0（有实收请改"部分收缴"或"已收缴"）')
 
 
 def validate_record_relations(db: Session, company_id: int, pipeline_entry_id: int | None):
@@ -318,10 +330,10 @@ def export_records(
 
     for row_idx, record in enumerate(records, start=2):
         company_name = record.company.short_name or record.company.company_name if record.company else ''
-        ws.cell(row=row_idx, column=1, value=company_name)
-        ws.cell(row=row_idx, column=2, value=record.project_name or '')
-        ws.cell(row=row_idx, column=3, value=record.fee_type or '')
-        ws.cell(row=row_idx, column=4, value=record.charge_period or '')
+        ws.cell(row=row_idx, column=1, value=safe_excel_cell(company_name))
+        ws.cell(row=row_idx, column=2, value=safe_excel_cell(record.project_name or ''))
+        ws.cell(row=row_idx, column=3, value=safe_excel_cell(record.fee_type or ''))
+        ws.cell(row=row_idx, column=4, value=safe_excel_cell(record.charge_period or ''))
         ws.cell(row=row_idx, column=5, value=float(record.amount_excl_tax or 0))
         ws.cell(row=row_idx, column=6, value=float(record.tax_rate or 0))
         ws.cell(row=row_idx, column=7, value=float(record.tax_amount or 0))
@@ -329,9 +341,9 @@ def export_records(
         ws.cell(row=row_idx, column=9, value=record.planned_receivable_date.isoformat() if record.planned_receivable_date else '')
         ws.cell(row=row_idx, column=10, value=float(record.actual_received_amount or 0))
         ws.cell(row=row_idx, column=11, value=record.actual_received_date.isoformat() if record.actual_received_date else '')
-        ws.cell(row=row_idx, column=12, value=record.payment_status or '')
+        ws.cell(row=row_idx, column=12, value=safe_excel_cell(record.payment_status or ''))
         ws.cell(row=row_idx, column=13, value='是' if record.is_overdue_view else '否')
-        ws.cell(row=row_idx, column=14, value=record.remark or '')
+        ws.cell(row=row_idx, column=14, value=safe_excel_cell(record.remark or ''))
 
     buf = io.BytesIO()
     wb.save(buf)
@@ -372,7 +384,7 @@ def new_record(request: Request, db: Session = Depends(get_db)):
             'pipeline_entries': pipeline_entries,
             'entry_fee_map': entry_fee_map,
             'statuses': statuses,
-            'standard_tax_rates_json': json.dumps(get_all_standard_tax_rates(db)),
+            'standard_tax_rates_json': safe_json_dumps(get_all_standard_tax_rates(db)),
             'title': '新增收费记录'
         }
     )
@@ -473,7 +485,7 @@ def edit_record(record_id: int, request: Request, db: Session = Depends(get_db))
             'pipeline_entries': pipeline_entries,
             'entry_fee_map': entry_fee_map,
             'statuses': statuses,
-            'standard_tax_rates_json': json.dumps(get_all_standard_tax_rates(db)),
+            'standard_tax_rates_json': safe_json_dumps(get_all_standard_tax_rates(db)),
             'title': '编辑收费记录'
         }
     )
@@ -483,18 +495,18 @@ def edit_record(record_id: int, request: Request, db: Session = Depends(get_db))
 def update_record(
     record_id: int,
     company_id: int = Form(...),
-    pipeline_entry_id: int | None = Form(None),
+    pipeline_entry_id: str | None = Form(None),
     project_name: str = Form(''),
     fee_type: str = Form(...),
     charge_period: str = Form(''),
-    period_year: int | None = Form(None),
-    period_quarter: int | None = Form(None),
-    amount_incl_tax: float = Form(0),
-    tax_rate: float = Form(0),
+    period_year: str | None = Form(None),
+    period_quarter: str | None = Form(None),
+    amount_incl_tax: str | None = Form(None),
+    tax_rate: str | None = Form(None),
     planned_receivable_date: str = Form(''),
     remind_date: str = Form(''),
     latest_payment_date: str = Form(''),
-    actual_received_amount: float = Form(0),
+    actual_received_amount: str | None = Form(None),
     actual_received_date: str = Form(''),
     payment_status: str = Form('待收缴'),
     is_invoiced: str = Form('否'),
@@ -505,13 +517,29 @@ def update_record(
     if not record:
         return RedirectResponse(url='/fee-records/', status_code=303)
 
+    # 表单空字符串安全解析，避免 422
+    pipeline_entry_id = parse_optional_int(pipeline_entry_id)
+    period_year = parse_optional_int(period_year)
+    period_quarter = parse_optional_int(period_quarter)
+    amount_incl_tax = parse_float_or(amount_incl_tax, 0.0)
+    submitted_tax_rate = parse_float_or(tax_rate, None if tax_rate is None else 0.0)
+    actual_received_amount = parse_float_or(actual_received_amount, 0.0)
+
     validate_record_relations(db, company_id, pipeline_entry_id)
-    validate_record_values(fee_type, payment_status, amount_incl_tax, tax_rate, actual_received_amount)
-    
-    # 更新操作同样动态获取税率
-    actual_tax_rate = get_standard_tax_rate(db, fee_type)
-    if actual_tax_rate is None:
-        actual_tax_rate = float(tax_rate)
+    validate_record_values(fee_type, payment_status, amount_incl_tax,
+                           submitted_tax_rate if submitted_tax_rate is not None else 0.0,
+                           actual_received_amount)
+
+    # 编辑时保留历史税率：仅费用类型变更或用户显式修改税率时才重取
+    old_tax_rate = float(record.tax_rate or 0)
+    if fee_type != record.fee_type:
+        actual_tax_rate = get_standard_tax_rate(db, fee_type)
+        if actual_tax_rate is None:
+            actual_tax_rate = submitted_tax_rate if submitted_tax_rate is not None else old_tax_rate
+    elif submitted_tax_rate is not None and abs(submitted_tax_rate - old_tax_rate) > 1e-9:
+        actual_tax_rate = submitted_tax_rate
+    else:
+        actual_tax_rate = old_tax_rate
 
     amount_excl_tax, tax_amount = calc_excl_tax_from_incl_tax(amount_incl_tax, actual_tax_rate)
 

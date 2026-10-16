@@ -8,6 +8,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
+from app.utils import safe_json_dumps
 from app.services.statistics_service import StatisticsService
 from app.models import Company, FeeRecord
 from app.paths import TEMPLATES_DIR
@@ -105,7 +106,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             )
         for records in pending_details.values():
             records.sort(key=lambda r: (r['urgency'], r['planned_receivable_date'] or '9999'))
-        pending_details_json = json.dumps(pending_details, ensure_ascii=False)
+        pending_details_json = safe_json_dumps(pending_details)
     except Exception:
         logger.exception('Dashboard data query failed, fallback to empty values.')
         stats = {

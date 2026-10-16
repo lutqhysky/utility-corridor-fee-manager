@@ -59,6 +59,9 @@ def normalize_next_url(next_url: str | None) -> str:
         return '/'
     if next_url.startswith('//'):
         return '/'
+    # 反斜杠可被浏览器解析为 //，如 /\evil.com 会跳到外部站
+    if '\\' in next_url:
+        return '/'
     return next_url
 
 
@@ -78,6 +81,40 @@ def is_authenticated(request) -> bool:
 
 def login_user(request, username: str) -> None:
     request.session[SESSION_USER_KEY] = username
+
+
+# 登录暴力破解防护：内存记录各 IP 失败次数（单进程；多 worker 需换 Redis/DB）
+_LOGIN_FAILS: dict[str, list[float]] = {}
+_LOGIN_MAX_FAILS = 5
+_LOGIN_WINDOW_SECONDS = 300
+_LOGIN_LOCK_SECONDS = 600
+
+
+def _client_ip(request) -> str:
+    forwarded = request.headers.get('x-forwarded-for')
+    if forwarded:
+        return forwarded.split(',')[0].strip()
+    client = request.client
+    return client.host if client else 'unknown'
+
+
+def is_login_locked(request) -> bool:
+    import time
+    ip = _client_ip(request)
+    now = time.time()
+    fails = [t for t in _LOGIN_FAILS.get(ip, []) if now - t < _LOGIN_WINDOW_SECONDS]
+    _LOGIN_FAILS[ip] = fails
+    return len(fails) >= _LOGIN_MAX_FAILS
+
+
+def record_login_fail(request) -> None:
+    import time
+    ip = _client_ip(request)
+    _LOGIN_FAILS.setdefault(ip, []).append(time.time())
+
+
+def clear_login_fails(request) -> None:
+    _LOGIN_FAILS.pop(_client_ip(request), None)
 
 
 def logout_user(request) -> None:

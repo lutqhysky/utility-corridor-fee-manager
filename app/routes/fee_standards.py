@@ -184,6 +184,19 @@ def update_standard(
 @router.post('/{standard_id}/delete')
 def delete_standard(standard_id: int, db: Session = Depends(get_db)):
     standard = get_standard_or_404(db, standard_id)
+    # 若是该费用类型当前有效的税率来源，阻断删除（避免后续税率静默变化）
+    if standard.is_active:
+        newer = (
+            db.query(FeeStandard)
+            .filter(FeeStandard.id != standard.id,
+                    FeeStandard.is_active.is_(True),
+                    FeeStandard.fee_type == standard.fee_type)
+            .count()
+        )
+        if newer == 0:
+            raise HTTPException(
+                status_code=422,
+                detail=f'该标准是费用类型「{standard.fee_type}」当前唯一的税率来源，删除后新建收费记录将无税率可用。如确认删除，请先新增替代标准。')
     db.delete(standard)
     db.commit()
     return RedirectResponse(url='/fee-standards/', status_code=303)

@@ -7,6 +7,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.database import get_db
+from app.utils import safe_json_dumps
 from app.models import Company, FeeStandard, PipelineEntry, PipelineEntryDetail
 from app.paths import TEMPLATES_DIR
 
@@ -44,6 +45,17 @@ def q2(value) -> float:
     return float(Decimal(str(value or 0)).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP))
 
 
+def _validate_entry_rates(entry_tax: float, maint_tax: float,
+                            entry_disc: float, maint_disc: float) -> None:
+    """入廊记录税率/折扣范围校验：税率 0~1，折扣 0~1。"""
+    for name, val in (('入廊费税率', entry_tax), ('运维费税率', maint_tax)):
+        if not 0 <= val < 1:
+            raise HTTPException(status_code=422, detail=f'{name}需在 0~1 之间')
+    for name, val in (('入廊费折扣', entry_disc), ('运维费折扣', maint_disc)):
+        if not 0 <= val <= 1:
+            raise HTTPException(status_code=422, detail=f'{name}需在 0~1 之间')
+
+
 def parse_float_or(value: str | None, default: float = 0.0) -> float:
     """数字框留空（""）时用默认值，避免 422。"""
     if value is None:
@@ -75,7 +87,7 @@ def get_fee_standards_json(db: Session) -> str:
         elif '维护' in fee_type or '运维' in fee_type:
             item['maintenance_price'] = std.unit_price_excl_tax
     result = {k: v for k, v in grouped.items() if v['entry_price'] is not None or v['maintenance_price'] is not None}
-    return json.dumps(result, ensure_ascii=False)
+    return safe_json_dumps(result)
 
 
 @router.get('/', response_class=HTMLResponse)
@@ -140,17 +152,17 @@ def create_entry(
     project_name: str = Form(''),
     pipeline_type: str = Form(''),
     specification: str = Form(''),
-    actual_length: float = Form(0),
-    quantity_or_hole_count: float = Form(0),
+    actual_length: str | None = Form(None),
+    quantity_or_hole_count: str | None = Form(None),
     entry_date: str = Form(''),
     contract_sign_date_entry: str = Form(''),
     contract_sign_date_maintenance: str = Form(''),
     has_entry_application: str = Form(''),
     remark: str = Form(''),
-    entry_fee_tax_rate: float = Form(0),
-    maintenance_fee_tax_rate: float = Form(0),
-    entry_fee_discount: float = Form(1),
-    maintenance_fee_discount: float = Form(1),
+    entry_fee_tax_rate: str | None = Form(None),
+    maintenance_fee_tax_rate: str | None = Form(None),
+    entry_fee_discount: str | None = Form(None),
+    maintenance_fee_discount: str | None = Form(None),
     charge_cycle: str = Form('年度'),
     db: Session = Depends(get_db),
 ):
@@ -160,6 +172,15 @@ def create_entry(
 
     if not entry_date or not entry_date.strip():
         raise HTTPException(status_code=422, detail='入廊时间不能为空，请填写')
+
+    actual_length = parse_float_or(actual_length, 0.0)
+    quantity_or_hole_count = parse_float_or(quantity_or_hole_count, 0.0)
+    entry_fee_tax_rate = parse_float_or(entry_fee_tax_rate, 0.0)
+    maintenance_fee_tax_rate = parse_float_or(maintenance_fee_tax_rate, 0.0)
+    entry_fee_discount = parse_float_or(entry_fee_discount, 1.0)
+    maintenance_fee_discount = parse_float_or(maintenance_fee_discount, 1.0)
+    _validate_entry_rates(entry_fee_tax_rate, maintenance_fee_tax_rate,
+                          entry_fee_discount, maintenance_fee_discount)
 
     db.add(PipelineEntry(
         company_id=company_id,
@@ -259,17 +280,17 @@ def update_entry(
     project_name: str = Form(''),
     pipeline_type: str = Form(''),
     specification: str = Form(''),
-    actual_length: float = Form(0),
-    quantity_or_hole_count: float = Form(0),
+    actual_length: str | None = Form(None),
+    quantity_or_hole_count: str | None = Form(None),
     entry_date: str = Form(''),
     contract_sign_date_entry: str = Form(''),
     contract_sign_date_maintenance: str = Form(''),
     has_entry_application: str = Form(''),
     remark: str = Form(''),
-    entry_fee_tax_rate: float = Form(0),
-    maintenance_fee_tax_rate: float = Form(0),
-    entry_fee_discount: float = Form(1),
-    maintenance_fee_discount: float = Form(1),
+    entry_fee_tax_rate: str | None = Form(None),
+    maintenance_fee_tax_rate: str | None = Form(None),
+    entry_fee_discount: str | None = Form(None),
+    maintenance_fee_discount: str | None = Form(None),
     charge_cycle: str = Form('年度'),
     db: Session = Depends(get_db),
 ):
@@ -283,6 +304,15 @@ def update_entry(
 
     if not entry_date or not entry_date.strip():
         raise HTTPException(status_code=422, detail='入廊时间不能为空，请填写')
+
+    actual_length = parse_float_or(actual_length, 0.0)
+    quantity_or_hole_count = parse_float_or(quantity_or_hole_count, 0.0)
+    entry_fee_tax_rate = parse_float_or(entry_fee_tax_rate, 0.0)
+    maintenance_fee_tax_rate = parse_float_or(maintenance_fee_tax_rate, 0.0)
+    entry_fee_discount = parse_float_or(entry_fee_discount, 1.0)
+    maintenance_fee_discount = parse_float_or(maintenance_fee_discount, 1.0)
+    _validate_entry_rates(entry_fee_tax_rate, maintenance_fee_tax_rate,
+                          entry_fee_discount, maintenance_fee_discount)
 
     entry.company_id = company_id
     entry.cabin_type = cabin_type

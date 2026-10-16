@@ -9,6 +9,7 @@ from sqlalchemy import and_, case, extract, func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.utils import safe_excel_cell
 from app.models import Company, FeeRecord, PipelineEntry
 from app.paths import TEMPLATES_DIR
 
@@ -247,7 +248,7 @@ def export_summary(request: Request, db: Session = Depends(get_db), year: int | 
             ws.column_dimensions[get_column_letter(col)].width = width
         for row_idx, values in enumerate(rows, start=2):
             for col, value in enumerate(values, start=1):
-                ws.cell(row=row_idx, column=col, value=value)
+                ws.cell(row=row_idx, column=col, value=safe_excel_cell(value))
 
     wb = Workbook()
 

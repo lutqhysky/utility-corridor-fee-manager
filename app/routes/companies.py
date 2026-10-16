@@ -182,6 +182,18 @@ def delete_company(company_id: int, confirm_name: str = Form(''), db: Session = 
     expected = (company.short_name or company.company_name or '').strip()
     if not expected or (confirm_name or '').strip() != expected:
         raise HTTPException(status_code=422, detail='单位名称确认不匹配，删除已取消')
+    # 有关联业务数据时阻断删除（避免级联删掉入廊/收费/合同）
+    related = []
+    if company.pipeline_entries:
+        related.append(f'入廊记录 {len(company.pipeline_entries)} 条')
+    if company.fee_records:
+        related.append(f'收费记录 {len(company.fee_records)} 条')
+    if company.contracts:
+        related.append(f'合同 {len(company.contracts)} 条')
+    if related:
+        raise HTTPException(
+            status_code=422,
+            detail='该单位存在关联业务数据（' + '、'.join(related) + '），不可删除。如需停用请联系管理员。')
     # 先自动备份，再删除
     backup_path = backup_company_data(db, company)
     db.delete(company)
