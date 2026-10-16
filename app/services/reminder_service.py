@@ -504,25 +504,21 @@ def build_daily_digest(db: Session, today: date):
         suffix = '（已逾期%d天）' % overdue_days if overdue_days > 0 else ''
         return '- %s｜%s｜应收%s｜未收¥%s%s' % (name, r.fee_type, due, '%.2f' % remain, suffix)
 
-    parts = ['【收费日报 %s】' % today.isoformat(),
-             '到目前为止，已收到管廊有偿使用费 ¥%.2f，其中入廊费 ¥%.2f，日常维护费 ¥%.2f。'
+    # 待收缴明细：逾期优先，其次今日到期，再次未来7天
+    all_pending = overdue + due_today + upcoming
+    pending_total = amount_sum(all_pending)
+
+    parts = ['1、到目前为止，已收到管廊有偿使用费 ¥%.2f，其中入廊费 ¥%.2f，日常维护费 ¥%.2f。'
              % (total_received, entry_received, maint_received),
-             '',
-             '预期：',
-             '今日到期 %d 笔，未收 ¥%.2f' % (len(due_today), amount_sum(due_today)),
-             '已逾期 %d 笔，未收 ¥%.2f' % (len(overdue), amount_sum(overdue)),
-             '未来7天到期 %d 笔' % len(upcoming)]
-    if overdue:
-        parts += ['', '逾期明细：'] + [line(r) for r in overdue]
-    if due_today:
-        parts += ['', '今日到期明细：'] + [line(r) for r in due_today]
-    if upcoming:
-        parts += ['', '未来7天到期：'] + [line(r) for r in upcoming]
+             '2、待收缴情况【共%d笔，共计¥%.2f元】' % (len(all_pending), pending_total),
+             '具体明细如下：']
+    parts += [line(r) for r in all_pending]
 
     counts = {'due_today': len(due_today), 'overdue': len(overdue),
               'upcoming': len(upcoming),
               'total': len(due_today) + len(overdue) + len(upcoming)}
-    return '小牛管廊项目公司管廊有偿使用费收缴情况', '\n'.join(parts), counts
+    title = '小牛管廊项目公司管廊有偿使用费收缴情况【%s】' % today.isoformat()
+    return title, '\n'.join(parts), counts
 
 
 def run_daily_digest(db: Session = None, today: date = None, force: bool = False) -> str:
