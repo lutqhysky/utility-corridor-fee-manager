@@ -103,8 +103,8 @@
         </thead>
         <tbody>
         {% for item in pending_summary %}
-            <tr>
-                <td><a href="javascript:void(0);" class="pending-company-link" data-company-id="{{ item.company_id }}" data-company-name="{{ item.company_name }}" title="点击查看待收明细">{{ item.company_name }}</a></td>
+            <tr class="pending-row" data-company-id="{{ item.company_id }}" data-company-name="{{ item.company_name }}" title="点击查看待收明细">
+                <td><a href="javascript:void(0);" class="pending-company-link" data-company-id="{{ item.company_id }}" data-company-name="{{ item.company_name }}">{{ item.company_name }}</a></td>
                 <td>{{ item.record_count }} 笔</td>
                 <td>¥{{ '%.2f'|format(item.total_amount) }}</td>
                 <td>{{ item.nearest_date or '未定' }}</td>
@@ -132,18 +132,29 @@
 .pending-detail-wrap {
     display: grid;
     grid-template-rows: 0fr;
-    transition: grid-template-rows 0.35s cubic-bezier(0.22,1,0.36,1);
+    transition: grid-template-rows 0.45s cubic-bezier(0.22,1,0.36,1);
 }
 .pending-detail-wrap.open { grid-template-rows: 1fr; }
-#pending-detail-inner { overflow: hidden; }
+#pending-detail-inner { overflow: hidden; opacity: 0; transform: translateY(-8px);
+    transition: opacity 0.35s ease 0.1s, transform 0.45s cubic-bezier(0.22,1,0.36,1) 0.1s; }
+.pending-detail-wrap.open #pending-detail-inner { opacity: 1; transform: translateY(0); }
 .pending-company-link.active { font-weight:700; color:#0d9488; }
+tr.pending-row { cursor: pointer; transition: background 0.2s ease; }
+tr.pending-row:hover { background: #f0fdfa; }
+tr.pending-row.active-row { background: #f0fdfa; box-shadow: inset 3px 0 0 #14b8a6; }
 @keyframes pending-slide-up {
     from { transform: translateY(70px); opacity: 0; }
     to { transform: translateY(0); opacity: 1; }
 }
+.pending-detail-wrap.open .pending-card { animation: pending-card-in 0.5s cubic-bezier(0.22,1,0.36,1) backwards; }
+.pending-detail-wrap.open .pending-card:nth-child(1) { animation-delay: 0.18s; }
+.pending-detail-wrap.open .pending-card:nth-child(2) { animation-delay: 0.26s; }
+.pending-detail-wrap.open .pending-card:nth-child(3) { animation-delay: 0.34s; }
+.pending-detail-wrap.open .pending-card:nth-child(4) { animation-delay: 0.42s; }
+.pending-detail-wrap.open .pending-card:nth-child(n+5) { animation-delay: 0.5s; }
 @keyframes pending-card-in {
-    from { transform: translateY(14px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+    from { transform: translateY(18px) scale(0.98); opacity: 0; }
+    to { transform: translateY(0) scale(1); opacity: 1; }
 }
 .pending-doc-icon {
     width:32px; height:36px; border-radius:5px; position:relative; flex:none;
@@ -160,7 +171,6 @@
     box-shadow:0 2px 12px rgba(15,23,42,0.07);
     display:flex; align-items:center; gap:16px;
     border-left:4px solid transparent;
-    animation:pending-card-in 0.4s cubic-bezier(0.22,1,0.36,1) backwards;
     transition:box-shadow 0.3s cubic-bezier(0.22,1,0.36,1), transform 0.3s cubic-bezier(0.22,1,0.36,1);
 }
 .pending-card:hover {
@@ -196,14 +206,14 @@ const PENDING_DETAILS = {{ pending_details_json | safe }};
         wrap.classList.remove('open');
         openCompanyId = null;
         document.querySelectorAll('.pending-company-link').forEach((l) => l.classList.remove('active'));
+        document.querySelectorAll('tr.pending-row').forEach((r) => r.classList.remove('active-row'));
     };
 
     const renderCards = (records) => {
             detailList.innerHTML = '';
-            records.forEach((r, idx) => {
+            records.forEach((r) => {
                 const card = document.createElement('div');
                 card.className = 'pending-card urgency-' + r.urgency;
-                card.style.animationDelay = (0.05 + idx * 0.07).toFixed(2) + 's';
 
                 const icon = document.createElement('div');
                 icon.className = 'pending-doc-icon ' + ((r.fee_type || '').indexOf('入廊') !== -1 ? 'teal' : 'blue');
@@ -272,10 +282,11 @@ const PENDING_DETAILS = {{ pending_details_json | safe }};
             });
     };
 
-    document.querySelectorAll('.pending-company-link').forEach((link) => {
-        link.addEventListener('click', () => {
-            const companyId = link.getAttribute('data-company-id');
-            const companyName = link.getAttribute('data-company-name');
+    document.querySelectorAll('tr.pending-row').forEach((row) => {
+        row.addEventListener('click', () => {
+            const companyId = row.getAttribute('data-company-id');
+            const companyName = row.getAttribute('data-company-name');
+            const link = row.querySelector('.pending-company-link');
             // 点当前已展开的单位则收起
             if (openCompanyId === companyId) { closeDetail(); return; }
             const records = PENDING_DETAILS[companyId] || PENDING_DETAILS[String(companyId)] || [];
@@ -289,10 +300,23 @@ const PENDING_DETAILS = {{ pending_details_json | safe }};
             }
             detailSub.innerHTML = subHtml;
             renderCards(records);
-            document.querySelectorAll('.pending-company-link').forEach((l) => l.classList.remove('active'));
-            link.classList.add('active');
-            openCompanyId = companyId;
-            wrap.classList.add('open');
+            const doOpen = () => {
+                document.querySelectorAll('.pending-company-link').forEach((l) => l.classList.remove('active'));
+                document.querySelectorAll('tr.pending-row').forEach((r) => r.classList.remove('active-row'));
+                if (link) link.classList.add('active');
+                row.classList.add('active-row');
+                openCompanyId = companyId;
+                // 强制重排使卡片动画重新播放
+                void wrap.offsetWidth;
+                wrap.classList.add('open');
+            };
+            // 已展开时先收起再打开，保证动画重播
+            if (wrap.classList.contains('open')) {
+                wrap.classList.remove('open');
+                setTimeout(doOpen, 200);
+            } else {
+                doOpen();
+            }
         });
     });
 
