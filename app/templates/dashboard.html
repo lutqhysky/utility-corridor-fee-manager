@@ -115,23 +115,28 @@
     {% else %}
     <p style="color:#64748b; margin:0;">当前没有待收费用。</p>
     {% endif %}
-</section>
-
-<div id="pending-modal" style="display:none; position:fixed; inset:0; z-index:1000;">
-    <div id="pending-modal-backdrop" style="position:absolute; inset:0; background:rgba(15,23,42,0.45);"></div>
-    <div id="pending-modal-card" style="position:absolute; left:0; right:0; bottom:0; background:#f4f5f7; border-radius:20px 20px 0 0; padding:12px 28px 36px; max-height:80vh; overflow-y:auto; box-shadow:0 -12px 44px rgba(15,23,42,0.22); animation:pending-slide-up 0.38s cubic-bezier(0.22,1,0.36,1);">
-        <div style="width:46px; height:5px; border-radius:3px; background:#d4d7dc; margin:0 auto 16px;"></div>
-        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-            <div>
-                <div id="pending-modal-title" style="font-size:19px; font-weight:700; color:#111827; letter-spacing:0.5px;"></div>
-                <div id="pending-modal-sub" style="font-size:13px; color:#6b7280; margin-top:8px;"></div>
+    <div id="pending-detail-wrap" class="pending-detail-wrap">
+        <div id="pending-detail-inner">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; padding:16px 4px 0;">
+                <div>
+                    <div id="pending-detail-title" style="font-size:17px; font-weight:700; color:#111827;"></div>
+                    <div id="pending-detail-sub" style="font-size:13px; color:#6b7280; margin-top:6px;"></div>
+                </div>
+                <button id="pending-detail-close" class="button" style="flex:none; padding:6px 14px; font-size:13px;">收起</button>
             </div>
-            <button id="pending-modal-close" class="button" style="flex:none;">关闭</button>
+            <div id="pending-detail-list" style="display:flex; flex-direction:column; gap:12px; padding:14px 4px 4px;"></div>
         </div>
-        <div id="pending-modal-list" style="display:flex; flex-direction:column; gap:12px; margin-top:16px;"></div>
     </div>
-</div>
+</section>
 <style>
+.pending-detail-wrap {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.35s cubic-bezier(0.22,1,0.36,1);
+}
+.pending-detail-wrap.open { grid-template-rows: 1fr; }
+#pending-detail-inner { overflow: hidden; }
+.pending-company-link.active { font-weight:700; color:#0d9488; }
 @keyframes pending-slide-up {
     from { transform: translateY(70px); opacity: 0; }
     to { transform: translateY(0); opacity: 1; }
@@ -175,30 +180,23 @@
 <script>
 const PENDING_DETAILS = {{ pending_details_json | safe }};
 (function () {
-    const modal = document.getElementById('pending-modal');
-    const modalTitle = document.getElementById('pending-modal-title');
-    const modalSub = document.getElementById('pending-modal-sub');
-    const modalList = document.getElementById('pending-modal-list');
-    if (!modal || !modalList) return;
+    const wrap = document.getElementById('pending-detail-wrap');
+    const detailTitle = document.getElementById('pending-detail-title');
+    const detailSub = document.getElementById('pending-detail-sub');
+    const detailList = document.getElementById('pending-detail-list');
+    if (!wrap || !detailList) return;
 
-    const closePendingModal = () => { modal.style.display = 'none'; };
     const fmtMoney = (n) => '¥' + Number(n || 0).toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    let openCompanyId = null;
 
-    document.querySelectorAll('.pending-company-link').forEach((link) => {
-        link.addEventListener('click', () => {
-            const companyId = link.getAttribute('data-company-id');
-            const companyName = link.getAttribute('data-company-name');
-            const records = PENDING_DETAILS[companyId] || PENDING_DETAILS[String(companyId)] || [];
-            const total = records.reduce((sum, r) => sum + Number(r.amount_incl_tax || 0), 0);
-            const overdueCount = records.filter((r) => r.is_overdue).length;
-            modalTitle.textContent = companyName;
-            let subHtml = '待收 <b style="color:#0d9488;">' + records.length + '</b> 笔'
-                + '　合计 <b style="color:#0d9488;">' + fmtMoney(total) + '</b>';
-            if (overdueCount > 0) {
-                subHtml += '　<span style="color:#dc2626;">⚠ ' + overdueCount + ' 笔逾期</span>';
-            }
-            modalSub.innerHTML = subHtml;
-            modalList.innerHTML = '';
+    const closeDetail = () => {
+        wrap.classList.remove('open');
+        openCompanyId = null;
+        document.querySelectorAll('.pending-company-link').forEach((l) => l.classList.remove('active'));
+    };
+
+    const renderCards = (records) => {
+            detailList.innerHTML = '';
             records.forEach((r, idx) => {
                 const card = document.createElement('div');
                 card.className = 'pending-card urgency-' + r.urgency;
@@ -267,14 +265,35 @@ const PENDING_DETAILS = {{ pending_details_json | safe }};
                 side.appendChild(viewLink);
                 card.appendChild(side);
 
-                modalList.appendChild(card);
+                detailList.appendChild(card);
             });
-            modal.style.display = 'block';
+    };
+
+    document.querySelectorAll('.pending-company-link').forEach((link) => {
+        link.addEventListener('click', () => {
+            const companyId = link.getAttribute('data-company-id');
+            const companyName = link.getAttribute('data-company-name');
+            // 点当前已展开的单位则收起
+            if (openCompanyId === companyId) { closeDetail(); return; }
+            const records = PENDING_DETAILS[companyId] || PENDING_DETAILS[String(companyId)] || [];
+            const total = records.reduce((sum, r) => sum + Number(r.amount_incl_tax || 0), 0);
+            const overdueCount = records.filter((r) => r.is_overdue).length;
+            detailTitle.textContent = companyName;
+            let subHtml = '待收 <b style="color:#0d9488;">' + records.length + '</b> 笔'
+                + '　合计 <b style="color:#0d9488;">' + fmtMoney(total) + '</b>';
+            if (overdueCount > 0) {
+                subHtml += '　<span style="color:#dc2626;">⚠ ' + overdueCount + ' 笔逾期</span>';
+            }
+            detailSub.innerHTML = subHtml;
+            renderCards(records);
+            document.querySelectorAll('.pending-company-link').forEach((l) => l.classList.remove('active'));
+            link.classList.add('active');
+            openCompanyId = companyId;
+            wrap.classList.add('open');
         });
     });
 
-    document.getElementById('pending-modal-backdrop').addEventListener('click', closePendingModal);
-    document.getElementById('pending-modal-close').addEventListener('click', closePendingModal);
+    document.getElementById('pending-detail-close').addEventListener('click', closeDetail);
 })();
 </script>
 {% endblock %}
