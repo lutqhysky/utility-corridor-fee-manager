@@ -11,6 +11,7 @@
     <aside class="sidebar" id="sidebar">
         <h1 id="sidebar-toggle" title="连续点击可收起/展开侧边栏">管廊收费系统</h1>
         <nav>
+            <a href="/data-dashboard/" class="{% if request.url.path.startswith('/data-dashboard') %}active{% endif %}">数据看板</a>
             <a href="/" class="{% if request.url.path == '/' %}active{% endif %}">首页概览</a>
             <a href="/companies/" class="{% if request.url.path.startswith('/companies') %}active{% endif %}">单位管理</a>
             <a href="/pipeline-entries/" class="{% if request.url.path.startswith('/pipeline-entries') %}active{% endif %}">入廊管线清单</a>

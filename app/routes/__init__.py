@@ -9,3 +9,4 @@ from .health import router as health_router
 from .fee_summary import router as fee_summary_router
 from .feasibility_subsidy import router as feasibility_subsidy_router
 from .settings import router as settings_router
+from .data_dashboard import router as data_dashboard_router

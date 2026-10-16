@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+.db-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+.db-kpi{background:#fff;border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(15,23,42,.06);border-top:4px solid #3b82f6}
+.db-kpi.ok{border-top-color:#22c55e}.db-kpi.warn{border-top-color:#ef4444}.db-kpi.info{border-top-color:#8b5cf6}
+.db-kpi .lbl{font-size:13px;color:#64748b;margin-bottom:6px}
+.db-kpi .val{font-size:23px;font-weight:700}
+.db-kpi .sub{font-size:12px;color:#64748b;margin-top:4px}
+.db-kpi .val.red{color:#dc2626}.db-kpi .val.green{color:#16a34a}
+.db-grid2{display:grid;grid-template-columns:1.5fr 1fr;gap:14px;margin-bottom:16px}
+.db-card{background:#fff;border-radius:12px;padding:18px;box-shadow:0 2px 8px rgba(15,23,42,.06);margin-bottom:16px}
+.db-card h2{font-size:15px;margin-bottom:12px}
+.db-bars{display:flex;align-items:flex-end;min-height:170px;gap:8px;padding-top:8px}
+.db-barg{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;justify-content:flex-end;height:100%}
+.db-pair{display:flex;gap:4px;align-items:flex-end;height:130px}
+.db-bar{width:16px;border-radius:3px 3px 0 0}
+.db-bar.plan{background:#bfdbfe}.db-bar.actual{background:#3b82f6}
+.db-x{font-size:11px;color:#64748b}
+.db-legend{display:flex;gap:16px;font-size:12px;color:#64748b;margin-top:8px}
+.db-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px}
+.db-seg{display:flex;background:#f1f5f9;border-radius:8px;padding:2px}
+.db-seg button{border:none;background:transparent;padding:5px 14px;font-size:13px;border-radius:6px;color:#64748b;cursor:pointer}
+.db-seg button.active{background:#fff;color:#1e293b;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.1)}
+.db-hbar{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:13px}
+.db-hbar .nm{width:120px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.db-track{flex:1;background:#f1f5f9;border-radius:4px;height:18px;display:flex;overflow:hidden}
+.db-hbar .amt{width:130px;text-align:right;flex-shrink:0;font-weight:600}
+.db-subsidy{background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:#fff;border-radius:12px;padding:18px;margin-bottom:16px}
+.db-subsidy h2{font-size:15px;margin-bottom:8px}
+.db-subsidy .big{font-size:22px;font-weight:700}
+.db-subsidy .yrs{font-size:13px;opacity:.92;margin-top:6px}
+@media(max-width:800px){.db-kpis{grid-template-columns:repeat(2,1fr)}.db-grid2{grid-template-columns:1fr}}
+</style>
+
+<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+  <h2 style="margin:0">小牛管廊项目公司 · 有偿使用费收缴看板</h2>
+  <span style="color:#64748b;font-size:13px">数据截至 {{ data.today }}</span>
+</div>
+
+<div class="db-kpis">
+  <div class="db-kpi"><div class="lbl">累计应收</div><div class="val">¥{{ '%.2f'|format(data.kpi.total_receivable) }}</div><div class="sub">入廊费 + 日常维护费</div></div>
+  <div class="db-kpi ok"><div class="lbl">累计已收</div><div class="val green">¥{{ '%.2f'|format(data.kpi.total_received) }}</div><div class="sub">收缴率 {{ '%.1f'|format(data.kpi.collection_rate) }}%</div></div>
+  <div class="db-kpi info"><div class="lbl">待收总额</div><div class="val">¥{{ '%.2f'|format(data.kpi.total_unreceived) }}</div><div class="sub">应收 − 实收</div></div>
+  <div class="db-kpi warn"><div class="lbl">已逾期</div><div class="val red">¥{{ '%.2f'|format(data.kpi.overdue_amount) }}</div><div class="sub">{{ data.kpi.overdue_count }} 笔 · 最长逾期 {{ data.kpi.max_overdue_days }} 天</div></div>
+</div>
+
+<div class="db-grid2">
+  <div class="db-card" style="margin-bottom:0">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h2 style="margin:0">收缴趋势（万元）</h2>
+      <div class="db-seg">
+        <button class="active" onclick="dbTrend('year',this)">年度</button>
+        <button onclick="dbTrend('quarter',this)">季度</button>
+      </div>
+    </div>
+    {% set ymax = data.trend_year|map(attribute='planned')|max(default=1) %}
+    {% set qmax = data.trend_quarter|map(attribute='planned')|max(default=1) %}
+    <div class="db-bars" id="db-trend-year">
+      {% for t in data.trend_year %}
+      <div class="db-barg">
+        <div class="db-pair">
+          <div class="db-bar plan" style="height:{{ (t.planned/ymax*120)|round(1) }}px" title="应收 {{ '%.2f'|format(t.planned/10000) }}万"></div>
+          <div class="db-bar actual" style="height:{{ (t.received/ymax*120)|round(1) }}px" title="实收 {{ '%.2f'|format(t.received/10000) }}万"></div>
+        </div>
+        <span class="db-x">{{ t.period }}年</span>
+      </div>
+      {% else %}<span style="color:#94a3b8;font-size:13px">暂无数据</span>{% endfor %}
+    </div>
+    <div class="db-bars" id="db-trend-quarter" style="display:none">
+      {% for t in data.trend_quarter %}
+      <div class="db-barg">
+        <div class="db-pair">
+          <div class="db-bar plan" style="height:{{ (t.planned/qmax*120)|round(1) }}px" title="应收 {{ '%.2f'|format(t.planned/10000) }}万"></div>
+          <div class="db-bar actual" style="height:{{ (t.received/qmax*120)|round(1) }}px" title="实收 {{ '%.2f'|format(t.received/10000) }}万"></div>
+        </div>
+        <span class="db-x">{{ t.period }}</span>
+      </div>
+      {% else %}<span style="color:#94a3b8;font-size:13px">暂无数据</span>{% endfor %}
+    </div>
+    <div class="db-legend"><span><i style="background:#bfdbfe"></i>应收</span><span><i style="background:#3b82f6"></i>实收</span></div>
+  </div>
+
+  <div class="db-card" style="margin-bottom:0">
+    <h2>费用类型占比（已收）</h2>
+    {% set type_total = data.entry_received + data.maint_received %}
+    {% set entry_pct = (data.entry_received/type_total*100) if type_total else 0 %}
+    <div style="display:flex;align-items:center;gap:16px">
+      <svg width="110" height="110" viewBox="0 0 120 120">
+        <circle cx="60" cy="60" r="48" fill="none" stroke="#e2e8f0" stroke-width="20"/>
+        {% if type_total %}<circle cx="60" cy="60" r="48" fill="none" stroke="#3b82f6" stroke-width="20"
+          stroke-dasharray="{{ (entry_pct/100*301.6)|round(1) }} 301.6" stroke-dashoffset="75.4" transform="rotate(-90 60 60)"/>{% endif %}
+        <text x="60" y="58" text-anchor="middle" font-size="15" font-weight="700" fill="#1e293b">{{ '%.1f'|format(entry_pct) }}%</text>
+        <text x="60" y="75" text-anchor="middle" font-size="11" fill="#64748b">入廊费</text>
+      </svg>
+      <div style="font-size:13px;line-height:2">
+        <div><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#3b82f6;margin-right:6px"></span>入廊费 ¥{{ '%.2f'|format(data.entry_received) }}</div>
+        <div><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#e2e8f0;margin-right:6px"></span>日常维护费 ¥{{ '%.2f'|format(data.maint_received) }}</div>
+      </div>
+    </div>
+    <h2 style="margin-top:16px">单位待收排行</h2>
+    {% set pmax = data.pending_rank|map(attribute='amount')|max(default=1) %}
+    {% for r in data.pending_rank[:8] %}
+    <div class="db-hbar"><span class="nm">{{ r.name }}</span>
+      <div class="db-track"><div style="width:{{ (r.amount/pmax*100)|round(1) }}%;background:linear-gradient(90deg,#f59e0b,#ef4444)"></div></div>
+      <span class="amt" style="color:#dc2626">¥{{ '%.2f'|format(r.amount) }}</span></div>
+    {% else %}<span style="color:#94a3b8;font-size:13px">暂无待收</span>{% endfor %}
+  </div>
+</div>
+
+<div class="db-card">
+  <h2>各单位已收管廊有偿使用费情况</h2>
+  <div class="db-legend" style="margin:0 0 12px 0"><span><i style="background:#3b82f6"></i>入廊费</span><span><i style="background:#22c55e"></i>日常维护费</span></div>
+  {% set cmax = data.company_received|map(attribute='total')|max(default=1) %}
+  {% for c in data.company_received %}
+  <div class="db-hbar"><span class="nm">{{ c.name }}</span>
+    <div class="db-track">
+      <div style="width:{{ (c.entry/cmax*100)|round(1) }}%;background:#3b82f6" title="入廊费 ¥{{ '%.2f'|format(c.entry) }}"></div>
+      <div style="width:{{ (c.maint/cmax*100)|round(1) }}%;background:#22c55e" title="日常维护费 ¥{{ '%.2f'|format(c.maint) }}"></div>
+    </div>
+    <span class="amt">¥{{ '%.2f'|format(c.total) }}</span></div>
+  {% else %}<span style="color:#94a3b8;font-size:13px">暂无收款</span>{% endfor %}
+  <div style="font-size:12px;color:#64748b;margin-top:8px">每条横条为该单位已收总额，蓝色段=入廊费，绿色段=日常维护费</div>
+</div>
+
+<div class="db-card">
+  <h2>逾期明细 <span class="badge" style="background:#fee2e2;color:#dc2626">{{ data.overdue_list|length }} 笔待催缴</span></h2>
+  <table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr><th>单位-项目</th><th>费用类型</th><th>应收时间</th><th>未收金额</th><th>逾期天数</th></tr></thead>
+    <tbody>
+    {% for r in data.overdue_list %}
+      <tr><td>{{ r.name }}</td><td>{{ r.fee_type }}</td><td>{{ r.due_date }}</td>
+        <td style="color:#dc2626;font-weight:600">¥{{ '%.2f'|format(r.amount) }}</td>
+        <td><span class="badge" style="background:#fee2e2;color:#dc2626">{{ r.days }}天</span></td></tr>
+    {% else %}<tr><td colspan="5" style="color:#94a3b8">暂无逾期</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="db-subsidy">
+  <h2>可行性缺口补助收款情况</h2>
+  <div class="big">{{ '%.2f'|format(data.subsidy.total/10000) }}万 / {{ data.subsidy.count }}笔</div>
+  <div class="yrs">{% if data.subsidy.by_year %}其中{% for y in data.subsidy.by_year %}{{ y.year }}年收到{{ '%.2f'|format(y.amount/10000) }}万/{{ y.count }}笔{% if not loop.last %}，{% endif %}{% endfor %}{% else %}暂无收款记录{% endif %}</div>
+</div>
+
+<script>
+function dbTrend(mode, btn){
+  btn.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('db-trend-year').style.display = mode==='year'?'flex':'none';
+  document.getElementById('db-trend-quarter').style.display = mode==='quarter'?'flex':'none';
+}
+</script>
+{% endblock %}
