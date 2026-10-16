@@ -447,7 +447,7 @@ def delete_detail(detail_id: int, db: Session = Depends(get_db)):
 
 
 PRINT_REGION_TITLE = '山西转型综合改革示范区潇河产业园区太原起步区'
-PRINT_TARGET_ROWS = 19  # 表格目标总行数（含表头），不足时用空白行补齐以撑满 A4
+PRINT_TARGET_ROWS = 24  # 表格目标总行数（含表头），不足时用空白行补齐以撑满 A4
 
 
 def _fmt_money(value) -> str:
