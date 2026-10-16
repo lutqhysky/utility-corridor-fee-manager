@@ -12,7 +12,6 @@ class FeasibilitySubsidyPeriod(Base):
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
     current_receivable = Column(Float, nullable=False, default=0)
-    cumulative_payable = Column(Float, nullable=False, default=0)
 
     details = relationship(
         'FeasibilitySubsidyDetail',

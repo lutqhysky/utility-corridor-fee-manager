@@ -4,7 +4,11 @@
 <section class="panel" style="margin-bottom:16px;">
     <p style="margin:0 0 8px 0;">运营期：<strong>{{ period.operating_period }}</strong></p>
     <p style="margin:0 0 8px 0;">时间范围：{{ period.start_date or '' }} 至 {{ period.end_date or '' }}</p>
-    <p style="margin:0;">当前运营期实际收到合计：<strong>¥{{ '%.2f'|format(actual_received or 0) }}</strong></p>
+    <div class="filter-summary-grid" style="margin-top:4px;">
+        <div class="filter-summary-card"><span>当期应收</span><strong>¥{{ '%.2f'|format(period.current_receivable or 0) }}</strong></div>
+        <div class="filter-summary-card total"><span>本期实收</span><strong>¥{{ '%.2f'|format(actual_received or 0) }}</strong></div>
+        <div class="filter-summary-card {% if (arrears or 0) > 0 %}maint{% else %}entry{% endif %}"><span>本期欠收</span><strong>¥{{ '%.2f'|format(arrears or 0) }}</strong></div>
+    </div>
 </section>
 
 <section class="panel" style="margin-bottom:16px;">
