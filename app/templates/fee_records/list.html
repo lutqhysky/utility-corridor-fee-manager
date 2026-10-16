@@ -57,27 +57,6 @@
 </section>
 {% endif %}
 
-{% if notice %}
-<section class="panel">
-    <strong>{{ notice }}</strong>
-</section>
-{% endif %}
-
-<section class="panel">
-    <p style="margin:0;">
-        机器人提醒：{% if reminder_settings.enabled %}已启用{% else %}未启用{% endif %}；
-        渠道：{% if reminder_settings.targets %}{% for t in reminder_settings.targets %}{{ t.channel }}{% if not loop.last %}、{% endif %}{% endfor %}{% else %}未配置{% endif %}；
-        提前天数：{{ reminder_settings.days_ahead }} 天。
-    </p>
-    <p style="margin:8px 0 0 0;">
-        对状态为“未开始 / 待收缴 / 部分收缴 / 已逾期”、应收时间在未来 {{ reminder_settings.days_ahead }} 天内（含已逾期）的记录发送提醒；已逾期的记录会收到催缴提醒。
-    </p>
-    <p style="margin:8px 0 0 0;">
-        上次自动检查：{{ last_run_at or '尚未运行' }}{% if last_run_summary %}；{{ last_run_summary }}{% endif %}
-        {% if reminder_settings.daily_digest_enabled %}；每日汇总推送已启用（{{ reminder_settings.daily_digest_time }}）{% endif %}
-    </p>
-</section>
-
 <section class="panel">
     <table>
         <thead>
