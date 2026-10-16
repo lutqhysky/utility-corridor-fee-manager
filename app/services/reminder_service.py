@@ -18,7 +18,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import SessionLocal
-from app.models import AppSetting, FeeRecord, ReminderLog
+from app.models import AppSetting, FeeRecord, FeasibilitySubsidyDetail, ReminderLog
 
 logger = logging.getLogger(__name__)
 
@@ -584,6 +584,107 @@ def _mark_digest_done(session: Session, today: date) -> None:
     session.commit()
 
 
+# ---------------- 可行性缺口补助汇总 ----------------
+
+def build_subsidy_digest(db: Session):
+    """构造可行性缺口补助收款汇总。返回 (标题, 正文)。金额单位：万元。"""
+    details = (
+        db.query(FeasibilitySubsidyDetail)
+        .filter(FeasibilitySubsidyDetail.amount.isnot(None))
+        .filter(FeasibilitySubsidyDetail.amount > 0)
+        .order_by(FeasibilitySubsidyDetail.received_date.isnot(None).desc(),
+                  FeasibilitySubsidyDetail.received_date.asc(),
+                  FeasibilitySubsidyDetail.id.asc())
+        .all()
+    )
+
+    total = sum(float(d.amount or 0) for d in details)
+    count = len(details)
+
+    # 按年分组
+    by_year: dict[int, list] = {}
+    for d in details:
+        if d.received_date:
+            by_year.setdefault(d.received_date.year, []).append(d)
+    year_parts = []
+    for year in sorted(by_year):
+        y_total = sum(float(d.amount or 0) for d in by_year[year])
+        year_parts.append('%d年收到%.2f万/%d笔' % (year, y_total / 10000, len(by_year[year])))
+
+    # 明细表（累计，单位：万元）
+    running = 0.0
+    lines = []
+    for i, d in enumerate(details, 1):
+        amt_wan = float(d.amount or 0) / 10000
+        running += amt_wan
+        date_str = d.received_date.strftime('%Y年%m月%d日') if d.received_date else '未设置'
+        lines.append('%d｜%s｜%.2f｜%.2f' % (i, date_str, amt_wan, running))
+
+    parts = ['1、截止目前共收到政府【可行性缺口补助】%.2f万/%d笔。' % (total / 10000, count)]
+    if year_parts:
+        parts.append('其中' + '，'.join(year_parts) + '。')
+    parts += ['明细如下：',
+              '序号｜收款日期｜金额(万元)｜累计(万元)'] + lines
+
+    title = '小牛管廊项目公司管廊【可行性缺口补助】收款情况汇总【%s】' % date.today().isoformat()
+    return title, '\n'.join(parts), count
+
+
+def run_subsidy_digest(db: Session = None, today: date = None, force: bool = False) -> str:
+    """执行可行性缺口补助汇总推送，每天一次（与收费日报同一时间）。"""
+    if not _reminder_lock.acquire(blocking=False):
+        return '已有提醒任务在执行，本次跳过。'
+    owns_session = db is None
+    session = db or SessionLocal()
+    try:
+        settings = get_reminder_settings(session)
+        if not settings.enabled:
+            return '未启用提醒：请先在"提醒设置"页配置推送渠道。'
+
+        current_date = today or date.today()
+        if not force:
+            last_date = get_setting(session, 'reminder.last_subsidy_digest_date', '')
+            if last_date == current_date.isoformat():
+                return '今日补助汇总已推送过，不重复发送。'
+            try:
+                hh, mm = settings.daily_digest_time.split(':')
+                if datetime.now().time() < time(int(hh), int(mm)):
+                    return '未到推送时间（设定 %s）。' % settings.daily_digest_time
+            except (ValueError, AttributeError):
+                logger.warning('每日汇总时间配置无效: %s', settings.daily_digest_time)
+
+        title, content, count = build_subsidy_digest(session)
+        # 无数据时跳过，不写去重标记
+        if count == 0:
+            return '暂无可行性缺口补助收款数据，汇总已跳过。'
+
+        ok, failed = [], []
+        for target in settings.targets:
+            desc = mask_target(target.channel, target)
+            try:
+                send_to_target(target, title, content)
+                ok.append(target.channel)
+                _write_log(target.channel, desc, title, content, 'success', '',
+                           ReminderLog.KIND_DIGEST)
+            except Exception as exc:
+                failed.append('%s: %s' % (target.channel, exc))
+                _write_log(target.channel, desc, title, content, 'failed', str(exc),
+                           ReminderLog.KIND_DIGEST)
+
+        if not force:
+            set_setting(session, 'reminder.last_subsidy_digest_date', current_date.isoformat())
+            session.commit()
+        if ok and not failed:
+            return '补助汇总已推送（%d 个渠道）。' % len(ok)
+        if ok:
+            return '补助汇总部分推送成功（%s），失败：%s' % (','.join(ok), '；'.join(failed))
+        return '补助汇总推送失败：%s' % '；'.join(failed)
+    finally:
+        _reminder_lock.release()
+        if owns_session:
+            session.close()
+
+
 # ---------------- 调度器 ----------------
 
 # 提醒互斥锁：手动触发与定时线程互斥，避免并发重复发送
@@ -625,6 +726,10 @@ class FeeReminderScheduler:
                 run_daily_digest()
             except Exception:
                 logger.exception('每日汇总推送异常')
+            try:
+                run_subsidy_digest()
+            except Exception:
+                logger.exception('补助汇总推送异常')
             try:
                 interval = get_reminder_settings().check_interval_seconds
             except Exception:
