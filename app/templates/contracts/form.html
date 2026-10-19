@@ -27,9 +27,6 @@
                 {% for e in pipeline_entries %}
                 <option value="{{ e.project_name }}" data-entry-id="{{ e.id }}" {% if contract and contract.contract_name == e.project_name %}selected{% endif %}>{{ e.project_name }}（{{ e.company.short_name or e.company.company_name if e.company else '' }}）</option>
                 {% endfor %}
-                {% if contract and contract.contract_name and contract.contract_name not in project_names %}
-                <option value="{{ contract.contract_name }}" selected>{{ contract.contract_name }}</option>
-                {% endif %}
             </select>
         </label>
         <label>签订时间<input name="sign_date" id="sign_date" type="date" value="{{ contract.sign_date if contract and contract.sign_date else '' }}"></label>

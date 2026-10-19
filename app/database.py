@@ -93,6 +93,26 @@ def ensure_sqlite_schema():
             )
         except Exception:
             logger.exception('创建 fee_standards 唯一索引失败')
+        # 合同名称清洗：老格式"入廊【X】/运维【X】"改为纯项目名称 X（X 须在入廊清单存在）
+        try:
+            project_names = {
+                r[0] for r in connection.execute(
+                    "SELECT DISTINCT project_name FROM pipeline_entries WHERE project_name IS NOT NULL AND project_name != ''"
+                )
+            }
+            fixed = 0
+            for cid, cname in connection.execute(
+                "SELECT id, contract_name FROM contracts WHERE contract_name LIKE '入廊【%】' OR contract_name LIKE '运维【%】'"
+            ):
+                inner = cname[3:-1]  # 去掉"入廊【"和"】"
+                if inner in project_names:
+                    connection.execute(
+                        'UPDATE contracts SET contract_name = ? WHERE id = ?', (inner, cid))
+                    fixed += 1
+            if fixed:
+                logger.warning('合同名称清洗：%d 条"入廊【X】/运维【X】"已改为项目名称', fixed)
+        except Exception:
+            logger.exception('合同名称清洗失败')
         for table_name, columns in get_expected_sqlite_columns().items():
             existing_columns = {
                 row[1]
