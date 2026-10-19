@@ -47,10 +47,14 @@
                 <td>
                     {% if contract.filing_status == '已备案' %}
                     <span class="badge">{{ contract.filing_status }}</span>
+                    {% elif contract.filing_status == '未备案' %}
+                    <span class="badge badge-unfiled">{{ contract.filing_status }}</span>
+                    {% elif contract.filing_status == '未签订' %}
+                    <span class="badge badge-pending">{{ contract.filing_status }}</span>
                     {% elif contract.filing_status %}
                     <span class="badge badge-pending">{{ contract.filing_status }}</span>
                     {% else %}
-                    <span class="badge badge-pending">未填写</span>
+                    <span class="badge badge-empty">未填写</span>
                     {% endif %}
                 </td>
                 <td>{{ contract.sign_date or '' }}</td>
