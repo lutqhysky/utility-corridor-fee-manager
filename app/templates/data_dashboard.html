@@ -23,7 +23,7 @@
 .db-seg button{border:none;background:transparent;padding:5px 14px;font-size:13px;border-radius:6px;color:#64748b;cursor:pointer}
 .db-seg button.active{background:#fff;color:#1e293b;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.1)}
 .db-hbar{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:13px}
-.db-hbar .nm{width:120px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.db-hbar .nm{width:170px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .db-track{flex:1;background:#f1f5f9;border-radius:4px;height:18px;display:flex;overflow:hidden}
 .db-hbar .amt{width:130px;text-align:right;flex-shrink:0;font-weight:600}
 .db-subsidy{background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:#fff;border-radius:12px;padding:18px;margin-bottom:16px}
@@ -101,7 +101,7 @@
     <h2 style="margin-top:16px">单位待收排行</h2>
     {% set pmax = (data.pending_rank|map(attribute='amount')|max) if data.pending_rank else 1 %}
     {% for r in data.pending_rank[:8] %}
-    <div class="db-hbar"><span class="nm">{{ r.name }}</span>
+    <div class="db-hbar"><span class="nm" title="{{ r.name }}">{{ r.name }}</span>
       <div class="db-track"><div style="width:{{ (r.amount/pmax*100)|round(1) }}%;background:linear-gradient(90deg,#f59e0b,#ef4444)"></div></div>
       <span class="amt" style="color:#dc2626">¥{{ '%.2f'|format(r.amount) }}</span></div>
     {% else %}<span style="color:#94a3b8;font-size:13px">暂无待收</span>{% endfor %}
@@ -113,7 +113,7 @@
   <div class="db-legend" style="margin:0 0 12px 0"><span><i style="background:#3b82f6"></i>入廊费</span><span><i style="background:#22c55e"></i>日常维护费</span></div>
   {% set cmax = (data.company_received|map(attribute='total')|max) if data.company_received else 1 %}
   {% for c in data.company_received %}
-  <div class="db-hbar"><span class="nm">{{ c.name }}</span>
+  <div class="db-hbar"><span class="nm" title="{{ c.name }}">{{ c.name }}</span>
     <div class="db-track">
       <div style="width:{{ (c.entry/cmax*100)|round(1) }}%;background:#3b82f6" title="入廊费 ¥{{ '%.2f'|format(c.entry) }}"></div>
       <div style="width:{{ (c.maint/cmax*100)|round(1) }}%;background:#22c55e" title="日常维护费 ¥{{ '%.2f'|format(c.maint) }}"></div>
