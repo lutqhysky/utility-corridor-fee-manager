@@ -91,10 +91,15 @@ def get_fee_standards_json(db: Session) -> str:
 
 
 @router.get('/', response_class=HTMLResponse)
-def list_entries(request: Request, db: Session = Depends(get_db), company_id: int | None = None):
+def list_entries(request: Request, db: Session = Depends(get_db), company_id: int | None = None,
+                 project_name: str | None = None, cabin_type: str | None = None):
     query = db.query(PipelineEntry)
     if company_id:
         query = query.filter(PipelineEntry.company_id == company_id)
+    if project_name:
+        query = query.filter(PipelineEntry.project_name == project_name)
+    if cabin_type:
+        query = query.filter(PipelineEntry.cabin_type == cabin_type)
 
     entries = query.order_by(PipelineEntry.id.desc()).all()
 
@@ -117,15 +122,25 @@ def list_entries(request: Request, db: Session = Depends(get_db), company_id: in
         maintenance_fee_tax_amount = q2(Decimal(str(maintenance_fee_excl_tax_total)) * Decimal(str(maintenance_fee_tax_rate)))
         maintenance_fee_incl_tax_total = q2(Decimal(str(maintenance_fee_excl_tax_total)) + Decimal(str(maintenance_fee_tax_amount)))
         entry.actual_maintenance_fee = q2(Decimal(str(maintenance_fee_incl_tax_total)) * Decimal(str(maintenance_fee_discount)))
-        # 按收费周期拆分：年度周期填年度列，季度周期填季度列
+        # 按收费周期拆分年度/季度：季度->年度为4倍，年度->季度为1/4
         if (entry.charge_cycle or '年度') == '季度':
             entry.maintenance_fee_quarterly = entry.actual_maintenance_fee
-            entry.maintenance_fee_annual = None
+            entry.maintenance_fee_annual = q2(Decimal(str(entry.actual_maintenance_fee or 0)) * 4)
         else:
             entry.maintenance_fee_annual = entry.actual_maintenance_fee
-            entry.maintenance_fee_quarterly = None
+            entry.maintenance_fee_quarterly = q2(Decimal(str(entry.actual_maintenance_fee or 0)) / 4)
 
     companies = db.query(Company).order_by(Company.company_name).all()
+    project_names = [r[0] for r in db.query(PipelineEntry.project_name)
+                     .filter(PipelineEntry.project_name.isnot(None))
+                     .filter(PipelineEntry.project_name != '')
+                     .distinct().order_by(PipelineEntry.project_name).all()]
+    cabin_types = [r[0] for r in db.query(PipelineEntry.cabin_type)
+                   .filter(PipelineEntry.cabin_type.isnot(None))
+                   .filter(PipelineEntry.cabin_type != '')
+                   .distinct().order_by(PipelineEntry.cabin_type).all()]
+    total_entry_fee = sum(float(e.actual_entry_fee or 0) for e in entries)
+    total_maintenance_annual = sum(float(e.maintenance_fee_annual or 0) for e in entries)
     return templates.TemplateResponse(
         'pipeline_entries/list.html',
         {
@@ -133,6 +148,12 @@ def list_entries(request: Request, db: Session = Depends(get_db), company_id: in
             'entries': entries,
             'companies': companies,
             'selected_company_id': company_id,
+            'project_names': project_names,
+            'selected_project_name': project_name or '',
+            'cabin_types': cabin_types,
+            'selected_cabin_type': cabin_type or '',
+            'total_entry_fee': total_entry_fee,
+            'total_maintenance_annual': total_maintenance_annual,
             'title': '入廊管线清单'
         }
     )
