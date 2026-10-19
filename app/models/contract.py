@@ -13,9 +13,11 @@ class Contract(Base):
     filing_department = Column(String(255), nullable=True)
     filing_status = Column(String(100), nullable=True)
     sign_date = Column(Date, nullable=True)
+    pipeline_entry_id = Column(Integer, ForeignKey('pipeline_entries.id'), nullable=True)
     file_path = Column(String(255), nullable=True)
     remark = Column(Text, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     company = relationship('Company', back_populates='contracts')
+    pipeline_entry = relationship('PipelineEntry')

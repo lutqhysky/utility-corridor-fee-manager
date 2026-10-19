@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Company, Contract, PipelineEntry
 from app.paths import TEMPLATES_DIR
+from app.utils import safe_json_dumps
 from sqlalchemy import func
 
 router = APIRouter(prefix='/contracts', tags=['contracts'])
@@ -47,26 +48,6 @@ def list_contracts(request: Request, db: Session = Depends(get_db), filing: str 
         query = query.filter(Contract.contract_type == contract_type)
     contracts = query.order_by(Contract.id.desc()).all()
 
-    # 签订时间：按合同类型取同公司入廊记录的合同签订时间（多条取入廊时间最晚）
-    for c in contracts:
-        c.sign_date_from_entry = None
-        entry = (
-            db.query(PipelineEntry)
-            .filter(PipelineEntry.company_id == c.company_id)
-            .order_by(PipelineEntry.entry_date.isnot(None).desc(),
-                      PipelineEntry.entry_date.desc(),
-                      PipelineEntry.id.desc())
-            .first()
-        )
-        if entry:
-            ctype = (c.contract_type or '')
-            if '入廊' in ctype:
-                c.sign_date_from_entry = entry.contract_sign_date_entry
-            elif '运维' in ctype or '维护' in ctype:
-                c.sign_date_from_entry = entry.contract_sign_date_maintenance
-        # 兜底：取不到时用合同自带的签订时间
-        if c.sign_date_from_entry is None:
-            c.sign_date_from_entry = c.sign_date
 
     companies = db.query(Company).order_by(Company.company_name).all()
     contract_types = [r[0] for r in db.query(Contract.contract_type)
@@ -103,7 +84,16 @@ def list_contracts(request: Request, db: Session = Depends(get_db), filing: str 
 @router.get('/new', response_class=HTMLResponse)
 def new_contract(request: Request, db: Session = Depends(get_db)):
     companies = db.query(Company).order_by(Company.company_name).all()
-    return templates.TemplateResponse('contracts/form.html', {'request': request, 'companies': companies, 'title': '新增合同备案'})
+    pipeline_entries = db.query(PipelineEntry).order_by(PipelineEntry.id.desc()).all()
+    entries_json = safe_json_dumps([{
+        'id': e.id,
+        'company_id': e.company_id,
+        'project_name': e.project_name or '',
+        'company_name': (e.company.short_name or e.company.company_name) if e.company else '',
+        'sign_date_entry': e.contract_sign_date_entry.isoformat() if e.contract_sign_date_entry else '',
+        'sign_date_maintenance': e.contract_sign_date_maintenance.isoformat() if e.contract_sign_date_maintenance else '',
+    } for e in pipeline_entries])
+    return templates.TemplateResponse('contracts/form.html', {'request': request, 'companies': companies, 'pipeline_entries': pipeline_entries, 'entries_json': entries_json, 'title': '新增合同备案'})
 
 
 @router.post('/new')
@@ -116,6 +106,7 @@ def create_contract(
     sign_date: str = Form(''),
     file_path: str = Form(''),
     remark: str = Form(''),
+    pipeline_entry_id: str | None = Form(None),
     db: Session = Depends(get_db),
 ):
     company = db.query(Company).filter(Company.id == company_id).first()
@@ -131,6 +122,7 @@ def create_contract(
         sign_date=parse_date(sign_date),
         file_path=file_path,
         remark=remark,
+        pipeline_entry_id=int(pipeline_entry_id) if pipeline_entry_id else None,
     ))
     try:
         db.commit()
@@ -144,12 +136,23 @@ def create_contract(
 def edit_contract(contract_id: int, request: Request, db: Session = Depends(get_db)):
     contract = get_contract_or_404(db, contract_id)
     companies = db.query(Company).order_by(Company.company_name).all()
+    pipeline_entries = db.query(PipelineEntry).order_by(PipelineEntry.id.desc()).all()
+    entries_json = safe_json_dumps([{
+        'id': e.id,
+        'company_id': e.company_id,
+        'project_name': e.project_name or '',
+        'company_name': (e.company.short_name or e.company.company_name) if e.company else '',
+        'sign_date_entry': e.contract_sign_date_entry.isoformat() if e.contract_sign_date_entry else '',
+        'sign_date_maintenance': e.contract_sign_date_maintenance.isoformat() if e.contract_sign_date_maintenance else '',
+    } for e in pipeline_entries])
     return templates.TemplateResponse(
         'contracts/form.html',
         {
             'request': request,
             'contract': contract,
             'companies': companies,
+            'pipeline_entries': pipeline_entries,
+            'entries_json': entries_json,
             'title': '编辑合同备案',
         },
     )
@@ -166,6 +169,7 @@ def update_contract(
     sign_date: str = Form(''),
     file_path: str = Form(''),
     remark: str = Form(''),
+    pipeline_entry_id: str | None = Form(None),
     db: Session = Depends(get_db),
 ):
     contract = get_contract_or_404(db, contract_id)
@@ -181,6 +185,7 @@ def update_contract(
     contract.sign_date = parse_date(sign_date)
     contract.file_path = file_path
     contract.remark = remark
+    contract.pipeline_entry_id = int(pipeline_entry_id) if pipeline_entry_id else None
 
     try:
         db.commit()

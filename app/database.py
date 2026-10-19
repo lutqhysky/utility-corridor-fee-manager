@@ -54,6 +54,9 @@ def get_expected_sqlite_columns():
             'maintenance_fee_discount': 'FLOAT DEFAULT 1',
             'charge_cycle': "VARCHAR(20) DEFAULT '年度'",
         },
+        'contracts': {
+            'pipeline_entry_id': 'INTEGER',
+        },
         'fee_records': {
             'project_name': 'VARCHAR(200)',
             'last_reminder_sent_at': 'DATETIME',
