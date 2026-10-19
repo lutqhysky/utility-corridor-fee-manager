@@ -93,14 +93,16 @@
 .sub-x{font-size:12px;color:#64748b;text-align:center;line-height:1.5}
 .sub-legend{display:flex;gap:16px;font-size:12px;color:#64748b;margin-top:10px}
 .sub-bar.actual{position:relative;cursor:default}
-.sub-tip{display:none;position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);
-  background:#1e293b;color:#fff;font-size:12px;line-height:1.9;border-radius:8px;padding:10px 14px;
-  white-space:nowrap;z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.25);font-weight:400}
-.sub-tip::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);
-  border:6px solid transparent;border-top-color:#1e293b}
+.sub-tip{display:none;position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%);
+  background:#fff;color:#1e293b;font-size:12px;line-height:1.9;border-radius:10px;padding:10px 14px;
+  white-space:nowrap;z-index:20;font-weight:400;
+  border:1px solid #e2e8f0;box-shadow:0 10px 28px rgba(15,23,42,.14)}
+.sub-tip::after{content:'';position:absolute;right:100%;top:50%;transform:translateY(-50%);
+  border:6px solid transparent;border-right-color:#fff;filter:drop-shadow(-2px 0 1px rgba(15,23,42,.06))}
 .sub-bar.actual:hover .sub-tip{display:block}
-.sub-tip .tt{font-weight:700;margin-bottom:2px}
-.sub-tip .amt{color:#4ade80;font-weight:700}
+.sub-tip .tt{font-weight:700;margin-bottom:2px;color:#1d4ed8}
+.sub-tip .amt{color:#16a34a;font-weight:700}
+.sub-tip .total-row{border-top:1px solid #f1f5f9;margin-top:4px;padding-top:4px}
 .sub-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px}
 .sub-timeline-scroll{max-height:300px;overflow-y:auto;padding-right:12px}
 .sub-timeline-scroll::-webkit-scrollbar{width:6px}
@@ -139,7 +141,7 @@
             {% for d in period.details_sorted %}
             <div>{{ d.received_date.strftime('%Y-%m-%d') if d.received_date else '未设置' }}　<span class="amt">{{ '%.2f'|format((d.amount or 0)/10000) }}万</span></div>
             {% endfor %}
-            <div style="border-top:1px solid #475569;margin-top:4px;padding-top:4px">合计 <span class="amt">{{ '%.2f'|format((period.actual_received or 0)/10000) }}万</span></div>
+            <div class="total-row">合计 <span class="amt">{{ '%.2f'|format((period.actual_received or 0)/10000) }}万</span></div>
           </div>
         </div>
       </div>
