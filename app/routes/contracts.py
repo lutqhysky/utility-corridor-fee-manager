@@ -84,7 +84,7 @@ def list_contracts(request: Request, db: Session = Depends(get_db), filing: str 
 @router.get('/new', response_class=HTMLResponse)
 def new_contract(request: Request, db: Session = Depends(get_db)):
     companies = db.query(Company).order_by(Company.company_name).all()
-    pipeline_entries = db.query(PipelineEntry).order_by(PipelineEntry.id.desc()).all()
+    pipeline_entries = db.query(PipelineEntry).filter(PipelineEntry.project_name.isnot(None)).filter(PipelineEntry.project_name != '').order_by(PipelineEntry.id.desc()).all()
     entries_json = safe_json_dumps([{
         'id': e.id,
         'company_id': e.company_id,
@@ -135,7 +135,7 @@ def create_contract(
 def edit_contract(contract_id: int, request: Request, db: Session = Depends(get_db)):
     contract = get_contract_or_404(db, contract_id)
     companies = db.query(Company).order_by(Company.company_name).all()
-    pipeline_entries = db.query(PipelineEntry).order_by(PipelineEntry.id.desc()).all()
+    pipeline_entries = db.query(PipelineEntry).filter(PipelineEntry.project_name.isnot(None)).filter(PipelineEntry.project_name != '').order_by(PipelineEntry.id.desc()).all()
     entries_json = safe_json_dumps([{
         'id': e.id,
         'company_id': e.company_id,
