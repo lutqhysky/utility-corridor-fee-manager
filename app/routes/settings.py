@@ -120,6 +120,14 @@ def test_reminders(db: Session = Depends(get_db)):
     return RedirectResponse(url=f'/settings/reminders?notice={quote(notice)}', status_code=303)
 
 
+@router.post('/reminders/test-subsidy')
+def test_subsidy_digest(db: Session = Depends(get_db)):
+    from app.services import reminder_service as rs
+    result = rs.run_subsidy_digest(db=db, force=True)
+    notice = '补助汇总手动推送：' + result
+    return RedirectResponse(url=f'/settings/reminders?notice={quote(notice)}', status_code=303)
+
+
 @router.get('/reminders/logs', response_class=HTMLResponse)
 def reminder_logs(request: Request, db: Session = Depends(get_db)):
     logs = db.query(ReminderLog).order_by(ReminderLog.id.desc()).limit(100).all()

@@ -15,6 +15,10 @@
         <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
             <button type="submit">发送测试推送</button>
         </form>
+        <form method="post" action="/settings/reminders/test-subsidy" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+            <button type="submit">立即推送补助汇总</button>
+        </form>
         <a class="button" href="/settings/reminders/logs">查看发送日志</a>
         <a class="button" href="/fee-records/" style="background:#64748b;">返回收费记录</a>
     </div>
