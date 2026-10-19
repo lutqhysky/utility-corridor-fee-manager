@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title or '综合管廊有偿使用费管理系统' }}</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/vendor/flatpickr/flatpickr.min.css">
 </head>
 <body>
 <div class="bg-corner" aria-hidden="true"></div>
@@ -104,6 +105,41 @@
         }
         toggleSidebar();
     });
+})();
+</script>
+<script src="/static/vendor/flatpickr/flatpickr.min.js"></script>
+<script src="/static/vendor/flatpickr/zh.js"></script>
+<script>
+// 全局日期选择器：把所有原生 date 输入换成 flatpickr（中文、YYYY-MM-DD）
+(function () {
+    function initDatePickers(root) {
+        if (typeof flatpickr === 'undefined') return;
+        (root || document).querySelectorAll('input[type="date"]').forEach(function (el) {
+            if (el._flatpickr) return;
+            el.type = 'text';
+            el.placeholder = el.placeholder || '年-月-日';
+            el.autocomplete = 'off';
+            flatpickr(el, {
+                locale: 'zh',
+                dateFormat: 'Y-m-d',
+                allowInput: true,
+                disableMobile: true
+            });
+        });
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () { initDatePickers(); });
+    } else {
+        initDatePickers();
+    }
+    // 兼容后续动态插入的日期框
+    new MutationObserver(function (muts) {
+        muts.forEach(function (m) {
+            m.addedNodes.forEach(function (n) {
+                if (n.nodeType === 1) initDatePickers(n);
+            });
+        });
+    }).observe(document.body, { childList: true, subtree: true });
 })();
 </script>
 </body>
