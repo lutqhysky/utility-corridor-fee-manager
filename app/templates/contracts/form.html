@@ -3,14 +3,7 @@
 <section class="panel form-panel">
     <form method="post" action="{% if contract %}/contracts/{{ contract.id }}/edit{% else %}/contracts/new{% endif %}" class="form-grid">
         <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
-        <label class="full">关联入廊项目（选择后自动带出单位、合同名称、签订时间）
-            <select name="pipeline_entry_id" id="pipeline_entry_id">
-                <option value="">— 不关联，手动填写 —</option>
-                {% for e in pipeline_entries %}
-                <option value="{{ e.id }}" {% if contract and contract.pipeline_entry_id == e.id %}selected{% endif %}>{{ e.project_name or ('项目#' ~ e.id) }}（{{ e.company.short_name or e.company.company_name if e.company else '' }}）</option>
-                {% endfor %}
-            </select>
-        </label>
+        <input type="hidden" name="pipeline_entry_id" id="pipeline_entry_id" value="{{ contract.pipeline_entry_id if contract and contract.pipeline_entry_id else '' }}">
         <label>所属单位
             <select name="company_id" id="company_id" required>
                 {% for company in companies %}
@@ -28,11 +21,30 @@
                 {% endif %}
             </select>
         </label>
-        <label>合同名称<input name="contract_name" id="contract_name" value="{{ contract.contract_name if contract else '' }}" required></label>
+        <label>合同名称
+            <select name="contract_name" id="contract_name" required>
+                <option value="">请选择项目</option>
+                {% for e in pipeline_entries %}
+                <option value="{{ e.project_name }}" data-entry-id="{{ e.id }}" {% if contract and contract.contract_name == e.project_name %}selected{% endif %}>{{ e.project_name }}（{{ e.company.short_name or e.company.company_name if e.company else '' }}）</option>
+                {% endfor %}
+                {% if contract and contract.contract_name and contract.contract_name not in project_names %}
+                <option value="{{ contract.contract_name }}" selected>{{ contract.contract_name }}</option>
+                {% endif %}
+            </select>
+        </label>
         <label>签订时间<input name="sign_date" id="sign_date" type="date" value="{{ contract.sign_date if contract and contract.sign_date else '' }}"></label>
         <label>备案部门<input name="filing_department" value="{{ contract.filing_department if contract else '' }}"></label>
-        <label>备案状态<input name="filing_status" value="{{ contract.filing_status if contract else '' }}"></label>
-        <label class="full">说明<input name="file_path" value="{{ contract.file_path if contract else '' }}"></label>
+        <label>备案状态
+            <select name="filing_status" id="filing_status">
+                <option value="">请选择</option>
+                <option value="未备案" {% if contract and contract.filing_status == '未备案' %}selected{% endif %}>未备案</option>
+                <option value="已备案" {% if contract and contract.filing_status == '已备案' %}selected{% endif %}>已备案</option>
+                <option value="未签订" {% if contract and contract.filing_status == '未签订' %}selected{% endif %}>未签订</option>
+                {% if contract and contract.filing_status and contract.filing_status not in ['未备案', '已备案', '未签订'] %}
+                <option value="{{ contract.filing_status }}" selected>{{ contract.filing_status }}</option>
+                {% endif %}
+            </select>
+        </label>
         <label class="full">备注<textarea name="remark" rows="4">{{ contract.remark if contract else '' }}</textarea></label>
         <div class="full">
             <button type="submit">保存</button>
@@ -43,10 +55,10 @@
 <script>
 (function () {
     var ENTRIES = {{ entries_json | safe }};
-    var entrySel = document.getElementById('pipeline_entry_id');
+    var entryIdInput = document.getElementById('pipeline_entry_id');
     var companySel = document.getElementById('company_id');
     var typeSel = document.getElementById('contract_type');
-    var nameInput = document.getElementById('contract_name');
+    var nameSel = document.getElementById('contract_name');
     var dateInput = document.getElementById('sign_date');
 
     function findEntry(id) {
@@ -55,17 +67,7 @@
         }
         return null;
     }
-    function fillSignDate(entry) {
-        if (!entry) return;
-        var t = typeSel.value || '';
-        if (t.indexOf('入廊') !== -1 && entry.sign_date_entry) {
-            dateInput.value = entry.sign_date_entry;
-        } else if ((t.indexOf('运维') !== -1 || t.indexOf('维护') !== -1) && entry.sign_date_maintenance) {
-            dateInput.value = entry.sign_date_maintenance;
-        }
-    }
-    entrySel.addEventListener('change', function () {
-        var entry = findEntry(entrySel.value);
+    function fillFromEntry(entry) {
         if (!entry) return;
         for (var i = 0; i < companySel.options.length; i++) {
             if (companySel.options[i].value === String(entry.company_id)) {
@@ -73,11 +75,21 @@
                 break;
             }
         }
-        if (entry.project_name) nameInput.value = entry.project_name;
-        fillSignDate(entry);
+        var t = typeSel.value || '';
+        if (t.indexOf('入廊') !== -1 && entry.sign_date_entry) {
+            dateInput.value = entry.sign_date_entry;
+        } else if ((t.indexOf('运维') !== -1 || t.indexOf('维护') !== -1) && entry.sign_date_maintenance) {
+            dateInput.value = entry.sign_date_maintenance;
+        }
+    }
+    nameSel.addEventListener('change', function () {
+        var opt = nameSel.options[nameSel.selectedIndex];
+        var eid = opt ? opt.getAttribute('data-entry-id') : '';
+        entryIdInput.value = eid || '';
+        fillFromEntry(findEntry(eid));
     });
     typeSel.addEventListener('change', function () {
-        fillSignDate(findEntry(entrySel.value));
+        fillFromEntry(findEntry(entryIdInput.value));
     });
 })();
 </script>

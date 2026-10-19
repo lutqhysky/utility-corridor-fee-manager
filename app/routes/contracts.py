@@ -93,7 +93,8 @@ def new_contract(request: Request, db: Session = Depends(get_db)):
         'sign_date_entry': e.contract_sign_date_entry.isoformat() if e.contract_sign_date_entry else '',
         'sign_date_maintenance': e.contract_sign_date_maintenance.isoformat() if e.contract_sign_date_maintenance else '',
     } for e in pipeline_entries])
-    return templates.TemplateResponse('contracts/form.html', {'request': request, 'companies': companies, 'pipeline_entries': pipeline_entries, 'entries_json': entries_json, 'title': '新增合同备案'})
+    project_names = [e.project_name for e in pipeline_entries if e.project_name]
+    return templates.TemplateResponse('contracts/form.html', {'request': request, 'companies': companies, 'pipeline_entries': pipeline_entries, 'entries_json': entries_json, 'project_names': project_names, 'title': '新增合同备案'})
 
 
 @router.post('/new')
@@ -104,7 +105,6 @@ def create_contract(
     filing_department: str = Form(''),
     filing_status: str = Form(''),
     sign_date: str = Form(''),
-    file_path: str = Form(''),
     remark: str = Form(''),
     pipeline_entry_id: str | None = Form(None),
     db: Session = Depends(get_db),
@@ -120,7 +120,6 @@ def create_contract(
         filing_department=filing_department,
         filing_status=filing_status,
         sign_date=parse_date(sign_date),
-        file_path=file_path,
         remark=remark,
         pipeline_entry_id=int(pipeline_entry_id) if pipeline_entry_id else None,
     ))
@@ -145,6 +144,7 @@ def edit_contract(contract_id: int, request: Request, db: Session = Depends(get_
         'sign_date_entry': e.contract_sign_date_entry.isoformat() if e.contract_sign_date_entry else '',
         'sign_date_maintenance': e.contract_sign_date_maintenance.isoformat() if e.contract_sign_date_maintenance else '',
     } for e in pipeline_entries])
+    project_names = [e.project_name for e in pipeline_entries if e.project_name]
     return templates.TemplateResponse(
         'contracts/form.html',
         {
@@ -153,6 +153,7 @@ def edit_contract(contract_id: int, request: Request, db: Session = Depends(get_
             'companies': companies,
             'pipeline_entries': pipeline_entries,
             'entries_json': entries_json,
+            'project_names': project_names,
             'title': '编辑合同备案',
         },
     )
@@ -167,7 +168,6 @@ def update_contract(
     filing_department: str = Form(''),
     filing_status: str = Form(''),
     sign_date: str = Form(''),
-    file_path: str = Form(''),
     remark: str = Form(''),
     pipeline_entry_id: str | None = Form(None),
     db: Session = Depends(get_db),
@@ -183,7 +183,6 @@ def update_contract(
     contract.filing_department = filing_department
     contract.filing_status = filing_status
     contract.sign_date = parse_date(sign_date)
-    contract.file_path = file_path
     contract.remark = remark
     contract.pipeline_entry_id = int(pipeline_entry_id) if pipeline_entry_id else None
 
