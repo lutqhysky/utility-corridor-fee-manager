@@ -188,6 +188,7 @@ th { background: #f8fafc; color: #334155; }
 .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; background: #dbeafe; color: #1d4ed8; font-size: 12px; }
 .badge.badge-pending { background: #fee2e2; color: #dc2626; }
 .badge.badge-unfiled { background: #fef3c7; color: #b45309; }
+.badge.badge-filing { background: #ede9fe; color: #6d28d9; }
 .badge.badge-empty { background: #f1f5f9; color: #64748b; }
 
 .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }

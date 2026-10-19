@@ -59,6 +59,7 @@ def list_contracts(request: Request, db: Session = Depends(get_db), filing: str 
     filed_count = db.query(func.count(Contract.id)).filter(Contract.filing_status == '已备案').scalar() or 0
     unsigned_count = db.query(func.count(Contract.id)).filter(Contract.filing_status == '未签订').scalar() or 0
     unfiled_count = db.query(func.count(Contract.id)).filter(Contract.filing_status == '未备案').scalar() or 0
+    filing_count = db.query(func.count(Contract.id)).filter(Contract.filing_status == '正在备案').scalar() or 0
     pending_count = total_count - filed_count
 
     return templates.TemplateResponse(
@@ -75,6 +76,7 @@ def list_contracts(request: Request, db: Session = Depends(get_db), filing: str 
             'filed_count': filed_count,
             'unsigned_count': unsigned_count,
             'unfiled_count': unfiled_count,
+            'filing_count': filing_count,
             'pending_count': pending_count,
             'title': '合同备案',
         },

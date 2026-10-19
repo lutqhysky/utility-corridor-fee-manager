@@ -37,7 +37,8 @@
                 <option value="未备案" {% if contract and contract.filing_status == '未备案' %}selected{% endif %}>未备案</option>
                 <option value="已备案" {% if contract and contract.filing_status == '已备案' %}selected{% endif %}>已备案</option>
                 <option value="未签订" {% if contract and contract.filing_status == '未签订' %}selected{% endif %}>未签订</option>
-                {% if contract and contract.filing_status and contract.filing_status not in ['未备案', '已备案', '未签订'] %}
+                <option value="正在备案" {% if contract and contract.filing_status == '正在备案' %}selected{% endif %}>正在备案</option>
+                {% if contract and contract.filing_status and contract.filing_status not in ['未备案', '已备案', '未签订', '正在备案'] %}
                 <option value="{{ contract.filing_status }}" selected>{{ contract.filing_status }}</option>
                 {% endif %}
             </select>

@@ -20,6 +20,7 @@
             <option value="已备案" {% if selected_filing == '已备案' %}selected{% endif %}>已备案</option>
             <option value="未备案" {% if selected_filing == '未备案' %}selected{% endif %}>未备案</option>
             <option value="未签订" {% if selected_filing == '未签订' %}selected{% endif %}>未签订</option>
+            <option value="正在备案" {% if selected_filing == '正在备案' %}selected{% endif %}>正在备案</option>
         </select>
         <button type="submit">筛选</button>
     </form>
@@ -29,7 +30,7 @@
 {% if pending_count %}
 <section class="panel" style="border-left:4px solid #dc2626;">
     <strong style="color:#dc2626;">
-        合同备案待办 {{ pending_count }} 份：未签订 {{ unsigned_count }} 份、未备案 {{ unfiled_count }} 份，已备案 {{ filed_count }} / {{ total_count }} 份。
+        合同备案待办 {{ pending_count }} 份：未签订 {{ unsigned_count }} 份、未备案 {{ unfiled_count }} 份、正在备案 {{ filing_count }} 份，已备案 {{ filed_count }} / {{ total_count }} 份。
     </strong>
 </section>
 {% endif %}
@@ -52,6 +53,8 @@
                     <span class="badge badge-unfiled">{{ contract.filing_status }}</span>
                     {% elif contract.filing_status == '未签订' %}
                     <span class="badge badge-pending">{{ contract.filing_status }}</span>
+                    {% elif contract.filing_status == '正在备案' %}
+                    <span class="badge badge-filing">{{ contract.filing_status }}</span>
                     {% elif contract.filing_status %}
                     <span class="badge badge-pending">{{ contract.filing_status }}</span>
                     {% else %}
