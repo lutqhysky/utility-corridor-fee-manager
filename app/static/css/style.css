@@ -413,6 +413,11 @@ code {
 .content { position: relative; z-index: 1; }
 
 /* flatpickr 日期选择器主题微调（配系统蓝） */
+.tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;margin-bottom:2px}
+.tag-build{background:#dbeafe;color:#1d4ed8}
+.tag-ops{background:#fef3c7;color:#b45309}
+.sub{font-size:12px;color:#64748b}
+.form-grid .sect-label{font-weight:700;color:#1d4ed8;background:#eff6ff;border-radius:8px;padding:8px 14px;margin-top:4px;font-size:14px}
 .flatpickr-calendar { border-radius: 12px; box-shadow: 0 12px 32px rgba(15,23,42,.16); border: 1px solid #e2e8f0; }
 .flatpickr-day.selected, .flatpickr-day.selected:hover { background: #2563eb; border-color: #2563eb; }
 .flatpickr-day.today { border-color: #93c5fd; }

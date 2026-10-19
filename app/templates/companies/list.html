@@ -9,7 +9,7 @@
 </div>
 <section class="panel">
     <table>
-        <thead><tr><th><a href="/companies/?keyword={{ keyword }}&sort={% if sort_order == 'id_asc' %}id_desc{% else %}id_asc{% endif %}" title="点击切换排序" style="color:inherit; text-decoration:none; white-space:nowrap;">ID {% if sort_order == 'id_asc' %}↑{% else %}↓{% endif %}</a></th><th>单位全称</th><th>简称</th><th>类型</th><th>收缴金额</th><th>联系人</th><th>联系电话</th><th>操作</th></tr></thead>
+        <thead><tr><th><a href="/companies/?keyword={{ keyword }}&sort={% if sort_order == 'id_asc' %}id_desc{% else %}id_asc{% endif %}" title="点击切换排序" style="color:inherit; text-decoration:none; white-space:nowrap;">ID {% if sort_order == 'id_asc' %}↑{% else %}↓{% endif %}</a></th><th>单位全称</th><th>简称</th><th>类型</th><th>收缴金额</th><th>前期建设</th><th>后期运维</th><th>操作</th></tr></thead>
         <tbody>
         {% for company in companies %}
             <tr>
@@ -18,8 +18,8 @@
                 <td>{{ company.short_name or '' }}</td>
                 <td>{{ company.company_type or '' }}</td>
                 <td>¥{{ '%.2f'|format(company.total_received_amount or 0) }}</td>
-                <td>{{ company.contact_person or '' }}</td>
-                <td>{{ company.contact_phone or '' }}</td>
+                <td><span class="tag tag-build">前期建设</span><br>{{ company.construction_contact_person or '—' }}<br><span class="sub">{{ company.construction_contact_phone or '' }}</span></td>
+                <td><span class="tag tag-ops">后期运维</span><br>{{ company.maintenance_contact_person or '—' }}<br><span class="sub">{{ company.maintenance_contact_phone or '' }}</span></td>
                 <td>
                     <a href="/companies/{{ company.id }}">查看详情</a>
                     <a href="/companies/{{ company.id }}/edit">编辑</a>

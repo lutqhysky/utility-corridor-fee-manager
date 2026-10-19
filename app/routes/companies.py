@@ -59,8 +59,10 @@ def create_company(
     company_name: str = Form(...),
     short_name: str = Form(''),
     company_type: str = Form(''),
-    contact_person: str = Form(''),
-    contact_phone: str = Form(''),
+    construction_contact_person: str = Form(''),
+    construction_contact_phone: str = Form(''),
+    maintenance_contact_person: str = Form(''),
+    maintenance_contact_phone: str = Form(''),
     remark: str = Form(''),
     db: Session = Depends(get_db),
 ):
@@ -68,7 +70,12 @@ def create_company(
     if existing_company:
         raise HTTPException(status_code=422, detail='单位名称已存在，请勿重复创建')
 
-    db.add(Company(company_name=company_name, short_name=short_name, company_type=company_type, contact_person=contact_person, contact_phone=contact_phone, remark=remark))
+    db.add(Company(company_name=company_name, short_name=short_name, company_type=company_type,
+                   construction_contact_person=construction_contact_person,
+                   construction_contact_phone=construction_contact_phone,
+                   maintenance_contact_person=maintenance_contact_person,
+                   maintenance_contact_phone=maintenance_contact_phone,
+                   remark=remark))
     try:
         db.commit()
     except IntegrityError as exc:
@@ -89,8 +96,10 @@ def update_company(
     company_name: str = Form(...),
     short_name: str = Form(''),
     company_type: str = Form(''),
-    contact_person: str = Form(''),
-    contact_phone: str = Form(''),
+    construction_contact_person: str = Form(''),
+    construction_contact_phone: str = Form(''),
+    maintenance_contact_person: str = Form(''),
+    maintenance_contact_phone: str = Form(''),
     remark: str = Form(''),
     db: Session = Depends(get_db),
 ):
@@ -107,8 +116,10 @@ def update_company(
     company.company_name = company_name
     company.short_name = short_name
     company.company_type = company_type
-    company.contact_person = contact_person
-    company.contact_phone = contact_phone
+    company.construction_contact_person = construction_contact_person
+    company.construction_contact_phone = construction_contact_phone
+    company.maintenance_contact_person = maintenance_contact_person
+    company.maintenance_contact_phone = maintenance_contact_phone
     company.remark = remark
 
     try:

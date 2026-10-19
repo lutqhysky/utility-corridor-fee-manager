@@ -6,8 +6,12 @@
         <label>单位全称<input name="company_name" value="{{ company.company_name if company else '' }}" required></label>
         <label>单位简称<input name="short_name" value="{{ company.short_name if company else '' }}"></label>
         <label>单位类型<input name="company_type" value="{{ company.company_type if company else '' }}"></label>
-        <label>联系人<input name="contact_person" value="{{ company.contact_person if company else '' }}"></label>
-        <label>联系电话<input name="contact_phone" value="{{ company.contact_phone if company else '' }}"></label>
+        <div class="full sect-label">前期建设</div>
+        <label>联系人<input name="construction_contact_person" value="{{ company.construction_contact_person if company else '' }}"></label>
+        <label>联系方式<input name="construction_contact_phone" value="{{ company.construction_contact_phone if company else '' }}"></label>
+        <div class="full sect-label">后期运维</div>
+        <label>联系人<input name="maintenance_contact_person" value="{{ company.maintenance_contact_person if company else '' }}"></label>
+        <label>联系方式<input name="maintenance_contact_phone" value="{{ company.maintenance_contact_phone if company else '' }}"></label>
         <label class="full">备注<textarea name="remark" rows="4">{{ company.remark if company else '' }}</textarea></label>
         <div class="full">
             <button type="submit">保存</button>

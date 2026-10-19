@@ -2,7 +2,7 @@
 {% block content %}
 <section class="panel">
     <h3>{{ company.company_name }}</h3>
-    <p>简称：{{ company.short_name or '—' }}｜类型：{{ company.company_type or '—' }}｜联系人：{{ company.contact_person or '—' }}｜电话：{{ company.contact_phone or '—' }}</p>
+    <p>简称：{{ company.short_name or '—' }}｜类型：{{ company.company_type or '—' }}｜前期建设：{{ company.construction_contact_person or '—' }} {{ company.construction_contact_phone or '' }}｜后期运维：{{ company.maintenance_contact_person or '—' }} {{ company.maintenance_contact_phone or '' }}</p>
     <p>备注：{{ company.remark or '—' }}</p>
     <div class="toolbar">
         <a class="button" href="/companies/{{ company.id }}/edit">编辑单位</a>

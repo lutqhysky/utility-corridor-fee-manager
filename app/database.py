@@ -57,6 +57,12 @@ def get_expected_sqlite_columns():
         'contracts': {
             'pipeline_entry_id': 'INTEGER',
         },
+        'companies': {
+            'construction_contact_person': 'VARCHAR(100)',
+            'construction_contact_phone': 'VARCHAR(100)',
+            'maintenance_contact_person': 'VARCHAR(100)',
+            'maintenance_contact_phone': 'VARCHAR(100)',
+        },
         'fee_records': {
             'project_name': 'VARCHAR(200)',
             'last_reminder_sent_at': 'DATETIME',
@@ -93,6 +99,35 @@ def ensure_sqlite_schema():
             )
         except Exception:
             logger.exception('创建 fee_standards 唯一索引失败')
+        for table_name, columns in get_expected_sqlite_columns().items():
+            existing_columns = {
+                row[1]
+                for row in connection.execute(f'PRAGMA table_info({table_name})')
+            }
+            for column_name, definition in columns.items():
+                if column_name in existing_columns:
+                    continue
+                connection.execute(
+                    f'ALTER TABLE {table_name} ADD COLUMN {column_name} {definition}'
+                )
+        # 单位联系人迁移：老"联系人/联系电话"搬到前期建设名下
+        try:
+            cols = {r[1] for r in connection.execute('PRAGMA table_info(companies)')}
+            if 'construction_contact_person' in cols:
+                n = connection.execute(
+                    "UPDATE companies SET construction_contact_person = contact_person "
+                    "WHERE (construction_contact_person IS NULL OR construction_contact_person = '') "
+                    "AND contact_person IS NOT NULL AND contact_person != ''"
+                ).rowcount
+                m = connection.execute(
+                    "UPDATE companies SET construction_contact_phone = contact_phone "
+                    "WHERE (construction_contact_phone IS NULL OR construction_contact_phone = '') "
+                    "AND contact_phone IS NOT NULL AND contact_phone != ''"
+                ).rowcount
+                if n or m:
+                    logger.warning('单位联系人迁移：%d 条联系人、%d 条电话已归到前期建设', n, m)
+        except Exception:
+            logger.exception('单位联系人迁移失败')
         # 合同名称清洗：老格式"入廊【X】/运维【X】"改为纯项目名称 X（X 须在入廊清单存在）
         try:
             project_names = {
@@ -113,17 +148,6 @@ def ensure_sqlite_schema():
                 logger.warning('合同名称清洗：%d 条"入廊【X】/运维【X】"已改为项目名称', fixed)
         except Exception:
             logger.exception('合同名称清洗失败')
-        for table_name, columns in get_expected_sqlite_columns().items():
-            existing_columns = {
-                row[1]
-                for row in connection.execute(f'PRAGMA table_info({table_name})')
-            }
-            for column_name, definition in columns.items():
-                if column_name in existing_columns:
-                    continue
-                connection.execute(
-                    f'ALTER TABLE {table_name} ADD COLUMN {column_name} {definition}'
-                )
         connection.commit()
 
 
