@@ -179,8 +179,6 @@ def get_reminder_settings(db: Session = None):
         targets: list = []
         seen: set = set()
 
-        _append_target_if_valid(targets, seen, 'dingtalk',
-                                _cfg(session, 'reminder.dingtalk.webhook', 'FEE_REMINDER_DINGTALK_WEBHOOK', ''))
         _append_target_if_valid(targets, seen, 'wecom',
                                 _cfg(session, 'reminder.wecom.webhook', 'FEE_REMINDER_WECOM_WEBHOOK', ''))
         # 兼容旧版单通道配置
