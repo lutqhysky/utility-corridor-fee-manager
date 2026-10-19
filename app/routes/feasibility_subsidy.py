@@ -87,6 +87,10 @@ def list_periods(request: Request, db: Session = Depends(get_db)):
         period.cumulative_received = running_received
         period.arrears = (period.current_receivable or 0) - actual_received
         period.cumulative_arrears = running_receivable - running_received
+        # 明细按收款日期排序（空日期排最后），供柱状图 tooltip 用
+        period.details_sorted = sorted(
+            period.details,
+            key=lambda d: (d.received_date is None, d.received_date, d.id))
 
     totals = {
         'receivable': sum(p.current_receivable or 0 for p in periods),
