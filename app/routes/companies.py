@@ -28,7 +28,7 @@ def list_companies(request: Request, db: Session = Depends(get_db), keyword: str
     query = db.query(Company)
     if keyword:
         query = query.filter(Company.company_name.contains(keyword) | Company.short_name.contains(keyword))
-    sort_order = sort if sort in ('id_asc', 'id_desc') else 'id_desc'
+    sort_order = sort if sort in ('id_asc', 'id_desc') else 'id_asc'
     if sort_order == 'id_asc':
         companies = query.order_by(Company.id.asc()).all()
     else:
