@@ -91,11 +91,18 @@ def get_fee_standards_json(db: Session) -> str:
 
 
 @router.get('/', response_class=HTMLResponse)
-def list_entries(request: Request, db: Session = Depends(get_db), company_id: int | None = None,
+def list_entries(request: Request, db: Session = Depends(get_db), company_id: str | None = None,
                  project_name: str | None = None, cabin_type: str | None = None):
     query = db.query(PipelineEntry)
+    # company_id 空字符串时忽略（避免 FastAPI int('') 报 422）
+    selected_company_id = None
     if company_id:
-        query = query.filter(PipelineEntry.company_id == company_id)
+        try:
+            selected_company_id = int(company_id)
+        except (ValueError, TypeError):
+            selected_company_id = None
+    if selected_company_id:
+        query = query.filter(PipelineEntry.company_id == selected_company_id)
     if project_name:
         query = query.filter(PipelineEntry.project_name == project_name)
     if cabin_type:
@@ -146,7 +153,7 @@ def list_entries(request: Request, db: Session = Depends(get_db), company_id: in
             'request': request,
             'entries': entries,
             'companies': companies,
-            'selected_company_id': company_id,
+            'selected_company_id': selected_company_id,
             'project_names': project_names,
             'selected_project_name': project_name or '',
             'cabin_types': cabin_types,
