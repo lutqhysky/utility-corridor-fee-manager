@@ -5,7 +5,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import Company, Contract
+from app.models import Company, Contract, PipelineEntry
 from app.paths import TEMPLATES_DIR
 from sqlalchemy import func
 
@@ -46,6 +46,27 @@ def list_contracts(request: Request, db: Session = Depends(get_db), filing: str 
     if contract_type:
         query = query.filter(Contract.contract_type == contract_type)
     contracts = query.order_by(Contract.id.desc()).all()
+
+    # 签订时间：按合同类型取同公司入廊记录的合同签订时间（多条取入廊时间最晚）
+    for c in contracts:
+        c.sign_date_from_entry = None
+        entry = (
+            db.query(PipelineEntry)
+            .filter(PipelineEntry.company_id == c.company_id)
+            .order_by(PipelineEntry.entry_date.isnot(None).desc(),
+                      PipelineEntry.entry_date.desc(),
+                      PipelineEntry.id.desc())
+            .first()
+        )
+        if entry:
+            ctype = (c.contract_type or '')
+            if '入廊' in ctype:
+                c.sign_date_from_entry = entry.contract_sign_date_entry
+            elif '运维' in ctype or '维护' in ctype:
+                c.sign_date_from_entry = entry.contract_sign_date_maintenance
+        # 兜底：取不到时用合同自带的签订时间
+        if c.sign_date_from_entry is None:
+            c.sign_date_from_entry = c.sign_date
 
     companies = db.query(Company).order_by(Company.company_name).all()
     contract_types = [r[0] for r in db.query(Contract.contract_type)
