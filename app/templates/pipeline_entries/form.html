@@ -29,16 +29,10 @@
                     <td><input type="text" name="pipeline_type" value="{{ entry.pipeline_type if entry else '' }}"></td>
                 </tr>
                 <tr>
-                    <th>规格型号</th>
-                    <td><input type="text" name="specification" value="{{ entry.specification if entry else '' }}"></td>
-                    <th>长度</th>
-                    <td><input type="number" step="0.01" name="actual_length" value="{{ entry.actual_length if entry else 0 }}"></td>
-                </tr>
-                <tr>
-                    <th>数量/孔位</th>
-                    <td><input type="number" step="0.01" name="quantity_or_hole_count" value="{{ entry.quantity_or_hole_count if entry else 0 }}"></td>
                     <th>入廊时间 *</th>
                     <td><input type="date" name="entry_date" required value="{{ entry.entry_date if entry and entry.entry_date else '' }}"></td>
+                    <td></td>
+                    <td></td>
                 </tr>
                 <tr>
                     <th>入廊合同签订时间</th>

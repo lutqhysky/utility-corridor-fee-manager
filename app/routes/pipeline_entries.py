@@ -151,9 +151,7 @@ def create_entry(
     cabin_type: str = Form(''),
     project_name: str = Form(''),
     pipeline_type: str = Form(''),
-    specification: str = Form(''),
-    actual_length: str | None = Form(None),
-    quantity_or_hole_count: str | None = Form(None),
+
     entry_date: str = Form(''),
     contract_sign_date_entry: str = Form(''),
     contract_sign_date_maintenance: str = Form(''),
@@ -173,8 +171,6 @@ def create_entry(
     if not entry_date or not entry_date.strip():
         raise HTTPException(status_code=422, detail='入廊时间不能为空，请填写')
 
-    actual_length = parse_float_or(actual_length, 0.0)
-    quantity_or_hole_count = parse_float_or(quantity_or_hole_count, 0.0)
     entry_fee_tax_rate = parse_float_or(entry_fee_tax_rate, 0.0)
     maintenance_fee_tax_rate = parse_float_or(maintenance_fee_tax_rate, 0.0)
     entry_fee_discount = parse_float_or(entry_fee_discount, 1.0)
@@ -187,9 +183,7 @@ def create_entry(
         cabin_type=cabin_type,
         project_name=project_name,
         pipeline_type=pipeline_type,
-        specification=specification,
-        actual_length=actual_length,
-        quantity_or_hole_count=quantity_or_hole_count,
+
         entry_date=parse_date(entry_date),
         contract_sign_date_entry=parse_date(contract_sign_date_entry),
         contract_sign_date_maintenance=parse_date(contract_sign_date_maintenance),
@@ -279,9 +273,7 @@ def update_entry(
     cabin_type: str = Form(''),
     project_name: str = Form(''),
     pipeline_type: str = Form(''),
-    specification: str = Form(''),
-    actual_length: str | None = Form(None),
-    quantity_or_hole_count: str | None = Form(None),
+
     entry_date: str = Form(''),
     contract_sign_date_entry: str = Form(''),
     contract_sign_date_maintenance: str = Form(''),
@@ -305,8 +297,6 @@ def update_entry(
     if not entry_date or not entry_date.strip():
         raise HTTPException(status_code=422, detail='入廊时间不能为空，请填写')
 
-    actual_length = parse_float_or(actual_length, 0.0)
-    quantity_or_hole_count = parse_float_or(quantity_or_hole_count, 0.0)
     entry_fee_tax_rate = parse_float_or(entry_fee_tax_rate, 0.0)
     maintenance_fee_tax_rate = parse_float_or(maintenance_fee_tax_rate, 0.0)
     entry_fee_discount = parse_float_or(entry_fee_discount, 1.0)
@@ -318,9 +308,7 @@ def update_entry(
     entry.cabin_type = cabin_type
     entry.project_name = project_name
     entry.pipeline_type = pipeline_type
-    entry.specification = specification
-    entry.actual_length = actual_length
-    entry.quantity_or_hole_count = quantity_or_hole_count
+
     entry.entry_date = parse_date(entry_date)
     entry.contract_sign_date_entry = parse_date(contract_sign_date_entry)
     entry.contract_sign_date_maintenance = parse_date(contract_sign_date_maintenance)
