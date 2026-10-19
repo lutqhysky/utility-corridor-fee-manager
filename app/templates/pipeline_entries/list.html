@@ -26,7 +26,8 @@
                 <th>管线类型</th>
                 <th>入廊时间</th>
                 <th>入廊费</th>
-                <th>运维费用</th>
+                <th>运维费用（年度）</th>
+                <th>运维费用（季度）</th>
                 <th>收费周期</th>
                 <th>操作</th>
             </tr>
@@ -50,7 +51,8 @@
                     ¥{{ '%.2f'|format(entry.actual_entry_fee or 0) }}
                     {% if entry.zero_fee_warning %}<span class="badge badge-pending" title="入廊费为 0，请核实收费明细、税率、折扣是否填写正确">为0待核实</span>{% endif %}
                 </td>
-                <td>¥{{ '%.2f'|format(entry.actual_maintenance_fee or 0) }}</td>
+                <td>{% if entry.maintenance_fee_annual is not none %}¥{{ '%.2f'|format(entry.maintenance_fee_annual) }}{% else %}—{% endif %}</td>
+                <td>{% if entry.maintenance_fee_quarterly is not none %}¥{{ '%.2f'|format(entry.maintenance_fee_quarterly) }}{% else %}—{% endif %}</td>
                 <td>{{ entry.charge_cycle or '' }}</td>
                 <td>
                     <a href="/pipeline-entries/{{ entry.id }}/print/entry" target="_blank">打印入廊费</a>

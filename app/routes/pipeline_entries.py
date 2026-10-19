@@ -117,6 +117,13 @@ def list_entries(request: Request, db: Session = Depends(get_db), company_id: in
         maintenance_fee_tax_amount = q2(Decimal(str(maintenance_fee_excl_tax_total)) * Decimal(str(maintenance_fee_tax_rate)))
         maintenance_fee_incl_tax_total = q2(Decimal(str(maintenance_fee_excl_tax_total)) + Decimal(str(maintenance_fee_tax_amount)))
         entry.actual_maintenance_fee = q2(Decimal(str(maintenance_fee_incl_tax_total)) * Decimal(str(maintenance_fee_discount)))
+        # 按收费周期拆分：年度周期填年度列，季度周期填季度列
+        if (entry.charge_cycle or '年度') == '季度':
+            entry.maintenance_fee_quarterly = entry.actual_maintenance_fee
+            entry.maintenance_fee_annual = None
+        else:
+            entry.maintenance_fee_annual = entry.actual_maintenance_fee
+            entry.maintenance_fee_quarterly = None
 
     companies = db.query(Company).order_by(Company.company_name).all()
     return templates.TemplateResponse(
