@@ -292,13 +292,13 @@ def send_bark_message(key_or_url: str, title: str, content: str) -> None:
     if key_or_url.startswith('http'):
         if key_or_url.count('/') <= 2:
             raise ValueError('Bark 自建地址需包含设备 key')
-        url = '%s/%s/%s' % (key_or_url, urllib.parse.quote(title),
-                            urllib.parse.quote(content[:500]))
+        url = '%s/%s/%s' % (key_or_url, urllib.parse.quote(title, safe=''),
+                            urllib.parse.quote(content[:500], safe=''))
     else:
         if not key_or_url:
             raise ValueError('Bark key 为空')
         url = 'https://api.day.app/%s/%s/%s' % (
-            key_or_url, urllib.parse.quote(title), urllib.parse.quote(content[:500]))
+            key_or_url, urllib.parse.quote(title, safe=''), urllib.parse.quote(content[:500], safe=''))
     with urllib.request.urlopen(url, timeout=10) as response:
         body = response.read().decode('utf-8') or '{}'
     try:
