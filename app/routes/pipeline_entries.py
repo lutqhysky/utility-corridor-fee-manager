@@ -122,13 +122,12 @@ def list_entries(request: Request, db: Session = Depends(get_db), company_id: in
         maintenance_fee_tax_amount = q2(Decimal(str(maintenance_fee_excl_tax_total)) * Decimal(str(maintenance_fee_tax_rate)))
         maintenance_fee_incl_tax_total = q2(Decimal(str(maintenance_fee_excl_tax_total)) + Decimal(str(maintenance_fee_tax_amount)))
         entry.actual_maintenance_fee = q2(Decimal(str(maintenance_fee_incl_tax_total)) * Decimal(str(maintenance_fee_discount)))
-        # 按收费周期拆分年度/季度：季度->年度为4倍，年度->季度为1/4
+        # 年度列恒为实际运维费；仅季度周期计算季度列（年度/4）
+        entry.maintenance_fee_annual = entry.actual_maintenance_fee
         if (entry.charge_cycle or '年度') == '季度':
-            entry.maintenance_fee_quarterly = entry.actual_maintenance_fee
-            entry.maintenance_fee_annual = q2(Decimal(str(entry.actual_maintenance_fee or 0)) * 4)
-        else:
-            entry.maintenance_fee_annual = entry.actual_maintenance_fee
             entry.maintenance_fee_quarterly = q2(Decimal(str(entry.actual_maintenance_fee or 0)) / 4)
+        else:
+            entry.maintenance_fee_quarterly = None
 
     companies = db.query(Company).order_by(Company.company_name).all()
     project_names = [r[0] for r in db.query(PipelineEntry.project_name)

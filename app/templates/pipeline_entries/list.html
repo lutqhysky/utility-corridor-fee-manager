@@ -64,7 +64,7 @@
                     {% if entry.zero_fee_warning %}<span class="badge badge-pending" title="入廊费为 0，请核实收费明细、税率、折扣是否填写正确">为0待核实</span>{% endif %}
                 </td>
                 <td>¥{{ '%.2f'|format(entry.maintenance_fee_annual or 0) }}</td>
-                <td>¥{{ '%.2f'|format(entry.maintenance_fee_quarterly or 0) }}</td>
+                <td>{% if entry.maintenance_fee_quarterly is not none %}¥{{ '%.2f'|format(entry.maintenance_fee_quarterly) }}{% else %}—{% endif %}</td>
                 <td>{{ entry.charge_cycle or '' }}</td>
                 <td>
                     <a href="/pipeline-entries/{{ entry.id }}/print/entry" target="_blank">打印入廊费</a>
