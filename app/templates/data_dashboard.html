@@ -48,7 +48,13 @@
 .db-arc{animation:db-draw 1.1s cubic-bezier(.22,.8,.36,1) .65s both}
 @keyframes db-draw{from{stroke-dasharray:0 301.6}to{stroke-dasharray:var(--da) 301.6}}
 @keyframes db-spin-in{from{transform:rotate(-40deg) scale(.85);opacity:0}to{transform:rotate(0) scale(1);opacity:1}}
-@media(prefers-reduced-motion:reduce){.db-anim,.db-bar,.db-track>div,.db-donut-in,.db-arc{animation:none;opacity:1;transform:none;width:var(--w,auto)}}
+/* 逾期明细行动画 */
+@keyframes db-row-in{from{opacity:0;transform:translateX(-16px)}to{opacity:1;transform:translateX(0)}}
+.db-orow{opacity:0;animation:db-row-in .45s cubic-bezier(.22,.8,.36,1) forwards}
+.db-orow:hover{background:#fef2f2}
+@keyframes db-pop{0%{transform:scale(.5)}60%{transform:scale(1.18)}100%{transform:scale(1)}}
+.db-obadge{display:inline-block;animation:db-pop .4s ease both}
+@media(prefers-reduced-motion:reduce){.db-anim,.db-bar,.db-track>div,.db-donut-in,.db-arc,.db-orow,.db-obadge{animation:none;opacity:1;transform:none;width:var(--w,auto)}}
 </style>
 
 <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;flex-wrap:wrap;gap:8px">
@@ -148,9 +154,9 @@
     <thead><tr><th>单位-项目</th><th>费用类型</th><th>应收时间</th><th>未收金额</th><th>逾期天数</th></tr></thead>
     <tbody>
     {% for r in data.overdue_list %}
-      <tr><td>{{ r.name }}</td><td>{{ r.fee_type }}</td><td>{{ r.due_date }}</td>
+      <tr class="db-orow" style="animation-delay:{{ 0.9 + loop.index0 * 0.09 }}s"><td>{{ r.name }}</td><td>{{ r.fee_type }}</td><td>{{ r.due_date }}</td>
         <td style="color:#dc2626;font-weight:600">¥{{ '%.2f'|format(r.amount) }}</td>
-        <td><span class="badge" style="background:#fee2e2;color:#dc2626">{{ r.days }}天</span></td></tr>
+        <td><span class="badge db-obadge" style="background:#fee2e2;color:#dc2626;animation-delay:{{ 1.15 + loop.index0 * 0.09 }}s">{{ r.days }}天</span></td></tr>
     {% else %}<tr><td colspan="5" style="color:#94a3b8">暂无逾期</td></tr>{% endfor %}
     </tbody>
   </table>
