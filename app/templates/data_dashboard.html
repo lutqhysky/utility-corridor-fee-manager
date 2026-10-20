@@ -31,6 +31,22 @@
 .db-subsidy .big{font-size:22px;font-weight:700}
 .db-subsidy .yrs{font-size:13px;opacity:.92;margin-top:6px}
 @media(max-width:800px){.db-kpis{grid-template-columns:repeat(2,1fr)}.db-grid2{grid-template-columns:1fr}}
+/* 入场动画 */
+@keyframes db-rise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+.db-anim{opacity:0;animation:db-rise .55s cubic-bezier(.22,.8,.36,1) forwards}
+.db-d1{animation-delay:.05s}.db-d2{animation-delay:.15s}.db-d3{animation-delay:.25s}.db-d4{animation-delay:.35s}
+.db-d5{animation-delay:.45s}.db-d6{animation-delay:.55s}.db-d7{animation-delay:.65s}
+.db-d8{animation-delay:.75s}.db-d9{animation-delay:.85s}
+/* 柱状图生长 */
+.db-bar{transform:scaleY(0);transform-origin:bottom;animation:db-grow .7s cubic-bezier(.22,.8,.36,1) forwards}
+@keyframes db-grow{to{transform:scaleY(1)}}
+/* 横向条宽度展开 */
+.db-track>div{width:0;animation:db-fill 1s cubic-bezier(.22,.8,.36,1) forwards}
+@keyframes db-fill{to{width:var(--w)}}
+/* 圆环旋入 */
+.db-donut-in{animation:db-spin-in 1s cubic-bezier(.22,.8,.36,1)}
+@keyframes db-spin-in{from{transform:rotate(-40deg) scale(.85);opacity:0}to{transform:rotate(0) scale(1);opacity:1}}
+@media(prefers-reduced-motion:reduce){.db-anim,.db-bar,.db-track>div,.db-donut-in{animation:none;opacity:1;transform:none;width:var(--w,auto)}}
 </style>
 
 <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;flex-wrap:wrap;gap:8px">
@@ -39,14 +55,14 @@
 </div>
 
 <div class="db-kpis">
-  <div class="db-kpi"><div class="lbl">累计应收</div><div class="val">¥{{ '%.2f'|format(data.kpi.total_receivable) }}</div><div class="sub">入廊费 + 日常维护费</div></div>
-  <div class="db-kpi ok"><div class="lbl">累计已收</div><div class="val green">¥{{ '%.2f'|format(data.kpi.total_received) }}</div><div class="sub">收缴率 {{ '%.1f'|format(data.kpi.collection_rate) }}%</div></div>
-  <div class="db-kpi info"><div class="lbl">待收总额</div><div class="val">¥{{ '%.2f'|format(data.kpi.total_unreceived) }}</div><div class="sub">应收 − 实收</div></div>
-  <div class="db-kpi warn"><div class="lbl">已逾期</div><div class="val red">¥{{ '%.2f'|format(data.kpi.overdue_amount) }}</div><div class="sub">{{ data.kpi.overdue_count }} 笔 · 最长逾期 {{ data.kpi.max_overdue_days }} 天</div></div>
+  <div class="db-kpi db-anim db-d1"><div class="lbl">累计应收</div><div class="val">¥<span class="db-count" data-to="{{ data.kpi.total_receivable }}">0.00</span></div><div class="sub">入廊费 + 日常维护费</div></div>
+  <div class="db-kpi ok db-anim db-d2"><div class="lbl">累计已收</div><div class="val green">¥<span class="db-count" data-to="{{ data.kpi.total_received }}">0.00</span></div><div class="sub">收缴率 <span class="db-count" data-to="{{ data.kpi.collection_rate }}" data-dec="1">0.0</span>%</div></div>
+  <div class="db-kpi info db-anim db-d3"><div class="lbl">待收总额</div><div class="val">¥<span class="db-count" data-to="{{ data.kpi.total_unreceived }}">0.00</span></div><div class="sub">应收 − 实收</div></div>
+  <div class="db-kpi warn db-anim db-d4"><div class="lbl">已逾期</div><div class="val red">¥<span class="db-count" data-to="{{ data.kpi.overdue_amount }}">0.00</span></div><div class="sub">{{ data.kpi.overdue_count }} 笔 · 最长逾期 {{ data.kpi.max_overdue_days }} 天</div></div>
 </div>
 
 <div class="db-grid2">
-  <div class="db-card" style="margin-bottom:0">
+  <div class="db-card db-anim db-d5" style="margin-bottom:0">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <h2 style="margin:0">收缴趋势（万元）</h2>
       <div class="db-seg">
@@ -60,8 +76,8 @@
       {% for t in data.trend_year %}
       <div class="db-barg">
         <div class="db-pair">
-          <div class="db-bar plan" style="height:{{ (t.planned/ymax*120)|round(1) }}px" title="应收 {{ '%.2f'|format(t.planned/10000) }}万"></div>
-          <div class="db-bar actual" style="height:{{ (t.received/ymax*120)|round(1) }}px" title="实收 {{ '%.2f'|format(t.received/10000) }}万"></div>
+          <div class="db-bar plan" style="height:{{ (t.planned/ymax*120)|round(1) }}px;animation-delay:{{ 0.55 + loop.index0 * 0.12 }}s" title="应收 {{ '%.2f'|format(t.planned/10000) }}万"></div>
+          <div class="db-bar actual" style="height:{{ (t.received/ymax*120)|round(1) }}px;animation-delay:{{ 0.63 + loop.index0 * 0.12 }}s" title="实收 {{ '%.2f'|format(t.received/10000) }}万"></div>
         </div>
         <span class="db-x">{{ t.period }}年</span>
       </div>
@@ -71,8 +87,8 @@
       {% for t in data.trend_quarter %}
       <div class="db-barg">
         <div class="db-pair">
-          <div class="db-bar plan" style="height:{{ (t.planned/qmax*120)|round(1) }}px" title="应收 {{ '%.2f'|format(t.planned/10000) }}万"></div>
-          <div class="db-bar actual" style="height:{{ (t.received/qmax*120)|round(1) }}px" title="实收 {{ '%.2f'|format(t.received/10000) }}万"></div>
+          <div class="db-bar plan" style="height:{{ (t.planned/qmax*120)|round(1) }}px;animation-delay:{{ loop.index0 * 0.08 }}s" title="应收 {{ '%.2f'|format(t.planned/10000) }}万"></div>
+          <div class="db-bar actual" style="height:{{ (t.received/qmax*120)|round(1) }}px;animation-delay:{{ 0.08 + loop.index0 * 0.08 }}s" title="实收 {{ '%.2f'|format(t.received/10000) }}万"></div>
         </div>
         <span class="db-x">{{ t.period }}</span>
       </div>
@@ -81,12 +97,12 @@
     <div class="db-legend"><span><i style="background:#bfdbfe"></i>应收</span><span><i style="background:#3b82f6"></i>实收</span></div>
   </div>
 
-  <div class="db-card" style="margin-bottom:0">
+  <div class="db-card db-anim db-d6" style="margin-bottom:0">
     <h2>费用类型占比（已收）</h2>
     {% set type_total = data.entry_received + data.maint_received %}
     {% set entry_pct = (data.entry_received/type_total*100) if type_total else 0 %}
     <div style="display:flex;align-items:center;gap:16px">
-      <svg width="110" height="110" viewBox="0 0 120 120">
+      <svg class="db-donut-in" width="110" height="110" viewBox="0 0 120 120">
         <circle cx="60" cy="60" r="48" fill="none" stroke="#e2e8f0" stroke-width="20"/>
         {% if type_total %}<circle cx="60" cy="60" r="48" fill="none" stroke="#3b82f6" stroke-width="20"
           stroke-dasharray="{{ (entry_pct/100*301.6)|round(1) }} 301.6" stroke-dashoffset="75.4" transform="rotate(-90 60 60)"/>{% endif %}
@@ -102,28 +118,28 @@
     {% set pmax = (data.pending_rank|map(attribute='amount')|max) if data.pending_rank else 1 %}
     {% for r in data.pending_rank[:8] %}
     <div class="db-hbar"><span class="nm" title="{{ r.name }}">{{ r.name }}</span>
-      <div class="db-track"><div style="width:{{ (r.amount/pmax*100)|round(1) }}%;background:linear-gradient(90deg,#f59e0b,#ef4444)"></div></div>
+      <div class="db-track"><div style="--w:{{ (r.amount/pmax*100)|round(1) }}%;background:linear-gradient(90deg,#f59e0b,#ef4444);animation-delay:{{ 0.7 + loop.index0 * 0.1 }}s"></div></div>
       <span class="amt" style="color:#dc2626">¥{{ '%.2f'|format(r.amount) }}</span></div>
     {% else %}<span style="color:#94a3b8;font-size:13px">暂无待收</span>{% endfor %}
   </div>
 </div>
 
-<div class="db-card">
+<div class="db-card db-anim db-d7">
   <h2>各单位已收管廊有偿使用费情况</h2>
   <div class="db-legend" style="margin:0 0 12px 0"><span><i style="background:#3b82f6"></i>入廊费</span><span><i style="background:#22c55e"></i>日常维护费</span></div>
   {% set cmax = (data.company_received|map(attribute='total')|max) if data.company_received else 1 %}
   {% for c in data.company_received %}
   <div class="db-hbar"><span class="nm" title="{{ c.name }}">{{ c.name }}</span>
     <div class="db-track">
-      <div style="width:{{ (c.entry/cmax*100)|round(1) }}%;background:#3b82f6" title="入廊费 ¥{{ '%.2f'|format(c.entry) }}"></div>
-      <div style="width:{{ (c.maint/cmax*100)|round(1) }}%;background:#22c55e" title="日常维护费 ¥{{ '%.2f'|format(c.maint) }}"></div>
+      <div style="--w:{{ (c.entry/cmax*100)|round(1) }}%;background:#3b82f6;animation-delay:{{ 0.8 + loop.index0 * 0.1 }}s" title="入廊费 ¥{{ '%.2f'|format(c.entry) }}"></div>
+      <div style="--w:{{ (c.maint/cmax*100)|round(1) }}%;background:#22c55e;animation-delay:{{ 0.9 + loop.index0 * 0.1 }}s" title="日常维护费 ¥{{ '%.2f'|format(c.maint) }}"></div>
     </div>
     <span class="amt">¥{{ '%.2f'|format(c.total) }}</span></div>
   {% else %}<span style="color:#94a3b8;font-size:13px">暂无收款</span>{% endfor %}
   <div style="font-size:12px;color:#64748b;margin-top:8px">每条横条为该单位已收总额，蓝色段=入廊费，绿色段=日常维护费</div>
 </div>
 
-<div class="db-card">
+<div class="db-card db-anim db-d8">
   <h2>逾期明细 <span class="badge" style="background:#fee2e2;color:#dc2626">{{ data.overdue_list|length }} 笔待催缴</span></h2>
   <table style="width:100%;border-collapse:collapse;font-size:13px">
     <thead><tr><th>单位-项目</th><th>费用类型</th><th>应收时间</th><th>未收金额</th><th>逾期天数</th></tr></thead>
@@ -137,7 +153,7 @@
   </table>
 </div>
 
-<div class="db-subsidy">
+<div class="db-subsidy db-anim db-d9">
   <h2>可行性缺口补助收款情况</h2>
   <div class="big">{{ '%.2f'|format(data.subsidy.total/10000) }}万 / {{ data.subsidy.count }}笔</div>
   <div class="yrs">{% if data.subsidy.by_year %}其中{% for y in data.subsidy.by_year %}{{ y.year }}年收到{{ '%.2f'|format(y.amount/10000) }}万/{{ y.count }}笔{% if not loop.last %}，{% endif %}{% endfor %}{% else %}暂无收款记录{% endif %}</div>
@@ -147,8 +163,31 @@
 function dbTrend(mode, btn){
   btn.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('db-trend-year').style.display = mode==='year'?'flex':'none';
-  document.getElementById('db-trend-quarter').style.display = mode==='quarter'?'flex':'none';
+  var year = document.getElementById('db-trend-year');
+  var quarter = document.getElementById('db-trend-quarter');
+  year.style.display = mode==='year'?'flex':'none';
+  quarter.style.display = mode==='quarter'?'flex':'none';
+  // 切换时重播柱子生长动画
+  var show = mode==='year'?year:quarter;
+  show.querySelectorAll('.db-bar').forEach(function(bar, i){
+    bar.style.animation = 'none';
+    void bar.offsetWidth;
+    bar.style.animation = '';
+    bar.style.animationDelay = (i*0.06)+'s';
+  });
 }
+// KPI 数字滚动
+document.querySelectorAll('.db-count').forEach(function(el){
+  var to = parseFloat(el.dataset.to)||0, dec = parseInt(el.dataset.dec||'2');
+  var start = null, dur = 1100;
+  function step(ts){
+    if(!start) start = ts;
+    var p = Math.min((ts-start)/dur, 1);
+    var ease = 1-Math.pow(1-p, 3);
+    el.textContent = (to*ease).toLocaleString('zh-CN',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+    if(p<1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+});
 </script>
 {% endblock %}
