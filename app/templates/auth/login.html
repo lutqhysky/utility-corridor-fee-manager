@@ -5,58 +5,88 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title or '管理员登录' }}</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0}
+        .login-page{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;min-height:100vh;display:flex;color:#1e293b;
+            background:linear-gradient(135deg,#0f2a5c 0%,#1e40af 45%,#3b82f6 100%);position:relative;overflow:hidden}
+        .login-page::before{content:'';position:absolute;inset:0;
+            background-image:radial-gradient(circle at 20% 30%,rgba(255,255,255,.08) 0 120px,transparent 121px),
+            radial-gradient(circle at 80% 70%,rgba(255,255,255,.06) 0 180px,transparent 181px),
+            radial-gradient(circle at 60% 15%,rgba(255,255,255,.05) 0 90px,transparent 91px)}
+        .login-page::after{content:'';position:absolute;inset:0;opacity:.12;pointer-events:none;
+            background-image:repeating-linear-gradient(0deg,transparent,transparent 59px,rgba(255,255,255,.5) 60px),
+            repeating-linear-gradient(90deg,transparent,transparent 59px,rgba(255,255,255,.5) 60px)}
+        .login-wrap{position:relative;z-index:1;margin:auto;display:flex;width:min(880px,94vw);min-height:520px;
+            background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.35)}
+        .login-brand{flex:1.1;background:linear-gradient(160deg,#12306e,#1d4ed8 70%,#3b82f6);color:#fff;padding:48px 40px;
+            display:flex;flex-direction:column;justify-content:center;position:relative;overflow:hidden}
+        .login-brand::after{content:'';position:absolute;right:-70px;bottom:-70px;width:260px;height:260px;border-radius:50%;
+            border:40px solid rgba(255,255,255,.08);pointer-events:none}
+        .login-logo{width:64px;height:64px;border-radius:18px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;
+            font-size:32px;font-weight:800;margin-bottom:24px}
+        .login-brand h1{font-size:26px;line-height:1.5;margin-bottom:12px}
+        .login-brand p{font-size:14px;opacity:.85;line-height:1.9}
+        .login-feats{margin-top:28px;display:flex;flex-direction:column;gap:12px;font-size:13px}
+        .login-feats div{display:flex;align-items:center;gap:10px;opacity:.92}
+        .login-feats i{width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-style:normal;font-size:14px}
+        .login-form-side{flex:1;padding:56px 48px;display:flex;flex-direction:column;justify-content:center}
+        .login-form-side h2{font-size:22px;margin-bottom:6px}
+        .login-form-side .sub{font-size:13px;color:#64748b;margin-bottom:28px}
+        .login-form-side label{display:block;font-size:13px;color:#475569;margin-bottom:16px}
+        .login-in{margin-top:8px;position:relative}
+        .login-in input{width:100%;padding:12px 14px 12px 42px;font-size:15px;border:1.5px solid #e2e8f0;border-radius:10px;transition:.2s;font-family:inherit}
+        .login-in input:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 4px rgba(37,99,235,.12)}
+        .login-in .ic{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:16px}
+        .login-form-side button{width:100%;padding:13px;font-size:15px;font-weight:600;color:#fff;border:none;border-radius:10px;cursor:pointer;
+            background:linear-gradient(90deg,#1d4ed8,#3b82f6);transition:.2s;margin-top:8px}
+        .login-form-side button:hover{filter:brightness(1.08);box-shadow:0 8px 20px rgba(37,99,235,.35)}
+        .login-alert{border-radius:10px;padding:12px 16px;font-size:13px;line-height:1.7;margin-bottom:20px}
+        .login-alert-error{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c}
+        .login-alert-warning{background:#fffbeb;border:1px solid #fde68a;color:#92400e}
+        .login-alert code{background:rgba(0,0,0,.06);padding:1px 6px;border-radius:4px;font-size:12px}
+        .login-foot{margin-top:24px;text-align:center;font-size:12px;color:#cbd5e1}
+        @media(max-width:720px){.login-brand{display:none}.login-wrap{min-height:auto}.login-form-side{padding:40px 28px}}
+    </style>
 </head>
-<body class="auth-body">
-<div class="auth-wrapper">
-    <div class="auth-card">
-        <div class="auth-card-header">
-            <h1>综合管廊有偿使用费管理系统</h1>
-            <p>管理员登录后才能访问业务页面</p>
+<body class="login-page">
+<div class="login-wrap">
+    <div class="login-brand">
+        <div class="login-logo">管</div>
+        <h1>综合管廊<br>有偿使用费管理系统</h1>
+        <p>城市地下综合管廊 PPP 项目<br>收费管理 · 合同备案 · 数据看板</p>
+        <div class="login-feats">
+            <div><i><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3 7h7l-5.5 4.5L18.5 21 12 16.5 5.5 21l2-7.5L2 9h7z"/></svg></i> 入廊费 / 日常维护费全流程管理</div>
+            <div><i><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3 7h7l-5.5 4.5L18.5 21 12 16.5 5.5 21l2-7.5L2 9h7z"/></svg></i> 可行性缺口补助收款跟踪</div>
+            <div><i><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3 7h7l-5.5 4.5L18.5 21 12 16.5 5.5 21l2-7.5L2 9h7z"/></svg></i> 每日自动收缴提醒推送</div>
         </div>
+    </div>
+    <div class="login-form-side">
+        <h2>欢迎回来</h2>
+        <p class="sub">请登录管理员账号以继续</p>
 
         {% if not auth_configured %}
-        <div class="alert alert-warning">
+        <div class="login-alert login-alert-warning">
             当前系统尚未配置管理员密码。<br>
             请先在环境变量中设置 <code>APP_ADMIN_PASSWORD</code> 或 <code>APP_ADMIN_PASSWORD_HASH</code>。
         </div>
         {% endif %}
 
         {% if error %}
-        <div class="alert alert-error">{{ error }}</div>
+        <div class="login-alert login-alert-error">{{ error }}</div>
         {% endif %}
 
-        <form method="post" action="/login" class="auth-form">
-        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+        <form method="post" action="/login">
+            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
             <input type="hidden" name="next_url" value="{{ next_url }}">
-
-            <label>
-                管理员账号
-                <input
-                    type="text"
-                    name="username"
-                    value="{{ admin_username }}"
-                    autocomplete="username"
-                    required
-                >
+            <label>管理员账号
+                <div class="login-in"><span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><input type="text" name="username" value="{{ admin_username }}" autocomplete="username" placeholder="请输入账号" required></div>
             </label>
-
-            <label>
-                管理员密码
-                <input
-                    type="password"
-                    name="password"
-                    autocomplete="current-password"
-                    required
-                >
+            <label>管理员密码
+                <div class="login-in"><span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><input type="password" name="password" autocomplete="current-password" placeholder="请输入密码" required></div>
             </label>
-
             <button type="submit">登录系统</button>
         </form>
-
-        <div class="auth-tip">
-            <strong>提示：</strong>
-            建议优先使用 <code>APP_ADMIN_PASSWORD_HASH</code>，比明文密码更安全。
-        </div>
+        <div class="login-foot">小牛管廊项目公司 · 内部系统</div>
     </div>
 </div>
 </body>
