@@ -44,9 +44,11 @@
 .db-track>div{width:0;animation:db-fill 1s cubic-bezier(.22,.8,.36,1) forwards}
 @keyframes db-fill{to{width:var(--w)}}
 /* 圆环旋入 */
-.db-donut-in{animation:db-spin-in 1s cubic-bezier(.22,.8,.36,1)}
+.db-donut-in{transform-box:fill-box;transform-origin:center;animation:db-spin-in 1s cubic-bezier(.22,.8,.36,1) .55s both}
+.db-arc{animation:db-draw 1.1s cubic-bezier(.22,.8,.36,1) .65s both}
+@keyframes db-draw{from{stroke-dasharray:0 301.6}to{stroke-dasharray:var(--da) 301.6}}
 @keyframes db-spin-in{from{transform:rotate(-40deg) scale(.85);opacity:0}to{transform:rotate(0) scale(1);opacity:1}}
-@media(prefers-reduced-motion:reduce){.db-anim,.db-bar,.db-track>div,.db-donut-in{animation:none;opacity:1;transform:none;width:var(--w,auto)}}
+@media(prefers-reduced-motion:reduce){.db-anim,.db-bar,.db-track>div,.db-donut-in,.db-arc{animation:none;opacity:1;transform:none;width:var(--w,auto)}}
 </style>
 
 <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;flex-wrap:wrap;gap:8px">
@@ -104,7 +106,8 @@
     <div style="display:flex;align-items:center;gap:16px">
       <svg class="db-donut-in" width="110" height="110" viewBox="0 0 120 120">
         <circle cx="60" cy="60" r="48" fill="none" stroke="#e2e8f0" stroke-width="20"/>
-        {% if type_total %}<circle cx="60" cy="60" r="48" fill="none" stroke="#3b82f6" stroke-width="20"
+        {% if type_total %}<circle class="db-arc" cx="60" cy="60" r="48" fill="none" stroke="#3b82f6" stroke-width="20"
+          style="--da:{{ (entry_pct/100*301.6)|round(1) }}"
           stroke-dasharray="{{ (entry_pct/100*301.6)|round(1) }} 301.6" stroke-dashoffset="75.4" transform="rotate(-90 60 60)"/>{% endif %}
         <text x="60" y="58" text-anchor="middle" font-size="15" font-weight="700" fill="#1e293b">{{ '%.1f'|format(entry_pct) }}%</text>
         <text x="60" y="75" text-anchor="middle" font-size="11" fill="#64748b">入廊费</text>
