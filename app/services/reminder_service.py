@@ -562,8 +562,9 @@ def run_daily_digest(db: Session = None, today: date = None, force: bool = False
                 _write_log(target.channel, desc, title, content, 'failed', str(exc),
                            ReminderLog.KIND_DIGEST)
 
-        # 手动 force 触发不占用正常日报的去重标记
-        if not force:
+        # 手动 force 触发不占用正常日报的去重标记；
+        # 全部渠道失败时也不写，等调度器下一轮自动重试，避免日报静默丢失
+        if not force and ok:
             _mark_digest_done(session, current_date)
         if ok and not failed:
             return '今日汇总已推送（%d 个渠道）：到期 %d 笔、逾期 %d 笔。' % (
@@ -669,7 +670,8 @@ def run_subsidy_digest(db: Session = None, today: date = None, force: bool = Fal
                 _write_log(target.channel, desc, title, content, 'failed', str(exc),
                            ReminderLog.KIND_DIGEST)
 
-        if not force:
+        # 全部渠道失败时不写去重标记，等调度器下一轮自动重试
+        if not force and ok:
             set_setting(session, 'reminder.last_subsidy_digest_date', current_date.isoformat())
             session.commit()
         if ok and not failed:

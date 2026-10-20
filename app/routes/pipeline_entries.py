@@ -566,9 +566,11 @@ def print_fee_sheet(entry_id: int, fee_kind: str, request: Request, db: Session 
     total_incl_tax = q2(Decimal(str(subtotal)) + Decimal(str(tax_amount)))
 
     # 折扣段始终显示：正式费用单据需注明合同约定折扣后的实际应收金额
+    # 折后总额与详情页/列表页口径一致：含税合计整体打折；折后税金倒挤，
+    # 保证单据上 折后不含税 + 折后税金 == 折后总额
+    actual_total = q2(Decimal(str(total_incl_tax)) * Decimal(str(discount)))
     actual_subtotal = q2(Decimal(str(subtotal)) * Decimal(str(discount)))
-    actual_tax = q2(Decimal(str(actual_subtotal)) * Decimal(str(tax_rate)))
-    actual_total = q2(Decimal(str(actual_subtotal)) + Decimal(str(actual_tax)))
+    actual_tax = q2(Decimal(str(actual_total)) - Decimal(str(actual_subtotal)))
 
     cabin = entry.cabin_type or ''
     note_text = (
