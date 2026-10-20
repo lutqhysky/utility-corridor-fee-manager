@@ -59,6 +59,13 @@
                 {% if request.state.user %}
                 <div class="page-header-actions">
                     <span class="user-badge">已登录：{{ request.state.user }}</span>
+                    <form method="post" action="/logout" style="display:inline;margin:0" onsubmit="return confirm('确定要退出登录吗？');">
+                        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                        <button type="submit" class="logout-btn" title="退出登录">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+                            退出登录
+                        </button>
+                    </form>
                 </div>
                 {% endif %}
             </div>

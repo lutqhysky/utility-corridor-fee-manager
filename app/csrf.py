@@ -5,8 +5,8 @@ CSRF_FIELD = 'csrf_token'
 CSRF_HEADER = 'x-csrf-token'
 SESSION_KEY = '_csrf_token'
 
-# 登录/登出本身不校验（登录时尚无可信会话可绑定）
-EXEMPT_PATHS = {'/login', '/logout'}
+# 登录本身不校验（登录时尚无可信会话可绑定）；登出走 POST + CSRF 校验
+EXEMPT_PATHS = {'/login'}
 
 
 def get_csrf_token(request) -> str:
