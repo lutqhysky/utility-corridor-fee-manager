@@ -20,9 +20,15 @@ router = APIRouter(tags=['auth'])
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
+# 登录后默认落点：数据看板
+DEFAULT_HOME = '/data-dashboard/'
+
+
 @router.get('/login', response_class=HTMLResponse)
 def login_page(request: Request, next: str = '/'):
     safe_next = normalize_next_url(next)
+    if safe_next == '/':
+        safe_next = DEFAULT_HOME
 
     if is_authenticated(request):
         return RedirectResponse(url=safe_next, status_code=303)
@@ -48,6 +54,8 @@ def login_submit(
     next_url: str = Form('/'),
 ):
     safe_next = normalize_next_url(next_url)
+    if safe_next == '/':
+        safe_next = DEFAULT_HOME
 
     context = {
         'request': request,
