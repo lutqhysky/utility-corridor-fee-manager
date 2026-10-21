@@ -92,7 +92,8 @@ def get_fee_standards_json(db: Session) -> str:
 
 @router.get('/', response_class=HTMLResponse)
 def list_entries(request: Request, db: Session = Depends(get_db), company_id: str | None = None,
-                 project_name: str | None = None, cabin_type: str | None = None):
+                 project_name: str | None = None, cabin_type: str | None = None,
+                 sort: str | None = None):
     query = db.query(PipelineEntry)
     # company_id 空字符串时忽略（避免 FastAPI int('') 报 422）
     selected_company_id = None
@@ -136,6 +137,24 @@ def list_entries(request: Request, db: Session = Depends(get_db), company_id: st
         else:
             entry.maintenance_fee_quarterly = None
 
+    # 表头排序：入廊时间 / 入廊费 / 运维费用（年度），点表头切换升降序；
+    # 金额为逐条计算值，故在 Python 侧排序。默认（无 sort）保持 id 倒序。
+    # 排序稳定：同值时保持原 id 倒序；入廊时间缺失的记录恒排最后（不随方向翻转）。
+    sort_order = sort if sort in ('entry_date_asc', 'entry_date_desc',
+                                  'entry_fee_asc', 'entry_fee_desc',
+                                  'maintenance_asc', 'maintenance_desc') else ''
+    if sort_order:
+        reverse = sort_order.endswith('_desc')
+        if sort_order.startswith('entry_date'):
+            dated = [e for e in entries if e.entry_date]
+            undated = [e for e in entries if not e.entry_date]
+            dated.sort(key=lambda e: e.entry_date, reverse=reverse)
+            entries = dated + undated
+        elif sort_order.startswith('entry_fee'):
+            entries.sort(key=lambda e: float(e.actual_entry_fee or 0), reverse=reverse)
+        else:
+            entries.sort(key=lambda e: float(e.maintenance_fee_annual or 0), reverse=reverse)
+
     companies = db.query(Company).order_by(Company.company_name).all()
     project_names = [r[0] for r in db.query(PipelineEntry.project_name)
                      .filter(PipelineEntry.project_name.isnot(None))
@@ -158,6 +177,7 @@ def list_entries(request: Request, db: Session = Depends(get_db), company_id: st
             'selected_project_name': project_name or '',
             'cabin_types': cabin_types,
             'selected_cabin_type': cabin_type or '',
+            'sort_order': sort_order,
             'total_entry_fee': total_entry_fee,
             'total_maintenance_annual': total_maintenance_annual,
             'title': '入廊管线清单'

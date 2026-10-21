@@ -36,9 +36,9 @@
                 <th>项目名称</th>
                 <th>舱室</th>
                 <th>管线类型</th>
-                <th>入廊时间</th>
-                <th>入廊费</th>
-                <th>运维费用（年度）</th>
+                <th><a href="/pipeline-entries/?company_id={{ selected_company_id or '' }}&project_name={{ selected_project_name|urlencode }}&cabin_type={{ selected_cabin_type|urlencode }}&sort={% if sort_order == 'entry_date_asc' %}entry_date_desc{% else %}entry_date_asc{% endif %}" title="点击按入廊时间排序" style="color:inherit; text-decoration:none; white-space:nowrap;">入廊时间 {% if sort_order == 'entry_date_asc' %}↑{% elif sort_order == 'entry_date_desc' %}↓{% else %}<span style="color:#9ca3af;">↕</span>{% endif %}</a></th>
+                <th><a href="/pipeline-entries/?company_id={{ selected_company_id or '' }}&project_name={{ selected_project_name|urlencode }}&cabin_type={{ selected_cabin_type|urlencode }}&sort={% if sort_order == 'entry_fee_asc' %}entry_fee_desc{% else %}entry_fee_asc{% endif %}" title="点击按入廊费排序" style="color:inherit; text-decoration:none; white-space:nowrap;">入廊费 {% if sort_order == 'entry_fee_asc' %}↑{% elif sort_order == 'entry_fee_desc' %}↓{% else %}<span style="color:#9ca3af;">↕</span>{% endif %}</a></th>
+                <th><a href="/pipeline-entries/?company_id={{ selected_company_id or '' }}&project_name={{ selected_project_name|urlencode }}&cabin_type={{ selected_cabin_type|urlencode }}&sort={% if sort_order == 'maintenance_asc' %}maintenance_desc{% else %}maintenance_asc{% endif %}" title="点击按运维费用（年度）排序" style="color:inherit; text-decoration:none; white-space:nowrap;">运维费用（年度） {% if sort_order == 'maintenance_asc' %}↑{% elif sort_order == 'maintenance_desc' %}↓{% else %}<span style="color:#9ca3af;">↕</span>{% endif %}</a></th>
                 <th>运维费用（季度）</th>
                 <th>收费周期</th>
                 <th>操作</th>
