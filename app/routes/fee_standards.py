@@ -116,6 +116,9 @@ def create_standard(
 ):
     if not fee_type.strip():
         raise HTTPException(status_code=422, detail='费用类型不能为空')
+    _rate = parse_optional_float(tax_rate)
+    if _rate is not None and not (0 <= _rate < 1):
+        raise HTTPException(status_code=422, detail='税率必须在 0（含）到 1（不含）之间，如 6% 填 0.06')
     db.add(FeeStandard(
         fee_type=fee_type.strip(),
         pipeline_type=pipeline_type.strip(),
@@ -168,7 +171,10 @@ def update_standard(
     standard.specification = specification.strip()
     standard.unit_price_excl_tax = parse_optional_float(unit_price_excl_tax)
     standard.billing_unit = billing_unit.strip()
-    standard.tax_rate = parse_optional_float(tax_rate)
+    _rate = parse_optional_float(tax_rate)
+    if _rate is not None and not (0 <= _rate < 1):
+        raise HTTPException(status_code=422, detail='税率必须在 0（含）到 1（不含）之间，如 6% 填 0.06')
+    standard.tax_rate = _rate
     standard.price_period = price_period.strip()
     standard.is_active = bool(is_active)
     standard.effective_date = parse_date(effective_date)

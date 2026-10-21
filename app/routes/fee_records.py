@@ -154,9 +154,11 @@ def calculate_entry_actual_fees(entry: PipelineEntry) -> tuple[float, float]:
     entry_fee_discount = entry.entry_fee_discount if entry.entry_fee_discount is not None else 1
     maintenance_fee_discount = entry.maintenance_fee_discount if entry.maintenance_fee_discount is not None else 1
 
-    entry_actual_fee = (entry_fee_excl_tax_total * (1 + entry_fee_tax_rate)) * entry_fee_discount
-    maintenance_actual_fee = (maintenance_fee_excl_tax_total * (1 + maintenance_fee_tax_rate)) * maintenance_fee_discount
-    return round(entry_actual_fee, 2), round(maintenance_actual_fee, 2)
+    # 与入廊清单详情页统一口径：Decimal 分步舍入（税金→含税→打折）
+    from app.services.fee_calc_service import calc_actual_fee
+    entry_actual_fee = calc_actual_fee(entry_fee_excl_tax_total, entry_fee_tax_rate, entry_fee_discount)
+    maintenance_actual_fee = calc_actual_fee(maintenance_fee_excl_tax_total, maintenance_fee_tax_rate, maintenance_fee_discount)
+    return float(entry_actual_fee), float(maintenance_actual_fee)
 
 
 def calc_excl_tax_from_incl_tax(amount_incl_tax: float, tax_rate: float) -> tuple[float, float]:
@@ -425,6 +427,8 @@ def create_record(
     actual_tax_rate = get_standard_tax_rate(db, fee_type)
     if actual_tax_rate is None:
         actual_tax_rate = float(tax_rate)
+    if not (0 <= float(actual_tax_rate) < 1):
+        raise HTTPException(status_code=422, detail='税率异常（%s），请检查收费标准或表单税率' % actual_tax_rate)
 
     amount_excl_tax, tax_amount = calc_excl_tax_from_incl_tax(amount_incl_tax, actual_tax_rate)
 
@@ -540,6 +544,8 @@ def update_record(
         actual_tax_rate = submitted_tax_rate
     else:
         actual_tax_rate = old_tax_rate
+    if not (0 <= float(actual_tax_rate) < 1):
+        raise HTTPException(status_code=422, detail='税率异常（%s），请检查收费标准或表单税率' % actual_tax_rate)
 
     amount_excl_tax, tax_amount = calc_excl_tax_from_incl_tax(amount_incl_tax, actual_tax_rate)
 

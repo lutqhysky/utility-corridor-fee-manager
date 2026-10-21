@@ -40,7 +40,6 @@ from app.routes import (
 from app.services.reminder_service import fee_reminder_scheduler
 from app.services.seed_service import seed_data
 # 引入新路由
-from app.routes import maintenance_contracts
 
 def initialize_application():
     database.Base.metadata.create_all(bind=database.engine)
@@ -75,7 +74,6 @@ def register_routers(app: FastAPI):
     app.include_router(feasibility_subsidy_router)
     app.include_router(settings_router)
     app.include_router(data_dashboard_router)
-    app.include_router(maintenance_contracts.router)
 
 
 logger = logging.getLogger(__name__)

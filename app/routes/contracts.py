@@ -113,6 +113,8 @@ def create_contract(
     company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
         raise HTTPException(status_code=404, detail='单位不存在')
+    if not (contract_name or '').strip():
+        raise HTTPException(status_code=422, detail='合同名称不能为空，请从下拉中选择项目')
 
     db.add(Contract(
         company_id=company_id,
@@ -175,6 +177,8 @@ def update_contract(
     company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
         raise HTTPException(status_code=404, detail='单位不存在')
+    if not (contract_name or '').strip():
+        raise HTTPException(status_code=422, detail='合同名称不能为空，请从下拉中选择项目')
 
     contract.company_id = company_id
     contract.contract_type = contract_type

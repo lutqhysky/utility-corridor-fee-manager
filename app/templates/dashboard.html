@@ -269,7 +269,7 @@ const PENDING_DETAILS = {{ pending_details_json | safe }};
                 side.style.cssText = 'text-align:right; flex:none;';
                 const amount = document.createElement('div');
                 amount.style.cssText = 'font-size:18px; font-weight:800; letter-spacing:0.3px; font-variant-numeric:tabular-nums; color:' + (r.is_overdue ? '#dc2626' : '#111827') + ';';
-                amount.textContent = fmtMoney(r.amount_incl_tax);
+                amount.textContent = fmtMoney((r.amount_incl_tax || 0) - (r.actual_received_amount || 0));
                 const viewLink = document.createElement('a');
                 viewLink.href = '/fee-records/' + r.record_id + '/edit';
                 viewLink.textContent = '查看明细 →';
@@ -290,7 +290,7 @@ const PENDING_DETAILS = {{ pending_details_json | safe }};
             // 点当前已展开的单位则收起
             if (openCompanyId === companyId) { closeDetail(); return; }
             const records = PENDING_DETAILS[companyId] || PENDING_DETAILS[String(companyId)] || [];
-            const total = records.reduce((sum, r) => sum + Number(r.amount_incl_tax || 0), 0);
+            const total = records.reduce((sum, r) => sum + Number((r.amount_incl_tax || 0) - (r.actual_received_amount || 0)), 0);
             const overdueCount = records.filter((r) => r.is_overdue).length;
             detailTitle.textContent = companyName;
             let subHtml = '待收 <b style="color:#0d9488;">' + records.length + '</b> 笔'

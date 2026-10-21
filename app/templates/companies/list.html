@@ -38,7 +38,7 @@
 </section>
 <script>
 function confirmDeleteCompany(form, name) {
-    const tip = '警告：删除单位将清空其全部入廊记录、收费记录、合同（不可恢复，删除前已自动备份）。\n请输入单位名称“' + name + '”确认删除：';
+    const tip = '删除单位前会先自动备份该单位数据。\n注意：单位如有关联业务数据（入廊记录、收费记录、合同）将禁止删除。\n请输入单位名称“' + name + '”确认删除：';
     const input = prompt(tip);
     if (input === null) return false;
     if (input.trim() !== name) {
