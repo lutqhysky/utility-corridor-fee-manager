@@ -725,6 +725,14 @@ def run_plan_escalation(db: Session = None, today: date = None, force: bool = Fa
                 except ValueError:
                     pass
 
+        # 发送前先刷新计划：调度器在进程启动即触发本函数，若直接用表中
+        # 旧节点会把已修复口径前的幻影节点当真（2026-10-22 首发事故教训）
+        try:
+            from app.services.fee_plan_service import generate_plans
+            generate_plans(session, current_date)
+        except Exception:
+            logger.exception('收费计划关注提醒前自动刷新失败，继续按现有节点发送')
+
         built = build_plan_escalation(session, current_date)
         if built is None:
             return '暂无逾期30天节点或暂停超期项目，关注提醒跳过。'
