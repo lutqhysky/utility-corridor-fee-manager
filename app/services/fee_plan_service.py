@@ -129,15 +129,29 @@ def _periods_for_entry(entry: PipelineEntry, annual_maintenance: Decimal,
     return nodes
 
 
-def _existing_record_keys(db: Session, entry_id: int) -> set[tuple[str, str]]:
-    """已有收费记录占用的 (费用类型归一, 期次) 集合。"""
-    keys = set()
-    rows = (db.query(FeeRecord.fee_type, FeeRecord.charge_period)
+def _existing_record_keys(db: Session, entry_id: int):
+    """已有收费记录的去重信息，返回 (标签键, 年度键, 是否已有入廊费记录)。
+
+    生产数据实证（2026-10-22 核对）：
+    - 入廊费记录的 charge_period 写法不统一（有条写成「2025年度」），
+      入廊费是一次性收费 → 该项目只要有任意入廊费记录即视为已收，不再生成节点；
+    - 综改水务年度记录写跨年标签（「2024年度-2025年度」），与生成器自然年标签对不上，
+      但 period_year 都对得上 → 年度期次再按 (类型, period_year) 兜底匹配；
+    - 季度记录标签是规范的「YYYY年第N季度」，period_quarter 普遍为空，靠标签匹配。
+    """
+    keys: set[tuple[str, str]] = set()
+    year_keys: set[tuple[str, int]] = set()
+    has_entry_fee = False
+    rows = (db.query(FeeRecord.fee_type, FeeRecord.charge_period, FeeRecord.period_year)
             .filter(FeeRecord.pipeline_entry_id == entry_id).all())
-    for fee_type, charge_period in rows:
+    for fee_type, charge_period, period_year in rows:
         name = MAINTENANCE_NAME if fee_type in MAINTENANCE_FEE_TYPES else fee_type
         keys.add((name, charge_period or ''))
-    return keys
+        if period_year:
+            year_keys.add((name, int(period_year)))
+        if name == ENTRY_FEE_NAME:
+            has_entry_fee = True
+    return keys, year_keys, has_entry_fee
 
 
 def generate_plans(db: Session, today: date | None = None) -> dict:
@@ -159,7 +173,7 @@ def generate_plans(db: Session, today: date | None = None) -> dict:
         entry_actual, maintenance_actual = calculate_entry_actual_fees(entry)
         desired = _periods_for_entry(
             entry, Decimal(str(maintenance_actual)), Decimal(str(entry_actual)), today)
-        record_keys = _existing_record_keys(db, entry.id)
+        record_keys, record_year_keys, has_entry_fee = _existing_record_keys(db, entry.id)
 
         # 刷新：删掉未转记录的「待到期」节点后按最新规则重建
         stale = (db.query(FeePlanNode)
@@ -178,7 +192,19 @@ def generate_plans(db: Session, today: date | None = None) -> dict:
 
         for spec in desired:
             key = (spec['fee_type'], spec['charge_period'])
-            if key in record_keys or key in kept_keys:
+            if key in kept_keys:
+                stats['skipped_existing'] += 1
+                continue
+            if key in record_keys:
+                stats['skipped_existing'] += 1
+                continue
+            # 入廊费一次性：已有任意入廊费记录即跳过（历史标签写法不统一）
+            if spec['fee_type'] == ENTRY_FEE_NAME and has_entry_fee:
+                stats['skipped_existing'] += 1
+                continue
+            # 年度期次按年份兜底（跨年标签的历史记录靠 period_year 命中）
+            if (spec['period_quarter'] is None and spec['period_year'] is not None
+                    and (spec['fee_type'], int(spec['period_year'])) in record_year_keys):
                 stats['skipped_existing'] += 1
                 continue
             db.add(FeePlanNode(

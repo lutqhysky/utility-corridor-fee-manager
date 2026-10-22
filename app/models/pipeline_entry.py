@@ -33,6 +33,7 @@ class PipelineEntry(Base):
     # 收费计划：运维计费起始日（为空则用入廊时间；综改水务等例外单独设）；暂停生成开关
     billing_start_date = Column(Date, nullable=True)
     plan_paused = Column(Integer, default=0)
+    plan_paused_at = Column(Date, nullable=True)
 
     company = relationship("Company", back_populates="pipeline_entries")
     fee_records = relationship("FeeRecord", back_populates="pipeline_entry")

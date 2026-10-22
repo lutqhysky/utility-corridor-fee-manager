@@ -633,6 +633,129 @@ def _mark_digest_done(session: Session, today: date) -> None:
     session.commit()
 
 
+# ---------------- 收费计划关注强推（每周） ----------------
+
+PLAN_ESCALATION_OVERDUE_DAYS = 30
+PLAN_ESCALATION_PAUSE_DAYS = 30
+PLAN_ESCALATION_INTERVAL_DAYS = 7
+
+
+def build_plan_escalation(db: Session, today: date):
+    """构造收费计划关注提醒：逾期>=30天未建节点 + 暂停>=30天的项目。
+    无内容返回 None；否则返回 (标题, 正文, 条目数)。"""
+    from app.models.fee_plan_node import FeePlanNode
+    from app.models.pipeline_entry import PipelineEntry
+
+    active_entry_ids = (db.query(PipelineEntry.id)
+                        .filter(func.coalesce(PipelineEntry.plan_paused, 0) == 0))
+    nodes = (
+        db.query(FeePlanNode)
+        .options(joinedload(FeePlanNode.company), joinedload(FeePlanNode.pipeline_entry))
+        .filter(FeePlanNode.status == '待到期')
+        .filter(FeePlanNode.pipeline_entry_id.in_(active_entry_ids))
+        .filter(FeePlanNode.planned_receivable_date.isnot(None))
+        .filter(FeePlanNode.planned_receivable_date <= today - timedelta(days=PLAN_ESCALATION_OVERDUE_DAYS))
+        .order_by(FeePlanNode.planned_receivable_date.asc(), FeePlanNode.id.asc())
+        .all()
+    )
+    paused_entries = (
+        db.query(PipelineEntry)
+        .options(joinedload(PipelineEntry.company))
+        .filter(func.coalesce(PipelineEntry.plan_paused, 0) == 1)
+        .all()
+    )
+    paused_long = []
+    for e in paused_entries:
+        since = e.plan_paused_at or e.entry_date
+        if since and (today - since).days >= PLAN_ESCALATION_PAUSE_DAYS:
+            paused_long.append((e, (today - since).days))
+
+    if not nodes and not paused_long:
+        return None
+
+    def node_line(n) -> str:
+        company_name = n.company.short_name or n.company.company_name if n.company else ''
+        project_name = n.pipeline_entry.project_name if n.pipeline_entry else ''
+        name = '%s-%s' % (company_name, project_name) if project_name else company_name
+        overdue_days = (today - n.planned_receivable_date).days
+        return '- %s｜%s｜%s｜应收%s｜¥%.2f（已过%d天）' % (
+            name, n.charge_period, n.fee_type,
+            n.planned_receivable_date.isoformat(),
+            float(n.amount_incl_tax or 0), overdue_days)
+
+    parts = []
+    if nodes:
+        total = float(sum(float(n.amount_incl_tax or 0) for n in nodes))
+        parts.append('【逾期未建记录】%d 笔，共计 ¥%.2f，已过应收日 30 天以上：' % (len(nodes), total))
+        parts += [node_line(n) for n in nodes]
+    if paused_long:
+        parts.append('【暂停超期】以下项目收费计划已暂停 30 天以上，请确认补充协议/计费起始日进展：')
+        for e, days in paused_long:
+            company_name = e.company.short_name or e.company.company_name if e.company else ''
+            parts.append('- %s-%s（已暂停约%d天）' % (company_name, e.project_name or '', days))
+    parts.append('请到系统「收费计划」页处理。')
+    title = '⚠️ 收费计划关注提醒【%s】' % today.isoformat()
+    return title, '\n'.join(parts), len(nodes) + len(paused_long)
+
+
+def run_plan_escalation(db: Session = None, today: date = None, force: bool = False) -> str:
+    """收费计划关注强推：每周至多一次（force 忽略间隔与时间门）。"""
+    if not _reminder_lock.acquire(blocking=False):
+        return '已有提醒任务在执行，本次跳过。'
+    owns_session = db is None
+    session = db or SessionLocal()
+    try:
+        settings = get_reminder_settings(session)
+        if not settings.enabled:
+            return '未启用提醒：请先在“提醒设置”页配置推送渠道。'
+        current_date = today or date.today()
+        if not force:
+            try:
+                hh, mm = settings.daily_digest_time.split(':')
+                if datetime.now().time() < time(int(hh), int(mm)):
+                    return '未到推送时间（设定 %s）。' % settings.daily_digest_time
+            except (ValueError, AttributeError):
+                logger.warning('每日汇总时间配置无效: %s', settings.daily_digest_time)
+            last = get_setting(session, 'reminder.last_plan_escalation_date', '')
+            if last:
+                try:
+                    last_date = date.fromisoformat(last)
+                    if (current_date - last_date).days < PLAN_ESCALATION_INTERVAL_DAYS:
+                        return '收费计划关注提醒未到 7 天间隔。'
+                except ValueError:
+                    pass
+
+        built = build_plan_escalation(session, current_date)
+        if built is None:
+            return '暂无逾期30天节点或暂停超期项目，关注提醒跳过。'
+        title, content, item_count = built
+
+        ok, failed = [], []
+        for target in settings.targets:
+            desc = mask_target(target.channel, target)
+            try:
+                send_to_target(target, title, content)
+                ok.append(target.channel)
+                _write_log(target.channel, desc, title, content, 'success', '',
+                           'plan_escalation')
+            except Exception as exc:
+                failed.append('%s: %s' % (target.channel, exc))
+                _write_log(target.channel, desc, title, content, 'failed', str(exc),
+                           'plan_escalation')
+        if not force and ok:
+            set_setting(session, 'reminder.last_plan_escalation_date', current_date.isoformat())
+            session.commit()
+        if ok and not failed:
+            return '收费计划关注提醒已推送（%d 个渠道，%d 条）。' % (len(ok), item_count)
+        if ok:
+            return '关注提醒部分推送成功（%s），失败：%s' % (','.join(ok), '；'.join(failed))
+        return '关注提醒推送失败：%s' % '；'.join(failed)
+    finally:
+        _reminder_lock.release()
+        if owns_session:
+            session.close()
+
+
 # ---------------- 可行性缺口补助汇总 ----------------
 
 def build_subsidy_digest(db: Session):
@@ -780,6 +903,10 @@ class FeeReminderScheduler:
                 run_subsidy_digest()
             except Exception:
                 logger.exception('补助汇总推送异常')
+            try:
+                run_plan_escalation()
+            except Exception:
+                logger.exception('收费计划关注提醒异常')
             try:
                 interval = get_reminder_settings().check_interval_seconds
             except Exception:

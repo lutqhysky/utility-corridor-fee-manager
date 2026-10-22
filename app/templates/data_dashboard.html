@@ -149,6 +149,30 @@
 </div>
 
 <div class="db-card db-anim db-d8">
+  <h2>收费计划 · 应收节点 <span class="badge" style="background:#fee2e2;color:#dc2626">{{ data.plan.overdue_count }} 笔已过应收日未建记录</span> <a href="/fee-plans/" style="float:right;font-size:13px;font-weight:400">去处理 →</a></h2>
+  <div style="display:flex;gap:28px;flex-wrap:wrap;font-size:13px;margin-bottom:10px">
+    <span>已过应收日未转：<b style="color:#dc2626">¥{{ '%.2f'|format(data.plan.overdue_amount) }}</b>（{{ data.plan.overdue_count }} 笔）</span>
+    <span>未来 30 天应收：<b>¥{{ '%.2f'|format(data.plan.next30_amount) }}</b>（{{ data.plan.next30_count }} 笔）</span>
+  </div>
+  <table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr><th>单位-项目</th><th>期次</th><th>应收时间</th><th>金额</th><th>状态</th></tr></thead>
+    <tbody>
+    {% for r in data.plan.overdue_list %}
+      <tr><td>{{ r.name }}</td><td>{{ r.period }}（{{ r.fee_type }}）</td><td>{{ r.due_date }}</td>
+        <td style="color:#dc2626;font-weight:600">¥{{ '%.2f'|format(r.amount) }}</td>
+        <td><span class="badge" style="background:#fee2e2;color:#dc2626">已过 {{ -r.days }} 天</span></td></tr>
+    {% endfor %}
+    {% for r in data.plan.next_list %}
+      <tr><td>{{ r.name }}</td><td>{{ r.period }}（{{ r.fee_type }}）</td><td>{{ r.due_date }}</td>
+        <td style="font-weight:600">¥{{ '%.2f'|format(r.amount) }}</td>
+        <td><span class="badge" style="background:#fef3c7;color:#b45309">{% if r.days == 0 %}今日应收{% else %}{{ r.days }} 天后{% endif %}</span></td></tr>
+    {% endfor %}
+    {% if not data.plan.overdue_list and not data.plan.next_list %}<tr><td colspan="5" style="color:#94a3b8">暂无待处理节点</td></tr>{% endif %}
+    </tbody>
+  </table>
+</div>
+
+<div class="db-card db-anim db-d8">
   <h2>逾期明细 <span class="badge" style="background:#fee2e2;color:#dc2626">{{ data.overdue_list|length }} 笔待催缴</span></h2>
   <table style="width:100%;border-collapse:collapse;font-size:13px">
     <thead><tr><th>单位-项目</th><th>费用类型</th><th>应收时间</th><th>未收金额</th><th>逾期天数</th></tr></thead>

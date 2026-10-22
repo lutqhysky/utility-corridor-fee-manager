@@ -55,6 +55,7 @@ def get_expected_sqlite_columns():
             'charge_cycle': "VARCHAR(20) DEFAULT '年度'",
             'billing_start_date': 'DATE',
             'plan_paused': 'INTEGER DEFAULT 0',
+            'plan_paused_at': 'DATE',
         },
         'contracts': {
             'pipeline_entry_id': 'INTEGER',

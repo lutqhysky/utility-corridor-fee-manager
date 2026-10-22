@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal, ROUND_HALF_UP
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -252,6 +252,7 @@ def create_entry(
         charge_cycle=charge_cycle,
         billing_start_date=parse_date(billing_start_date),
         plan_paused=1 if plan_paused else 0,
+        plan_paused_at=date.today() if plan_paused else None,
     ))
     try:
         db.commit()
@@ -380,6 +381,10 @@ def update_entry(
     entry.maintenance_fee_discount = maintenance_fee_discount
     entry.charge_cycle = charge_cycle
     entry.billing_start_date = parse_date(billing_start_date)
+    if plan_paused and not entry.plan_paused:
+        entry.plan_paused_at = date.today()
+    elif not plan_paused:
+        entry.plan_paused_at = None
     entry.plan_paused = 1 if plan_paused else 0
 
     try:

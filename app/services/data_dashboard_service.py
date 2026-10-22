@@ -1,6 +1,6 @@
 """数据看板服务：汇总有偿使用费收缴情况，供 /data-dashboard/ 页面使用。"""
 
-from datetime import date
+from datetime import date, timedelta
 
 from sqlalchemy import Integer, cast, func
 
@@ -165,6 +165,39 @@ def get_data_dashboard(db):
             sub_by_year[y][0] += float(d.amount or 0)
             sub_by_year[y][1] += 1
 
+    # ---------- 收费计划节点 ----------
+    from sqlalchemy.orm import joinedload
+    from app.models.fee_plan_node import FeePlanNode
+    plan_rows = (
+        db.query(FeePlanNode)
+        .options(joinedload(FeePlanNode.company), joinedload(FeePlanNode.pipeline_entry))
+        .filter(FeePlanNode.status == '待到期')
+        .filter(FeePlanNode.planned_receivable_date.isnot(None))
+        .order_by(FeePlanNode.planned_receivable_date.asc(), FeePlanNode.id.asc())
+        .all()
+    )
+    plan_overdue = [n for n in plan_rows if n.planned_receivable_date < today]
+    plan_next30 = [n for n in plan_rows
+                   if today <= n.planned_receivable_date <= today + timedelta(days=30)]
+
+    def plan_item(n):
+        company_name = n.company.short_name or n.company.company_name if n.company else ''
+        project_name = n.pipeline_entry.project_name if n.pipeline_entry else ''
+        name = '%s-%s' % (company_name, project_name) if project_name else company_name
+        return {'name': name, 'fee_type': n.fee_type, 'period': n.charge_period,
+                'amount': float(n.amount_incl_tax or 0),
+                'due_date': n.planned_receivable_date.isoformat(),
+                'days': (n.planned_receivable_date - today).days}
+
+    plan_info = {
+        'overdue_count': len(plan_overdue),
+        'overdue_amount': float(sum(float(n.amount_incl_tax or 0) for n in plan_overdue)),
+        'next30_count': len(plan_next30),
+        'next30_amount': float(sum(float(n.amount_incl_tax or 0) for n in plan_next30)),
+        'overdue_list': [plan_item(n) for n in plan_overdue[:5]],
+        'next_list': [plan_item(n) for n in plan_next30[:5]],
+    }
+
     return {
         'today': today.isoformat(),
         'kpi': {
@@ -183,6 +216,7 @@ def get_data_dashboard(db):
         'pending_rank': pending_rank,
         'company_received': company_received,
         'overdue_list': overdue_list,
+        'plan': plan_info,
         'subsidy': {
             'total': sub_total,
             'count': len(sub_details),
