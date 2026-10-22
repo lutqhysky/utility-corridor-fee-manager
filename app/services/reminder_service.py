@@ -506,15 +506,55 @@ def build_daily_digest(db: Session, today: date):
     all_pending = overdue + due_today + upcoming
     pending_total = amount_sum(all_pending)
 
+    # 收费计划节点：待转记录、项目未暂停，应收日在 14 天内（已过应收日的全部纳入）
+    from app.models.fee_plan_node import FeePlanNode
+    from app.models.pipeline_entry import PipelineEntry
+    active_entry_ids = (db.query(PipelineEntry.id)
+                        .filter(func.coalesce(PipelineEntry.plan_paused, 0) == 0))
+    plan_nodes = (
+        db.query(FeePlanNode)
+        .options(joinedload(FeePlanNode.company), joinedload(FeePlanNode.pipeline_entry))
+        .filter(FeePlanNode.status == '待到期')
+        .filter(FeePlanNode.pipeline_entry_id.in_(active_entry_ids))
+        .filter(FeePlanNode.planned_receivable_date.isnot(None))
+        .filter(FeePlanNode.planned_receivable_date <= today + timedelta(days=14))
+        .order_by(FeePlanNode.planned_receivable_date.asc(), FeePlanNode.id.asc())
+        .all()
+    )
+
+    def plan_line(n: FeePlanNode) -> str:
+        company_name = n.company.short_name or n.company.company_name if n.company else ''
+        project_name = n.pipeline_entry.project_name if n.pipeline_entry else ''
+        name = '%s-%s' % (company_name, project_name) if project_name else company_name
+        due = n.planned_receivable_date.isoformat()
+        delta = (n.planned_receivable_date - today).days
+        if delta < 0:
+            suffix = '（已过应收日%d天）' % (-delta)
+        elif delta == 0:
+            suffix = '（今日应收）'
+        else:
+            suffix = '（%d天后应收）' % delta
+        return '- %s｜%s｜%s｜应收%s｜¥%.2f%s' % (
+            name, n.charge_period, n.fee_type, due, float(n.amount_incl_tax or 0), suffix)
+
     parts = ['1、到目前为止，已收到管廊有偿使用费 ¥%.2f，其中入廊费 ¥%.2f，日常维护费 ¥%.2f。'
-             % (total_received, entry_received, maint_received),
-             '2、待收缴情况【共%d笔，共计¥%.2f元】' % (len(all_pending), pending_total),
-             '具体明细如下：']
-    parts += [line(r) for r in all_pending]
+             % (total_received, entry_received, maint_received)]
+    if all_pending:
+        parts += ['2、待收缴情况【共%d笔，共计¥%.2f元】' % (len(all_pending), pending_total),
+                  '具体明细如下：']
+        parts += [line(r) for r in all_pending]
+    else:
+        parts += ['2、待收缴情况：暂无待收缴记录。']
+    if plan_nodes:
+        plan_total = float(sum(float(n.amount_incl_tax or 0) for n in plan_nodes))
+        parts += ['3、收费计划待建记录【共%d笔，共计¥%.2f元】' % (len(plan_nodes), plan_total),
+                  '以下节点已到/临近应收日，尚未生成收费记录，请到「收费计划」页处理：']
+        parts += [plan_line(n) for n in plan_nodes]
 
     counts = {'due_today': len(due_today), 'overdue': len(overdue),
               'upcoming': len(upcoming),
-              'total': len(due_today) + len(overdue) + len(upcoming)}
+              'total': len(due_today) + len(overdue) + len(upcoming),
+              'plan_nodes': len(plan_nodes)}
     title = '小牛管廊项目公司管廊有偿使用费收缴情况【%s】' % today.isoformat()
     return title, '\n'.join(parts), counts
 
@@ -544,8 +584,15 @@ def run_daily_digest(db: Session = None, today: date = None, force: bool = False
             except (ValueError, AttributeError):
                 logger.warning('每日汇总时间配置无效: %s', settings.daily_digest_time)
 
+        # 推送前自动刷新收费计划（失败不阻断日报本身）
+        try:
+            from app.services.fee_plan_service import generate_plans
+            generate_plans(session, current_date)
+        except Exception:
+            logger.exception('收费计划自动刷新失败，日报继续推送')
+
         title, content, counts = build_daily_digest(session, current_date)
-        if counts['total'] == 0:
+        if counts['total'] == 0 and counts.get('plan_nodes', 0) == 0:
             # 无数据不写去重标记：当天稍后有数据时仍可推送
             return '今日无到期/逾期数据，汇总已跳过。'
 
@@ -567,8 +614,11 @@ def run_daily_digest(db: Session = None, today: date = None, force: bool = False
         if not force and ok:
             _mark_digest_done(session, current_date)
         if ok and not failed:
-            return '今日汇总已推送（%d 个渠道）：到期 %d 笔、逾期 %d 笔。' % (
+            msg = '今日汇总已推送（%d 个渠道）：到期 %d 笔、逾期 %d 笔' % (
                 len(ok), counts['due_today'], counts['overdue'])
+            if counts.get('plan_nodes'):
+                msg += '，计划待建 %d 笔' % counts['plan_nodes']
+            return msg + '。'
         if ok:
             return '汇总部分推送成功（%s），失败：%s' % (','.join(ok), '；'.join(failed))
         return '汇总推送失败：%s' % '；'.join(failed)
