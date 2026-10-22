@@ -30,6 +30,7 @@ from app.routes import (
     dashboard_router,
     fee_records_router,
     fee_plans_router,
+    reconciliation_router,
     fee_standards_router,
     fee_summary_router,
     feasibility_subsidy_router,
@@ -70,6 +71,7 @@ def register_routers(app: FastAPI):
     app.include_router(pipeline_entries_router)
     app.include_router(fee_records_router)
     app.include_router(fee_plans_router)
+    app.include_router(reconciliation_router)
     app.include_router(fee_standards_router)
     app.include_router(contracts_router)
     app.include_router(fee_summary_router)

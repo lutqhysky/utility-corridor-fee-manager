@@ -551,6 +551,24 @@ def build_daily_digest(db: Session, today: date):
                   '以下节点已到/临近应收日，尚未生成收费记录，请到「收费计划」页处理：']
         parts += [plan_line(n) for n in plan_nodes]
 
+    # 勾稽预警汇总（严重类）：只报一行计数，明细在系统「勾稽预警」页
+    try:
+        from app.services.reconciliation_service import get_reconciliation
+        recon = get_reconciliation(db)
+        if recon['serious_total'] > 0:
+            recon_labels = {'no_contract': '有入廊无合同', 'no_fee': '有入廊无收费',
+                            'fee_no_contract': '有收费无合同', 'contract_unsigned': '合同未签订'}
+            bits = []
+            for key in ('no_contract', 'no_fee', 'fee_no_contract', 'contract_unsigned'):
+                if recon['counts'].get(key):
+                    unit = '份' if key == 'contract_unsigned' else '个'
+                    bits.append('%s %d %s' % (recon_labels[key], recon['counts'][key], unit))
+            section_no = 4 if plan_nodes else 3
+            parts.append('%d、勾稽预警：%s，明细见系统「勾稽预警」页。'
+                         % (section_no, '、'.join(bits)))
+    except Exception:
+        logger.exception('日报勾稽预警汇总生成失败，已跳过')
+
     counts = {'due_today': len(due_today), 'overdue': len(overdue),
               'upcoming': len(upcoming),
               'total': len(due_today) + len(overdue) + len(upcoming),

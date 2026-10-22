@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="toolbar">
+    <div>
+        <strong>勾稽预警</strong>
+        <span class="sub">入廊清单 × 合同备案 × 收费记录 三方交叉核对，脱节自动现形（共 {{ data.total_entries }} 个入廊项目、{{ data.total_contracts }} 份合同）</span>
+    </div>
+</div>
+
+<section class="panel">
+    <p style="margin:0; line-height:2;">
+        严重问题 <strong style="color:#dc2626;">{{ data.serious_total }}</strong> 项；
+        {% for g in data.groups %}{{ g.title }} <strong>{{ g.rows|length }}</strong> 项{% if not loop.last %}；{% endif %}{% endfor %}。
+    </p>
+    <p class="sub" style="margin:6px 0 0;">合同与项目的关联分三级：关联字段（合同已指定项目）＞名称一致（合同名=项目名）＞名称推断（去类型词后唯一命中，标 ★，请人工复核）。</p>
+</section>
+
+{% for g in data.groups %}
+{% if g.rows %}
+<section class="panel">
+    <h3 style="margin-top:0;">
+        {% if g.level == 'danger' %}<span class="badge" style="background:#fee2e2; color:#b91c1c;">严重</span>
+        {% elif g.level == 'warn' %}<span class="badge" style="background:#fef3c7; color:#b45309;">警告</span>
+        {% else %}<span class="badge" style="background:#e0e7ff; color:#3730a3;">提示</span>{% endif %}
+        {{ g.title }}（{{ g.rows|length }}）
+    </h3>
+    <table>
+        <thead><tr><th>单位</th><th>项目</th><th>入廊时间</th><th>说明</th></tr></thead>
+        <tbody>
+        {% for r in g.rows %}
+            <tr>
+                <td>{{ r.company_name }}</td>
+                <td><a href="/pipeline-entries/{{ r.entry.id }}/edit">{{ r.entry.project_name or '（未命名）' }}</a></td>
+                <td>{{ r.entry_date }}</td>
+                <td>{{ r.detail }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endif %}
+{% endfor %}
+
+{% if data.unlinked_contracts %}
+<section class="panel">
+    <h3 style="margin-top:0;"><span class="badge" style="background:#fef3c7; color:#b45309;">警告</span> 合同未关联入廊项目（{{ data.unlinked_contracts|length }}）</h3>
+    <table>
+        <thead><tr><th>合同名</th><th>类型</th><th>备案状态</th><th>说明</th></tr></thead>
+        <tbody>
+        {% for item in data.unlinked_contracts %}
+            <tr>
+                <td><a href="/contracts/{{ item.contract.id }}/edit">《{{ item.contract.contract_name }}》</a></td>
+                <td>{{ item.contract.contract_type or '—' }}</td>
+                <td>{{ item.contract.filing_status or '—' }}</td>
+                <td>未指定关联项目、名称也对不上任何入廊项目，请到合同备案里补上关联</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endif %}
+
+<section class="panel">
+    <h3 style="margin-top:0;">合同关联明细（复核用）</h3>
+    <table>
+        <thead><tr><th>项目</th><th>合同</th><th>类型</th><th>备案状态</th><th>关联方式</th></tr></thead>
+        <tbody>
+        {% for entry_id, items in data.contracts_by_entry.items() %}
+        {% for item in items %}
+            <tr>
+                <td>{{ item.entry.project_name }}</td>
+                <td>《{{ item.contract.contract_name }}》</td>
+                <td>{{ item.contract.contract_type or '—' }}</td>
+                <td>{{ item.contract.filing_status or '—' }}</td>
+                <td>{% if item.method == '名称推断' %}★ 名称推断{% else %}{{ item.method }}{% endif %}</td>
+            </tr>
+        {% endfor %}
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}
