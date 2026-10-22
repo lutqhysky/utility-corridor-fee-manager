@@ -216,6 +216,8 @@ def create_entry(
     entry_fee_discount: str | None = Form(None),
     maintenance_fee_discount: str | None = Form(None),
     charge_cycle: str = Form('年度'),
+    billing_start_date: str = Form(''),
+    plan_paused: str = Form(''),
     db: Session = Depends(get_db),
 ):
     company = db.query(Company).filter(Company.id == company_id).first()
@@ -248,6 +250,8 @@ def create_entry(
         entry_fee_discount=entry_fee_discount,
         maintenance_fee_discount=maintenance_fee_discount,
         charge_cycle=charge_cycle,
+        billing_start_date=parse_date(billing_start_date),
+        plan_paused=1 if plan_paused else 0,
     ))
     try:
         db.commit()
@@ -338,6 +342,8 @@ def update_entry(
     entry_fee_discount: str | None = Form(None),
     maintenance_fee_discount: str | None = Form(None),
     charge_cycle: str = Form('年度'),
+    billing_start_date: str = Form(''),
+    plan_paused: str = Form(''),
     db: Session = Depends(get_db),
 ):
     entry = db.query(PipelineEntry).filter(PipelineEntry.id == entry_id).first()
@@ -373,6 +379,8 @@ def update_entry(
     entry.entry_fee_discount = entry_fee_discount
     entry.maintenance_fee_discount = maintenance_fee_discount
     entry.charge_cycle = charge_cycle
+    entry.billing_start_date = parse_date(billing_start_date)
+    entry.plan_paused = 1 if plan_paused else 0
 
     try:
         db.commit()

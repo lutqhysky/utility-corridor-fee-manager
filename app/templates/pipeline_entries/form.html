@@ -67,6 +67,12 @@
                             <option value="年度" {% if selected_cycle == '年度' %}selected{% endif %}>年度</option>
                         </select>
                     </td>
+                    <th>运维计费起始日</th>
+                    <td><input type="date" name="billing_start_date" value="{{ entry.billing_start_date if entry and entry.billing_start_date else '' }}"><div class="sub">留空 = 入廊时间；签补充协议后改这里</div></td>
+                </tr>
+                <tr>
+                    <th>收费计划</th>
+                    <td><label><input type="checkbox" name="plan_paused" value="1" {% if entry and entry.plan_paused %}checked{% endif %}> 暂停生成（待签补充协议、起始日未定时勾选）</label></td>
                     <th></th>
                     <td></td>
                 </tr>

@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="toolbar">
+    <div>
+        <strong>收费计划</strong>
+        <span class="sub">由入廊清单按收费规则推导的应收时间轴；节点到期后一键转成正式收费记录</span>
+    </div>
+    <form method="post" action="/fee-plans/generate" onsubmit="return confirm('按当前清单与规则生成/刷新全部计划？已转记录、已取消的节点不受影响。');">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+        <button type="submit">生成 / 刷新计划</button>
+    </form>
+</div>
+
+{% if generate_msg %}
+<section class="panel" style="border-left:4px solid #2563eb;"><p style="margin:0;">{{ generate_msg }}</p></section>
+{% endif %}
+
+<section class="panel">
+    <p style="margin:0; line-height:2;">
+        待转记录节点 <strong>{{ summary.pending_count }}</strong> 个，合计 <strong>¥{{ '%.2f'|format(summary.pending_amount) }}</strong>；
+        其中已过应收日未转 <strong style="color:#dc2626;">{{ summary.overdue_count }}</strong> 个，合计 <strong style="color:#dc2626;">¥{{ '%.2f'|format(summary.overdue_amount) }}</strong>；
+        已转记录 {{ summary.converted_count }} 个。
+    </p>
+</section>
+
+{% for entry in entries %}
+{% set nodes = by_entry.get(entry.id, []) %}
+<section class="panel">
+    <h3 style="margin-top:0;">
+        {{ entry.project_name or '（未命名项目）' }}
+        <span class="sub">{{ entry.company.short_name or entry.company.company_name if entry.company else '' }}｜周期：{{ entry.charge_cycle or '年度' }}｜入廊：{{ entry.entry_date or '未填' }}｜计费起始：{{ entry.billing_start_date or entry.entry_date or '—' }}</span>
+        {% if entry.plan_paused %}<span class="badge" style="background:#fef3c7; color:#b45309;">已暂停生成</span>{% endif %}
+        <a class="sub" href="/pipeline-entries/{{ entry.id }}/edit">改计费起始/暂停</a>
+    </h3>
+    {% if nodes %}
+    <table>
+        <thead><tr><th>期次</th><th>类型</th><th>应收金额</th><th>应收日期</th><th>状态</th><th>操作</th></tr></thead>
+        <tbody>
+        {% for n in nodes %}
+        <tr>
+            <td>{{ n.charge_period }}{% if n.is_prorated %} <span class="sub">（首期折算 {{ n.period_start }} ~ {{ n.period_end }}）</span>{% endif %}</td>
+            <td>{{ n.fee_type }}</td>
+            <td>¥{{ '%.2f'|format(n.amount_incl_tax or 0) }}</td>
+            <td>{{ n.planned_receivable_date or '—' }}{% if n.status == '待到期' and n.planned_receivable_date and n.planned_receivable_date < today %} <span class="badge badge-overdue">已过应收日</span>{% endif %}</td>
+            <td>{{ n.status }}</td>
+            <td>
+                {% if n.status == '待到期' %}
+                <form method="post" action="/fee-plans/{{ n.id }}/convert" style="display:inline;" onsubmit="return confirm('把该节点转成正式收费记录？');">
+                    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                    <button type="submit">转收费记录</button>
+                </form>
+                <form method="post" action="/fee-plans/{{ n.id }}/cancel" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                    <button type="submit">取消</button>
+                </form>
+                {% elif n.status == '已转记录' %}
+                <a href="/fee-records/{{ n.fee_record_id }}/edit">查看记录 →</a>
+                {% elif n.status == '已取消' %}
+                <form method="post" action="/fee-plans/{{ n.id }}/restore" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                    <button type="submit">恢复</button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="sub" style="margin:0;">暂无节点。{% if entry.plan_paused %}该项目已暂停生成。{% elif not entry.entry_date %}未填入廊时间，无法推导。{% else %}点上方「生成 / 刷新计划」生成。{% endif %}</p>
+    {% endif %}
+</section>
+{% endfor %}
+{% endblock %}

@@ -53,6 +53,8 @@ def get_expected_sqlite_columns():
             'entry_fee_discount': 'FLOAT DEFAULT 1',
             'maintenance_fee_discount': 'FLOAT DEFAULT 1',
             'charge_cycle': "VARCHAR(20) DEFAULT '年度'",
+            'billing_start_date': 'DATE',
+            'plan_paused': 'INTEGER DEFAULT 0',
         },
         'contracts': {
             'pipeline_entry_id': 'INTEGER',
