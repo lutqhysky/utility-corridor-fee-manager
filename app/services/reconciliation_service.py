@@ -98,13 +98,15 @@ def get_reconciliation(db: Session) -> dict:
             if unsigned:
                 groups['contract_unsigned'].append(
                     {**base, 'detail': '未签订：%s' % '、'.join(
-                        '《%s》' % c.contract_name for c in unsigned)})
+                        '《%s》（%s）' % (c.contract_name, c.contract_type or '未填类型')
+                        for c in unsigned)})
             unfiled = [i['contract'] for i in linked
                        if (i['contract'].filing_status or '').strip() in ('未备案', '正在备案')]
             if unfiled:
                 groups['contract_unfiled'].append(
                     {**base, 'detail': '、'.join(
-                        '《%s》%s' % (c.contract_name, c.filing_status) for c in unfiled)})
+                        '《%s》（%s）%s' % (c.contract_name, c.contract_type or '未填类型',
+                                           c.filing_status) for c in unfiled)})
         if e.id not in fee_entry_ids:
             groups['no_fee'].append({**base, 'detail': '收费记录 0 条'})
         elif not linked:
