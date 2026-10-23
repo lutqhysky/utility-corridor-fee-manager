@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
 from app.utils import safe_json_dumps
 from app.models import Company, FeeStandard, PipelineEntry, PipelineEntryDetail
@@ -183,6 +183,33 @@ def list_entries(request: Request, db: Session = Depends(get_db), company_id: st
             'title': '入廊管线清单'
         }
     )
+
+
+@router.get('/export')
+def export_entries(db: Session = Depends(get_db)):
+    """导出入廊清单为 Excel（金额为清单口径：实际入廊费/年运维费，含税）。"""
+    from app.routes.fee_records import calculate_entry_actual_fees
+    from app.utils import xlsx_response
+    entries = (db.query(PipelineEntry)
+               .options(joinedload(PipelineEntry.company), joinedload(PipelineEntry.details))
+               .order_by(PipelineEntry.id).all())
+    rows = []
+    for e in entries:
+        entry_fee, annual_maint = calculate_entry_actual_fees(e)
+        rows.append([
+            e.company.short_name or e.company.company_name if e.company else '',
+            e.project_name or '',
+            e.entry_date.isoformat() if e.entry_date else '',
+            (e.cabin_type or '').strip(),
+            e.charge_cycle or '年度',
+            float(entry_fee), float(annual_maint),
+            (e.billing_start_date or e.entry_date).isoformat() if (e.billing_start_date or e.entry_date) else '',
+            '是' if e.plan_paused else '否',
+        ])
+    return xlsx_response('入廊管线清单.xlsx', [(
+        '入廊清单',
+        ['单位', '项目', '入廊时间', '舱型', '收费周期', '实际入廊费(含税)', '年度运维费(含税)', '计费起始日', '暂停生成计划'],
+        [16, 26, 12, 16, 10, 16, 16, 12, 12], rows)])
 
 
 @router.get('/new', response_class=HTMLResponse)

@@ -19,7 +19,8 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 @router.get('/', response_class=HTMLResponse)
 def list_plans(request: Request, db: Session = Depends(get_db),
                created: int = -1, skipped_existing: int = -1,
-               skipped_paused: int = -1, skipped_no_date: int = -1):
+               skipped_paused: int = -1, skipped_no_date: int = -1,
+               converted: int = -1, convert_failed: int = -1):
     today = date.today()
     entries = db.query(PipelineEntry).order_by(PipelineEntry.id).all()
     nodes = (db.query(FeePlanNode)
@@ -40,6 +41,8 @@ def list_plans(request: Request, db: Session = Depends(get_db),
         'converted_count': sum(1 for n in nodes if n.status == '已转记录'),
     }
     generate_msg = None
+    if converted >= 0:
+        generate_msg = f'批量转记录完成：成功 {converted} 个，失败 {convert_failed} 个。'
     if created >= 0:
         generate_msg = (f'计划已生成/刷新：新建 {created} 个节点，'
                         f'跳过已有记录/节点 {skipped_existing} 个，'
@@ -66,18 +69,15 @@ def generate(request: Request, db: Session = Depends(get_db)):
         status_code=303)
 
 
-@router.post('/{node_id}/convert')
-def convert_node(node_id: int, db: Session = Depends(get_db)):
+def _convert_node(db: Session, node: FeePlanNode):
+    """把一个待到期节点转成收费记录（不提交，调用方统一 commit）。失败返回 None。"""
     from app.routes.fee_records import calc_excl_tax_from_incl_tax, get_standard_tax_rate
 
-    node = db.query(FeePlanNode).filter(FeePlanNode.id == node_id).first()
-    if not node:
-        raise HTTPException(status_code=404, detail='计划节点不存在')
-    if node.status == '已转记录':
-        return RedirectResponse(url='/fee-plans/', status_code=303)
+    if node.status != '待到期':
+        return None
     entry = node.pipeline_entry
     if not entry:
-        raise HTTPException(status_code=422, detail='关联入廊记录不存在')
+        return None
 
     tax_rate = get_standard_tax_rate(db, node.fee_type)
     if tax_rate is None:
@@ -108,8 +108,42 @@ def convert_node(node_id: int, db: Session = Depends(get_db)):
     db.flush()
     node.status = '已转记录'
     node.fee_record_id = record.id
+    return record
+
+
+@router.post('/{node_id}/convert')
+def convert_node(node_id: int, db: Session = Depends(get_db)):
+    node = db.query(FeePlanNode).filter(FeePlanNode.id == node_id).first()
+    if not node:
+        raise HTTPException(status_code=404, detail='计划节点不存在')
+    if node.status == '已转记录':
+        return RedirectResponse(url='/fee-plans/', status_code=303)
+    if _convert_node(db, node) is None:
+        raise HTTPException(status_code=422, detail='节点无法转换（关联入廊记录不存在）')
     db.commit()
     return RedirectResponse(url='/fee-plans/', status_code=303)
+
+
+@router.post('/convert-batch')
+def convert_batch(db: Session = Depends(get_db), node_ids: list[int] = Form([])):
+    """批量转记录：逐条转换，单条失败不影响其他条，汇总回报。"""
+    ok, failed = 0, 0
+    for node_id in dict.fromkeys(node_ids):
+        node = db.query(FeePlanNode).filter(FeePlanNode.id == node_id).first()
+        if node is None:
+            failed += 1
+            continue
+        try:
+            if _convert_node(db, node) is None:
+                failed += 1
+            else:
+                ok += 1
+        except Exception:
+            db.rollback()
+            failed += 1
+    db.commit()
+    return RedirectResponse(url=f'/fee-plans/?converted={ok}&convert_failed={failed}',
+                            status_code=303)
 
 
 @router.post('/{node_id}/cancel')

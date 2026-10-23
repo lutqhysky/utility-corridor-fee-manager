@@ -35,4 +35,6 @@ class FeeRecord(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     company = relationship('Company', back_populates='fee_records')
+    payments = relationship('FeePayment', back_populates='fee_record',
+                            cascade='all, delete-orphan', order_by='FeePayment.id')
     pipeline_entry = relationship('PipelineEntry', back_populates='fee_records')

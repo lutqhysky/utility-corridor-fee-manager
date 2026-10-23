@@ -74,7 +74,7 @@
         </label>
 
         <label>实收金额
-            <input name="actual_received_amount" type="number" step="0.01" value="{{ record.actual_received_amount if record and record.actual_received_amount is not none else 0 }}">
+            <input name="actual_received_amount" type="number" step="0.01" value="{{ record.actual_received_amount if record and record.actual_received_amount is not none else 0 }}"{% if record and record.payments %} readonly title="该记录已有收款流水，实收由流水自动汇总，请在下方流水区登记/删除"{% endif %}>
         </label>
 
         <label>实收时间
@@ -102,6 +102,41 @@
         </div>
     </form>
 </section>
+{% if record %}
+<section class="panel">
+    <h3 style="margin-top:0;">收款流水（实收合计 ¥{{ '%.2f'|format(record.actual_received_amount or 0) }}，由流水自动汇总）</h3>
+    {% if record.payments %}
+    <table>
+        <thead><tr><th>到账日期</th><th>金额</th><th>备注</th><th>操作</th></tr></thead>
+        <tbody>
+        {% for pay in record.payments %}
+            <tr>
+                <td>{{ pay.received_date or '日期未填' }}</td>
+                <td>¥{{ '%.2f'|format(pay.amount or 0) }}</td>
+                <td>{{ pay.remark or '' }}</td>
+                <td>
+                    <form method="post" action="/fee-records/payments/{{ pay.id }}/delete" style="display:inline;" onsubmit="return confirm('删除这笔收款流水？实收合计将回滚。');">
+                        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                        <button type="submit">删除</button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="sub">暂无流水。</p>
+    {% endif %}
+    <form method="post" action="/fee-records/{{ record.id }}/receive" class="inline-form" style="margin-top:10px;">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+        <input type="number" name="amount" step="0.01" min="0.01" placeholder="本次到账金额" style="width:150px;" required>
+        <input type="date" name="received_date" required>
+        <input type="text" name="remark" placeholder="备注（可空）" style="min-width:140px;">
+        <button type="submit">登记收款</button>
+        <span class="sub">登记后自动累加实收并更新状态；上方表单里的实收金额以流水合计为准。</span>
+    </form>
+</section>
+{% endif %}
 <script>
     const STANDARD_TAX_RATES = {{ standard_tax_rates_json | safe }};
     (function () {

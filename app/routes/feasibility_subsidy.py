@@ -132,6 +132,33 @@ def list_periods(request: Request, db: Session = Depends(get_db)):
     )
 
 
+@router.get('/export')
+def export_subsidy(db: Session = Depends(get_db)):
+    """导出可行性缺口补助：期间汇总 + 收款明细两张表。"""
+    from app.utils import xlsx_response
+    periods = (db.query(FeasibilitySubsidyPeriod)
+               .options(joinedload(FeasibilitySubsidyPeriod.details))
+               .order_by(FeasibilitySubsidyPeriod.id).all())
+    summary_rows, detail_rows = [], []
+    for per in periods:
+        received = sum(float(d.amount or 0) for d in per.details)
+        receivable = float(per.current_receivable or 0)
+        summary_rows.append([
+            per.operating_period or '',
+            per.start_date.isoformat() if per.start_date else '',
+            per.end_date.isoformat() if per.end_date else '',
+            receivable, received, receivable - received, len(per.details)])
+        for d in sorted(per.details, key=lambda x: (x.received_date is None, x.received_date)):
+            detail_rows.append([per.operating_period or '',
+                                d.received_date.isoformat() if d.received_date else '',
+                                float(d.amount or 0), d.remark or ''])
+    return xlsx_response('可行性缺口补助.xlsx', [
+        ('期间汇总', ['运营期间', '开始日期', '结束日期', '应收补助(元)', '实收合计(元)', '差额(元)', '收款笔数'],
+         [22, 12, 12, 14, 14, 14, 10], summary_rows),
+        ('收款明细', ['运营期间', '收款日期', '金额(元)', '备注'],
+         [22, 12, 14, 30], detail_rows)])
+
+
 @router.post('/new')
 def create_period(
     operating_period: str = Form(''),

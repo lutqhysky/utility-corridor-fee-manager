@@ -224,10 +224,17 @@ def list_records(
     status: str = '',
     project: str = '',
     notice: str = '',
+    keyword: str = '',
+    year: str = '',
+    sort: str = '',
 ):
+    from sqlalchemy import extract, or_
+    from sqlalchemy.orm import joinedload
     selected_company_id = parse_optional_int(company_id)
     selected_project = (project or '').strip()
-    query = db.query(FeeRecord)
+    selected_keyword = (keyword or '').strip()
+    selected_year = parse_optional_int(year)
+    query = db.query(FeeRecord).options(joinedload(FeeRecord.payments))
     if selected_company_id:
         query = query.filter(FeeRecord.company_id == selected_company_id)
     # '__overdue__' 是动态逾期筛选，不对应数据库里的状态值，查询后再在内存中过滤
@@ -235,8 +242,27 @@ def list_records(
         query = query.filter(FeeRecord.payment_status == status)
     if selected_project:
         query = query.filter(FeeRecord.project_name == selected_project)
-
-    records = query.order_by(FeeRecord.planned_receivable_date.desc()).all()
+    if selected_year:
+        query = query.filter(extract('year', FeeRecord.planned_receivable_date) == selected_year)
+    if selected_keyword:
+        like = f'%{selected_keyword}%'
+        query = query.join(Company, FeeRecord.company_id == Company.id).filter(or_(
+            FeeRecord.project_name.ilike(like),
+            FeeRecord.remark.ilike(like),
+            Company.company_name.ilike(like),
+            Company.short_name.ilike(like),
+        ))
+    sort_orders = {
+        'due_asc': FeeRecord.planned_receivable_date.asc(),
+        'amount_desc': FeeRecord.amount_incl_tax.desc(),
+        'amount_asc': FeeRecord.amount_incl_tax.asc(),
+    }
+    records = query.order_by(sort_orders.get(sort, FeeRecord.planned_receivable_date.desc())).all()
+    available_years = [row[0] for row in db.query(
+        extract('year', FeeRecord.planned_receivable_date))
+        .filter(FeeRecord.planned_receivable_date.isnot(None))
+        .distinct().order_by(extract('year', FeeRecord.planned_receivable_date).desc()).all()
+        if row[0] is not None]
     today = date.today()
     annotate_overdue(records, today)
     if status == OVERDUE_FILTER_VALUE:
@@ -263,6 +289,11 @@ def list_records(
             'selected_status': status,
             'project_names': project_names,
             'selected_project': selected_project,
+            'selected_keyword': selected_keyword,
+            'selected_year': selected_year,
+            'available_years': available_years,
+            'selected_sort': sort,
+            'today_str': date.today().isoformat(),
             'overdue_filter_value': OVERDUE_FILTER_VALUE,
             'overdue_count': overdue_count,
             'summary_groups': summary_groups,
@@ -281,6 +312,36 @@ def run_digest_now(db: Session = Depends(get_db)):
     """手动触发一次每日汇总推送（忽略时间与去重检查）。"""
     message = run_daily_digest(db, force=True)
     return RedirectResponse(url=f'/fee-records/?notice={quote(message)}', status_code=303)
+
+
+@router.post('/{record_id}/receive')
+def receive_payment(record_id: int, request: Request, db: Session = Depends(get_db),
+                    amount: float = Form(...), received_date: str = Form(''),
+                    remark: str = Form('')):
+    """登记一笔到账：写入流水并回写实收缓存与状态。"""
+    from app.services.payment_service import add_payment
+    record = db.query(FeeRecord).filter(FeeRecord.id == record_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail='收费记录不存在')
+    if amount is None or amount <= 0:
+        raise HTTPException(status_code=422, detail='收款金额必须大于 0')
+    add_payment(db, record, amount, parse_date(received_date), remark)
+    message = f'已登记收款 ¥{amount:,.2f}（{record.project_name or ""}），当前状态：{record.payment_status}。'
+    return RedirectResponse(url=f'/fee-records/?notice={quote(message)}', status_code=303)
+
+
+@router.post('/payments/{payment_id}/delete')
+def delete_payment_route(payment_id: int, db: Session = Depends(get_db)):
+    """删除一笔收款流水并回滚实收缓存（误登纠正）。"""
+    from app.models.fee_payment import FeePayment
+    from app.services.payment_service import delete_payment
+    payment = db.query(FeePayment).filter(FeePayment.id == payment_id).first()
+    if not payment:
+        raise HTTPException(status_code=404, detail='收款流水不存在')
+    record = delete_payment(db, payment)
+    message = '已删除一笔收款流水，实收合计已回滚。'
+    target = f'/fee-records/{record.id}/edit' if record else '/fee-records/'
+    return RedirectResponse(url=f'{target}?notice={quote(message)}', status_code=303)
 
 
 @router.get('/export')
@@ -364,6 +425,30 @@ def run_reminders():
     return RedirectResponse(url=f'/fee-records/?notice={quote(result.message)}', status_code=303)
 
 
+@router.get('/statement', response_class=HTMLResponse)
+def company_statement(request: Request, company_id: int, db: Session = Depends(get_db)):
+    """按单位生成对账单（打印页）：该单位全部收费记录与应收/已收/未收合计。"""
+    company = db.query(Company).filter(Company.id == company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail='单位不存在')
+    records = (db.query(FeeRecord)
+               .filter(FeeRecord.company_id == company_id)
+               .order_by(FeeRecord.planned_receivable_date.asc(), FeeRecord.id.asc())
+               .all())
+    total_receivable = sum(float(r.amount_incl_tax or 0) for r in records)
+    total_received = sum(float(r.actual_received_amount or 0) for r in records)
+    return templates.TemplateResponse('fee_records/statement.html', {
+        'request': request,
+        'company': company,
+        'records': records,
+        'total_receivable': total_receivable,
+        'total_received': total_received,
+        'total_outstanding': total_receivable - total_received,
+        'print_date': date.today().isoformat(),
+        'title': '对账单',
+    })
+
+
 @router.get('/new', response_class=HTMLResponse)
 def new_record(request: Request, db: Session = Depends(get_db)):
     companies = db.query(Company).order_by(Company.company_name).all()
@@ -432,8 +517,7 @@ def create_record(
 
     amount_excl_tax, tax_amount = calc_excl_tax_from_incl_tax(amount_incl_tax, actual_tax_rate)
 
-    db.add(
-        FeeRecord(
+    new_record = FeeRecord(
             company_id=company_id,
             pipeline_entry_id=pipeline_entry_id,
             project_name=project_name,
@@ -454,7 +538,14 @@ def create_record(
             is_invoiced=is_invoiced,
             remark=remark,
         )
-    )
+    db.add(new_record)
+    db.flush()
+    if actual_received_amount and actual_received_amount > 0:
+        from app.models.fee_payment import FeePayment
+        db.add(FeePayment(fee_record_id=new_record.id,
+                          amount=actual_received_amount,
+                          received_date=parse_date(actual_received_date),
+                          remark='建记录时登记'))
     try:
         db.commit()
     except IntegrityError as exc:
@@ -568,6 +659,11 @@ def update_record(
     record.payment_status = payment_status
     record.is_invoiced = is_invoiced
     record.remark = remark
+
+    # 已有收款流水的记录：实收总额/日期/状态以流水汇总为准，防止表单手改与流水脱节
+    if record.payments:
+        from app.services.payment_service import sync_record_from_payments
+        sync_record_from_payments(db, record)
 
     try:
         db.commit()

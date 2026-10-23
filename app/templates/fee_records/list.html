@@ -33,11 +33,29 @@
             </option>
         </select>
 
+        <select name="year">
+            <option value="">全部年度</option>
+            {% for y in available_years %}
+            <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}年</option>
+            {% endfor %}
+        </select>
+
+        <input type="text" name="keyword" value="{{ selected_keyword }}" placeholder="搜单位/项目/备注" style="min-width:130px;">
+
+        <select name="sort">
+            <option value="" {% if not selected_sort %}selected{% endif %}>应收时间↓（默认）</option>
+            <option value="due_asc" {% if selected_sort == 'due_asc' %}selected{% endif %}>应收时间↑</option>
+            <option value="amount_desc" {% if selected_sort == 'amount_desc' %}selected{% endif %}>应收金额↓</option>
+            <option value="amount_asc" {% if selected_sort == 'amount_asc' %}selected{% endif %}>应收金额↑</option>
+        </select>
+
         <button type="submit">筛选</button>
+        {% if selected_keyword or selected_year or selected_sort %}<a href="/fee-records/">清空筛选</a>{% endif %}
     </form>
 
     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
         <a class="button" href="/fee-records/export?company_id={{ selected_company_id or '' }}&status={{ selected_status or '' }}&project={{ selected_project or '' }}">导出Excel</a>
+        {% if selected_company_id %}<a class="button" href="/fee-records/statement?company_id={{ selected_company_id }}" target="_blank">打印对账单</a>{% endif %}
         <form method="post" action="/fee-records/reminders/run" style="display:inline;">
         <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
             <button type="submit">执行提醒检查</button>
@@ -96,11 +114,38 @@
                 </td>
                 <td class="td-ellipsis" title="{{ record.remark or '' }}">{{ record.remark or '' }}</td>
                 <td>
+                    {% set remain = (record.amount_incl_tax or 0) - (record.actual_received_amount or 0) %}
+                    {% if remain > 0.004 %}<button type="button" class="receive-toggle" data-target="receive-{{ record.id }}">收款</button>{% endif %}
                     <a href="/fee-records/{{ record.id }}/edit">修改</a>
                     <form method="post" action="/fee-records/{{ record.id }}/delete" style="display:inline; margin-left:8px;">
         <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                         <button type="submit" onclick="return confirm('确定删除这条收费记录吗？')">删除</button>
                     </form>
+                </td>
+            </tr>
+            <tr id="receive-{{ record.id }}" class="receive-row" style="display:none; background:#f8fafc;">
+                <td colspan="12">
+                    <form method="post" action="/fee-records/{{ record.id }}/receive" class="inline-form" style="margin:4px 0;">
+                        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                        <strong>登记收款</strong>
+                        <span>应收 ¥{{ '%.2f'|format(record.amount_incl_tax or 0) }}｜已收 ¥{{ '%.2f'|format(record.actual_received_amount or 0) }}｜未收 ¥{{ '%.2f'|format(remain) }}</span>
+                        <input type="number" name="amount" step="0.01" min="0.01" value="{{ '%.2f'|format(remain) }}" style="width:130px;" required>
+                        <input type="date" name="received_date" value="{{ today_str }}" required>
+                        <input type="text" name="remark" placeholder="备注（可空）" style="min-width:120px;">
+                        <button type="submit">确认收款</button>
+                    </form>
+                    {% if record.payments %}
+                    <div style="margin:4px 0; font-size:13px; color:#475569;">
+                        收款流水：
+                        {% for pay in record.payments %}
+                        <span style="white-space:nowrap;">{{ pay.received_date or '日期未填' }} ¥{{ '%.2f'|format(pay.amount or 0) }}{% if pay.remark %}（{{ pay.remark }}）{% endif %}
+                        <form method="post" action="/fee-records/payments/{{ pay.id }}/delete" style="display:inline;" onsubmit="return confirm('删除这笔收款流水？实收合计将回滚。');">
+                            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                            <button type="submit" style="color:#dc2626;">删</button>
+                        </form></span>{% if not loop.last %}；{% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                 </td>
             </tr>
         {% else %}
@@ -158,4 +203,12 @@
 </section>
 {% endif %}
 
+<script>
+document.querySelectorAll('.receive-toggle').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+        var row = document.getElementById(btn.getAttribute('data-target'));
+        if (row) row.style.display = row.style.display === 'none' ? '' : 'none';
+    });
+});
+</script>
 {% endblock %}

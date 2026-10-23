@@ -46,3 +46,42 @@ def safe_excel_cell(value):
     if isinstance(value, str) and value[:1] in ('=', '+', '-', '@'):
         return "'" + value
     return value
+
+
+def xlsx_response(filename: str, sheets: list):
+    """把 [(sheet名, 表头, 列宽, 行数据), ...] 打包成 xlsx 下载响应。
+
+    文本单元格统一过 safe_excel_cell 防公式注入；表头蓝底加粗，与既有导出口径一致。
+    """
+    import io
+    from urllib.parse import quote
+
+    from fastapi.responses import StreamingResponse
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.utils import get_column_letter
+
+    wb = Workbook()
+    wb.remove(wb.active)
+    header_fill = PatternFill('solid', fgColor='D9E1F2')
+    header_font = Font(bold=True)
+    for title, headers, widths, rows in sheets:
+        ws = wb.create_sheet(title=title)
+        for col, h in enumerate(headers, start=1):
+            cell = ws.cell(row=1, column=col, value=h)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+        for r_idx, row in enumerate(rows, start=2):
+            for c_idx, value in enumerate(row, start=1):
+                ws.cell(row=r_idx, column=c_idx, value=safe_excel_cell(value))
+        for col, width in enumerate(widths, start=1):
+            ws.column_dimensions[get_column_letter(col)].width = width
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return StreamingResponse(
+        buffer,
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': f"attachment; filename*=UTF-8''{quote(filename)}"},
+    )

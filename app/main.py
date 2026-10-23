@@ -52,6 +52,15 @@ def initialize_application():
     with database.SessionLocal() as db:
         seed_data(db)
 
+    # 收款流水上线补登：把存量实收总额导入为流水（幂等）
+    try:
+        from app.services.payment_service import backfill_historical_payments
+        with database.SessionLocal() as db:
+            backfill_historical_payments(db)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception('收款流水历史补登失败')
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

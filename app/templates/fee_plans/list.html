@@ -21,6 +21,11 @@
         其中已过应收日未转 <strong style="color:#dc2626;">{{ summary.overdue_count }}</strong> 个，合计 <strong style="color:#dc2626;">¥{{ '%.2f'|format(summary.overdue_amount) }}</strong>；
         已转记录 {{ summary.converted_count }} 个。
     </p>
+    <p style="margin:8px 0 0;">
+        <label><input type="checkbox" id="check-all-nodes"> 全选待转节点</label>
+        <button type="button" id="batch-convert-btn" disabled>批量转记录（<span id="batch-count">0</span>）</button>
+        <span class="sub">勾选下方各项目的待转节点后批量生成收费记录，单条失败不影响其他条。</span>
+    </p>
 </section>
 
 {% for entry in entries %}
@@ -34,10 +39,11 @@
     </h3>
     {% if nodes %}
     <table>
-        <thead><tr><th>期次</th><th>类型</th><th>应收金额</th><th>应收日期</th><th>状态</th><th>操作</th></tr></thead>
+        <thead><tr><th></th><th>期次</th><th>类型</th><th>应收金额</th><th>应收日期</th><th>状态</th><th>操作</th></tr></thead>
         <tbody>
         {% for n in nodes %}
         <tr>
+            <td>{% if n.status == '待到期' %}<input type="checkbox" class="node-check" value="{{ n.id }}">{% endif %}</td>
             <td>{{ n.charge_period }}{% if n.is_prorated %} <span class="sub">（首期折算 {{ n.period_start }} ~ {{ n.period_end }}）</span>{% endif %}</td>
             <td>{{ n.fee_type }}</td>
             <td>¥{{ '%.2f'|format(n.amount_incl_tax or 0) }}</td>
@@ -71,4 +77,44 @@
     {% endif %}
 </section>
 {% endfor %}
+<script>
+(function () {
+    var checks = Array.prototype.slice.call(document.querySelectorAll('.node-check'));
+    var btn = document.getElementById('batch-convert-btn');
+    var cnt = document.getElementById('batch-count');
+    var all = document.getElementById('check-all-nodes');
+    function refresh() {
+        var n = checks.filter(function (c) { return c.checked; }).length;
+        cnt.textContent = n;
+        btn.disabled = n === 0;
+        if (all) all.checked = n > 0 && n === checks.length;
+    }
+    checks.forEach(function (c) { c.addEventListener('change', refresh); });
+    if (all) all.addEventListener('change', function () {
+        checks.forEach(function (c) { c.checked = all.checked; });
+        refresh();
+    });
+    btn.addEventListener('click', function () {
+        var ids = checks.filter(function (c) { return c.checked; })
+                        .map(function (c) { return c.value; });
+        if (!ids.length) return;
+        if (!confirm('把勾选的 ' + ids.length + ' 个节点批量转成正式收费记录？')) return;
+        var form = document.createElement('form');
+        form.method = 'post';
+        form.action = '/fee-plans/convert-batch';
+        var csrf = document.createElement('input');
+        csrf.type = 'hidden'; csrf.name = 'csrf_token';
+        csrf.value = '{{ request.state.csrf_token }}';
+        form.appendChild(csrf);
+        ids.forEach(function (id) {
+            var i = document.createElement('input');
+            i.type = 'hidden'; i.name = 'node_ids'; i.value = id;
+            form.appendChild(i);
+        });
+        document.body.appendChild(form);
+        form.submit();
+    });
+    refresh();
+})();
+</script>
 {% endblock %}

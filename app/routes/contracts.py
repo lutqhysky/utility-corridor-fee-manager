@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
 from app.models import Company, Contract, PipelineEntry
 from app.paths import TEMPLATES_DIR
@@ -81,6 +81,29 @@ def list_contracts(request: Request, db: Session = Depends(get_db), filing: str 
             'title': '合同备案',
         },
     )
+
+
+@router.get('/export')
+def export_contracts(db: Session = Depends(get_db)):
+    """导出合同备案为 Excel。"""
+    from app.utils import xlsx_response
+    contracts = (db.query(Contract)
+                 .options(joinedload(Contract.company), joinedload(Contract.pipeline_entry))
+                 .order_by(Contract.id).all())
+    rows = [[
+        c.company.short_name or c.company.company_name if c.company else '',
+        c.contract_name or '',
+        c.contract_type or '',
+        c.filing_status or '',
+        c.filing_department or '',
+        c.sign_date.isoformat() if c.sign_date else '',
+        c.pipeline_entry.project_name if c.pipeline_entry else '',
+        c.remark or '',
+    ] for c in contracts]
+    return xlsx_response('合同备案.xlsx', [(
+        '合同备案',
+        ['单位', '合同名', '合同类型', '备案状态', '备案部门', '签订日期', '关联入廊项目', '备注'],
+        [16, 28, 14, 10, 16, 12, 24, 24], rows)])
 
 
 @router.get('/new', response_class=HTMLResponse)
