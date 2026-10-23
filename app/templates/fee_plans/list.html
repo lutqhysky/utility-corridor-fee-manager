@@ -61,6 +61,7 @@
                 </form>
                 {% elif n.status == '已转记录' %}
                 <a href="/fee-records/{{ n.fee_record_id }}/edit">查看记录 →</a>
+                <a href="/fee-records/{{ n.fee_record_id }}/print" target="_blank" style="margin-left:8px;">打印费用单</a>
                 {% elif n.status == '已取消' %}
                 <form method="post" action="/fee-plans/{{ n.id }}/restore" style="display:inline;">
                     <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">

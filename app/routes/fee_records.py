@@ -449,6 +449,118 @@ def company_statement(request: Request, company_id: int, db: Session = Depends(g
     })
 
 
+@router.get('/{record_id}/print', response_class=HTMLResponse)
+def print_record_fee_sheet(record_id: int, request: Request, db: Session = Depends(get_db)):
+    """按收费记录打印费用单：金额锚定记录本身（季度/首期折算都对得上账）。
+
+    与按项目打印（恒年度全额）的区别：本单只出该记录对应期次的金额，
+    明细行按「记录不含税额 ÷ 年度原始不含税额」等比缩放，尾行吸收分差，
+    折后实际段直接取记录的含税/不含税/税金三值，与台账分毫不差。
+    """
+    from decimal import Decimal, ROUND_HALF_UP
+
+    from app.routes.pipeline_entries import (
+        PRINT_REGION_TITLE, PRINT_TARGET_ROWS, _fmt_money, _fmt_pct, _fmt_qty,
+        calc_detail_amount, get_discount_or_default, infer_detail_unit)
+
+    def q2d(v: Decimal) -> Decimal:
+        return v.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+    record = db.query(FeeRecord).filter(FeeRecord.id == record_id).first()
+    if not record or not record.pipeline_entry:
+        return RedirectResponse(url='/fee-records/', status_code=303)
+    entry = record.pipeline_entry
+    is_entry = record.fee_type == '入廊费'
+    fee_label = '入廊费' if is_entry else '运维费'
+    tax_rate = float(record.tax_rate or 0)
+    discount = get_discount_or_default(
+        entry.entry_fee_discount if is_entry else entry.maintenance_fee_discount)
+
+    record_incl = Decimal(str(record.amount_incl_tax or 0))
+    record_excl = Decimal(str(record.amount_excl_tax or 0))
+    record_tax = (Decimal(str(record.tax_amount)) if record.tax_amount is not None
+                  else record_incl - record_excl)
+    # 折前段由记录反推（折扣=1 时与记录完全一致）
+    if discount and float(discount) != 1.0:
+        orig_incl = q2d(record_incl / Decimal(str(discount)))
+    else:
+        orig_incl = record_incl
+    if tax_rate > 0:
+        orig_excl = q2d(orig_incl / (1 + Decimal(str(tax_rate))))
+    else:
+        orig_excl = orig_incl
+    orig_tax = orig_incl - orig_excl
+
+    # 明细行：原始明细不含税额等比缩放至折前不含税合计，尾行吸收分差
+    bases = []
+    for item in entry.details:
+        qty = item.engineering_quantity or 0
+        if is_entry:
+            unit_price = item.entry_unit_price_excl_tax or 0
+            amount = item.entry_amount_excl_tax or 0
+        else:
+            unit_price = item.maintenance_unit_price_excl_tax or 0
+            amount = item.maintenance_amount_excl_tax or 0
+        if not amount and qty and unit_price:
+            amount = calc_detail_amount(qty, unit_price)
+        bases.append((item, qty, unit_price, Decimal(str(amount or 0))))
+    annual_orig_excl = sum((b[3] for b in bases), Decimal('0'))
+    factor = (orig_excl / annual_orig_excl) if annual_orig_excl > 0 else Decimal('0')
+    rows = []
+    running = Decimal('0')
+    for idx, (item, qty, unit_price, base) in enumerate(bases):
+        if idx == len(bases) - 1:
+            row_amount = orig_excl - running
+        else:
+            row_amount = q2d(base * factor)
+            running += row_amount
+        rows.append({
+            'pipeline_type': item.pipeline_type or '',
+            'specification': item.specification or '',
+            'unit': infer_detail_unit(item.pipeline_type),
+            'quantity': _fmt_qty(qty),
+            'unit_price': _fmt_money(unit_price),
+            'amount': _fmt_money(row_amount),
+            'remark': item.remark or '',
+        })
+
+    cabin = entry.cabin_type or ''
+    note_text = (
+        f'根据管线入廊合同约定，本项目{cabin}{fee_label}按照上述金额的{_fmt_pct(discount)}收取。'
+        '实际综合管廊有偿使用费如下：')
+    if not is_entry and record.charge_period:
+        note_text += f'本费用单对应收费期次：{record.charge_period}。'
+    sheet_title = f'管廊{cabin}有偿使用费（{entry.project_name or ""}-{fee_label}'
+    if not is_entry and record.charge_period:
+        sheet_title += f'·{record.charge_period}'
+    sheet_title += '）'
+    fixed_rows = 1 + len(rows) + 3 + 4
+    blank_rows = list(range(max(0, PRINT_TARGET_ROWS - fixed_rows)))
+    return templates.TemplateResponse(
+        'pipeline_entries/print.html',
+        {
+            'request': request,
+            'region_title': PRINT_REGION_TITLE,
+            'sheet_title': sheet_title,
+            'qty_header': '入廊工程量' if is_entry else '运维工程量',
+            'price_header': ('不含税入廊费（元/米·孔）' if is_entry
+                             else '不含税运维费（元/米·年）'),
+            'amount_header': '不含税入廊费合计' if is_entry else '不含税运维费合计',
+            'rows': rows,
+            'subtotal': _fmt_money(orig_excl),
+            'tax_rate_text': _fmt_pct(tax_rate),
+            'tax_amount': _fmt_money(orig_tax),
+            'total_incl_tax': _fmt_money(orig_incl),
+            'note_text': note_text,
+            'actual_subtotal': _fmt_money(record_excl),
+            'actual_tax': _fmt_money(record_tax),
+            'actual_total': _fmt_money(record_incl),
+            'blank_rows': blank_rows,
+            'title': f'打印{fee_label} - {entry.project_name or ""}',
+        },
+    )
+
+
 @router.get('/new', response_class=HTMLResponse)
 def new_record(request: Request, db: Session = Depends(get_db)):
     companies = db.query(Company).order_by(Company.company_name).all()

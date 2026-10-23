@@ -117,6 +117,7 @@
                     {% set remain = (record.amount_incl_tax or 0) - (record.actual_received_amount or 0) %}
                     {% if remain > 0.004 %}<button type="button" class="receive-toggle" data-target="receive-{{ record.id }}">收款</button>{% endif %}
                     <a href="/fee-records/{{ record.id }}/edit">修改</a>
+                    {% if record.pipeline_entry_id %}<a href="/fee-records/{{ record.id }}/print" target="_blank" style="margin-left:8px;">打印费用单</a>{% endif %}
                     <form method="post" action="/fee-records/{{ record.id }}/delete" style="display:inline; margin-left:8px;">
         <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                         <button type="submit" onclick="return confirm('确定删除这条收费记录吗？')">删除</button>
