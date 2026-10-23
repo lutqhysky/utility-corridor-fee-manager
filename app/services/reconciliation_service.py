@@ -83,34 +83,35 @@ def get_reconciliation(db: Session) -> dict:
         types = {(item['contract'].contract_type or '').strip() for item in linked}
         base = {'entry': e, 'company_name': company_name(e),
                 'entry_date': e.entry_date.isoformat() if e.entry_date else '未填',
-                'linked_contracts': linked}
+                'contract_name': '—', 'contract_type': '—', 'status_text': ''}
         if not linked:
-            groups['no_contract'].append({**base, 'detail': '入廊清单中无任何合同与之关联'})
+            groups['no_contract'].append(
+                {**base, 'status_text': '入廊清单中无任何合同与之关联'})
         else:
             if not (types & ENTRY_TYPES):
                 groups['missing_entry_contract'].append(
-                    {**base, 'detail': '已有合同类型：%s' % '、'.join(sorted(types))})
+                    {**base, 'contract_type': '入廊合同（缺）',
+                     'status_text': '已有合同类型：%s' % '、'.join(sorted(types))})
             if not (types & MAINT_TYPES):
                 groups['missing_maint_contract'].append(
-                    {**base, 'detail': '已有合同类型：%s' % '、'.join(sorted(types))})
-            unsigned = [i['contract'] for i in linked
-                        if (i['contract'].filing_status or '').strip() == '未签订']
-            if unsigned:
-                groups['contract_unsigned'].append(
-                    {**base, 'detail': '未签订：%s' % '、'.join(
-                        '《%s》（%s）' % (c.contract_name, c.contract_type or '未填类型')
-                        for c in unsigned)})
-            unfiled = [i['contract'] for i in linked
-                       if (i['contract'].filing_status or '').strip() in ('未备案', '正在备案')]
-            if unfiled:
-                groups['contract_unfiled'].append(
-                    {**base, 'detail': '、'.join(
-                        '《%s》（%s）%s' % (c.contract_name, c.contract_type or '未填类型',
-                                           c.filing_status) for c in unfiled)})
+                    {**base, 'contract_type': '运维合同（缺）',
+                     'status_text': '已有合同类型：%s' % '、'.join(sorted(types))})
+            for item in linked:
+                c = item['contract']
+                status = (c.filing_status or '').strip()
+                crow = {**base,
+                        'contract_name': '《%s》' % c.contract_name,
+                        'contract_type': c.contract_type or '未填类型',
+                        'status_text': status or '未填'}
+                if status == '未签订':
+                    groups['contract_unsigned'].append(crow)
+                elif status in ('未备案', '正在备案'):
+                    groups['contract_unfiled'].append(crow)
         if e.id not in fee_entry_ids:
-            groups['no_fee'].append({**base, 'detail': '收费记录 0 条'})
+            groups['no_fee'].append({**base, 'status_text': '收费记录 0 条'})
         elif not linked:
-            groups['fee_no_contract'].append({**base, 'detail': '已有收费记录但无合同关联'})
+            groups['fee_no_contract'].append(
+                {**base, 'status_text': '已有收费记录但无合同关联'})
 
     serious_keys = ('no_contract', 'fee_no_contract', 'no_fee', 'contract_unsigned')
     return {

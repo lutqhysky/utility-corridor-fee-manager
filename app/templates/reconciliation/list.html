@@ -25,14 +25,16 @@
         {{ g.title }}（{{ g.rows|length }}）
     </h3>
     <table>
-        <thead><tr><th>单位</th><th>项目</th><th>入廊时间</th><th>说明</th></tr></thead>
+        <thead><tr><th>单位</th><th>项目</th><th>入廊时间</th><th>合同名</th><th>合同类型</th><th>状态 / 说明</th></tr></thead>
         <tbody>
         {% for r in g.rows %}
             <tr>
                 <td>{{ r.company_name }}</td>
                 <td><a href="/pipeline-entries/{{ r.entry.id }}/edit">{{ r.entry.project_name or '（未命名）' }}</a></td>
                 <td>{{ r.entry_date }}</td>
-                <td>{{ r.detail }}</td>
+                <td>{{ r.contract_name }}</td>
+                <td>{{ r.contract_type }}</td>
+                <td>{{ r.status_text }}</td>
             </tr>
         {% endfor %}
         </tbody>
